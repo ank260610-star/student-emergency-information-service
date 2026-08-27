@@ -10,11 +10,9 @@ export const categoryMeta = {
 }
 
 export const onlineMapProvider = {
-  name: 'OpenStreetMap',
-  url: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+  url: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
   attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap contributors</a>',
   maxZoom: 19,
-  productionNote: '在线底图当前用于本地原型；正式发布前应复核中国境内地图服务的可用性与合规要求。',
 }
 
 export const campusConfigs = {
@@ -28,8 +26,8 @@ export const campusConfigs = {
     geoCenter: [39.1035701, 117.1622314],
     geoBounds: [[39.0995339, 117.1494557], [39.1071409, 117.172567]],
     geoZoom: 16,
-    geoDataStatus: 'OpenStreetMap 已核验校区边界，但未提供足够可靠的楼宇点位；在线模式暂不显示推测坐标。',
-    sourceLabel: '项目内置八里台校区图（已按图中图例录入 1–90 号地点）',
+    geoDataStatus: '八里台在线地图暂无已核验的楼宇点位。',
+    sourceLabel: '八里台校区图 · 01–90',
   },
   jinnan: {
     id: 'jinnan',
@@ -41,8 +39,8 @@ export const campusConfigs = {
     geoCenter: [38.9869388, 117.33941],
     geoBounds: [[38.9810281, 117.3264947], [38.9952273, 117.3519729]],
     geoZoom: 16,
-    geoDataStatus: '已录入项目地图中可可靠辨认的地点；在线模式仅显示经过 OpenStreetMap 核验的点位，其余地点保留导览图坐标。',
-    sourceLabel: '项目内置津南校区图 v3.0（2023-08-31）、南开大学校方建筑资料与 OpenStreetMap 公开数据',
+    geoDataStatus: '津南在线地图只显示已核验的楼宇点位。',
+    sourceLabel: '津南校区图 v3.0 · OpenStreetMap',
     numberingNote: 'J01–J74 是本站交互检索编号，不是学校官方建筑编号。',
   },
 }

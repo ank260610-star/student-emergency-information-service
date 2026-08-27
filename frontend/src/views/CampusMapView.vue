@@ -6,7 +6,6 @@ import {
   campusConfigs,
   categoryMeta,
   getCampusLocations,
-  onlineMapProvider,
 } from '../data/campusLocations'
 
 const campus = ref('balitai')
@@ -15,7 +14,7 @@ const labelMode = ref('markers')
 const category = ref('all')
 const query = ref('')
 const selectedId = ref('')
-const mapStatus = ref('八里台已收录 90 个地点；放大地图可逐步显示全部标号。')
+const mapStatus = ref('八里台 · 90 个地点')
 const interactiveMap = ref(null)
 
 const currentCampus = computed(() => campusConfigs[campus.value])
@@ -48,7 +47,7 @@ function handleMapSelection(locationId) {
 function clearMapSelection() {
   if (!selectedId.value) return
   selectedId.value = ''
-  mapStatus.value = '已取消地点选择；点击任意色点或编号可以再次查看详情。'
+  mapStatus.value = '已取消选择。'
 }
 
 async function selectAndFocus(location) {
@@ -65,22 +64,22 @@ function handleCoordinateUnavailable(location) {
 function setBaseMode(mode) {
   baseMode.value = mode
   mapStatus.value = mode === 'online'
-    ? `已切换到在线地图。${onlineMapProvider.productionNote}`
+    ? '已切换到在线地图。'
     : '已切换到校园导览图。'
 }
 
 function setLabelMode(mode) {
   labelMode.value = mode
   mapStatus.value = mode === 'callouts'
-    ? '已切换到引线全览；点击边缘标签可以突出对应建筑。'
-    : `已切换到点选标号；当前收录 ${campusLocations.value.length} 个地点，放大地图可显示更多标号。`
+    ? '已切换到引线全览。'
+    : '已切换到点选标号。'
 }
 
 watch(campus, () => {
   selectedId.value = ''
   query.value = ''
   category.value = 'all'
-  mapStatus.value = `已切换到${currentCampus.value.name}，当前收录 ${campusLocations.value.length} 个地点。`
+  mapStatus.value = `${currentCampus.value.name} · ${campusLocations.value.length} 个地点`
 })
 
 watch(category, () => {
@@ -174,9 +173,9 @@ watch(category, () => {
         <span aria-hidden="true">!</span>
         <p>
           <strong>{{ currentCampus.sourceLabel }}</strong>
-          <template v-if="baseMode === 'online'">；当前有 {{ geocodedCount }} 个经过公开数据核验的在线点位。</template>
+          <template v-if="baseMode === 'online'"> · {{ geocodedCount }} 个在线点位。</template>
           <template v-if="currentCampus.numberingNote"> {{ currentCampus.numberingNote }}</template>
-          地图仅作辅助参考，紧急情况以学校官方通知和现场人员指引为准。
+          紧急情况以学校官方通知和现场人员指引为准。
         </p>
       </div>
     </section>
@@ -215,9 +214,5 @@ watch(category, () => {
       </div>
     </section>
 
-    <aside class="map-future-note">
-      <strong>地图使用与数据说明</strong>
-      <p>{{ currentCampus.geoDataStatus }} 在线地图使用 OpenStreetMap 原型底图；正式发布前应复核境内地图服务的可用性、授权与合规要求。</p>
-    </aside>
   </div>
 </template>

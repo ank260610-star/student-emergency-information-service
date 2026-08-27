@@ -9,7 +9,6 @@ import {
   limitCalloutItems,
   markerPresentationForLocation,
   pointListToSvg,
-  semanticZoomLevel,
 } from '../utils/mapUtils'
 
 const props = defineProps({
@@ -31,7 +30,6 @@ const tileError = ref(false)
 const callouts = ref([])
 const mobileCallouts = ref([])
 const hoveredCalloutId = ref('')
-const semanticLevel = ref(0)
 const hospitalDirection = ref(null)
 const viewport = reactive({ width: 0, height: 0 })
 
@@ -53,13 +51,6 @@ const forcedIdSet = computed(() => new Set(props.forcedIds))
 const hospitalUnavailableOnline = computed(() => (
   props.baseMode === 'online' && emergencyLocation.value && !emergencyLocation.value.geoPoint
 ))
-const zoomLevelText = computed(() => [
-  '总览 · 医院突出，其余为分类色点',
-  '一级 · 主要地点显示编号',
-  '二级 · 常用地点显示编号',
-  '精细 · 全部地点显示编号',
-][semanticLevel.value])
-
 const categoryColors = {
   emergency: '#b71f2d',
   gate: '#315c83',
@@ -207,7 +198,6 @@ function refreshFeatures() {
   featureLayer = L.layerGroup().addTo(map)
 
   const currentZoom = map.getZoom()
-  semanticLevel.value = semanticZoomLevel(currentZoom, initialZoom)
   for (const location of props.locations) {
     const latLng = locationLatLng(location)
     if (!latLng) continue
@@ -372,7 +362,6 @@ function onlineMap() {
   baseLayer = L.tileLayer(onlineMapProvider.url, {
     attribution: onlineMapProvider.attribution,
     maxZoom: onlineMapProvider.maxZoom,
-    crossOrigin: true,
   })
     .on('load', () => { loading.value = false })
     .on('tileerror', () => {
@@ -394,7 +383,11 @@ function onlineMap() {
 
   map.fitBounds(campusBounds, { padding: [24, 24], animate: false })
   initialZoom = map.getZoom()
-  loadingTimer = window.setTimeout(() => { if (loading.value) loading.value = false }, 3500)
+  loadingTimer = window.setTimeout(() => {
+    if (!loading.value) return
+    loading.value = false
+    tileError.value = true
+  }, 8000)
 }
 
 function destroyMap() {
@@ -444,7 +437,7 @@ function resetView() {
     padding: props.baseMode === 'online' ? [24, 24] : [8, 8],
     animate: false,
   })
-  emit('status', `${props.campus.name}已恢复全图视野。`)
+  emit('status', '已恢复全图。')
 }
 
 function focusLocation(locationId, openPopup = true) {
@@ -496,7 +489,7 @@ function locateUser() {
         fillOpacity: 1,
       }).bindTooltip('你的位置').addTo(map)
       map.setView(point, Math.max(map.getZoom(), 17), { animate: false })
-      emit('status', '已在本机浏览器中显示当前位置；位置不会上传或保存。')
+      emit('status', '已显示当前位置；位置不会上传或保存。')
     },
     (error) => emit('status', locationErrorMessage(error)),
     { enableHighAccuracy: false, timeout: 8000, maximumAge: 60000 },
@@ -542,11 +535,6 @@ defineExpose({ focusLocation, locateUser, resetView })
       :aria-label="`${campus.name}${baseMode === 'online' ? '在线地图' : '校园导览图'}`"
     ></div>
     <div v-if="baseMode === 'illustration'" class="campus-map-finish" aria-hidden="true"></div>
-    <div class="map-identity-badge" aria-hidden="true">
-      <strong>{{ campus.short }}</strong>
-      <span>{{ baseMode === 'online' ? '在线公开底图' : '精修校园导览' }}</span>
-    </div>
-    <div class="map-zoom-state" role="status">{{ zoomLevelText }}</div>
 
     <div v-if="loading" class="map-state-overlay" role="status">
       <span class="map-loading-spinner" aria-hidden="true"></span>
@@ -557,7 +545,7 @@ defineExpose({ focusLocation, locateUser, resetView })
     <div v-if="tileError" class="map-tile-warning" role="alert">
       在线底图部分加载失败。你可以继续使用标记，或切回“校园导览图”。
     </div>
-    <div v-if="baseMode === 'online' && geocodedCount === 0" class="map-data-warning" role="status">
+    <div v-if="baseMode === 'online' && geocodedCount === 0 && !tileError" class="map-data-warning" role="status">
       {{ campus.geoDataStatus }}
     </div>
 
