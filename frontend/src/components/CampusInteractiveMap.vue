@@ -273,6 +273,7 @@ function updateCallouts() {
   mobileCallouts.value = candidates
     .filter((item) => item.location.emergency || required.has(item.id) || item.priority <= 2)
     .sort((a, b) => Number(Boolean(b.location.emergency)) - Number(Boolean(a.location.emergency))
+      || Number(b.id === props.selectedId) - Number(a.id === props.selectedId)
       || Number(required.has(b.id)) - Number(required.has(a.id))
       || a.priority - b.priority
       || a.order - b.order)

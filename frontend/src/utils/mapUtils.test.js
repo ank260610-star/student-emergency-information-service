@@ -10,7 +10,7 @@ import {
   semanticZoomLevel,
   shouldShowPriority,
 } from './mapUtils.js'
-import { getCampusLocations } from '../data/campusLocations.js'
+import { categoryMeta, getCampusLocations } from '../data/campusLocations.js'
 
 test('converts top-left percentage coordinates to Leaflet simple coordinates', () => {
   assert.deepEqual(
@@ -52,6 +52,17 @@ test('callout limits never remove the hospital or an explicitly required result'
   ]
   const limited = limitCalloutItems(items, 2, ['selected'])
   assert.deepEqual(new Set(limited.map((item) => item.id)), new Set(['hospital', 'selected']))
+})
+
+test('keeps the selected callout ahead of other forced results when space is limited', () => {
+  const items = [
+    { id: 'forced-1', side: 'top', priority: 1, order: 1, location: {} },
+    { id: 'forced-2', side: 'top', priority: 1, order: 2, location: {} },
+    { id: 'hospital', side: 'top', priority: 1, order: 3, location: { emergency: true } },
+    { id: 'selected', side: 'top', priority: 3, order: 99, location: {} },
+  ]
+  const limited = limitCalloutItems(items, 2, ['selected', 'forced-1', 'forced-2'])
+  assert.deepEqual(limited.map((item) => item.id), ['hospital', 'selected'])
 })
 
 test('clamps offscreen points to a safe viewport edge and leaves visible points alone', () => {
@@ -100,4 +111,20 @@ test('keeps the complete Jinnan J01–J74 internal index searchable without inve
   assert.equal(geocoded.length, 15)
   assert.ok(geocoded.every((location) => location.geoSource?.includes('openstreetmap.org')))
   assert.equal(locations.filter((location) => location.emergency).length, 1)
+})
+
+test('keeps all campus records unique, categorized and inside their guide-map bounds', () => {
+  const locations = [...getCampusLocations('balitai'), ...getCampusLocations('jinnan')]
+  assert.equal(new Set(locations.map((location) => location.id)).size, locations.length)
+
+  for (const location of locations) {
+    assert.ok(categoryMeta[location.category], `${location.id} has an unknown category`)
+    assert.ok([1, 2, 3].includes(location.priority), `${location.id} has an invalid priority`)
+    assert.ok(location.description, `${location.id} has no description`)
+    assert.ok(location.imagePoint.x >= 0 && location.imagePoint.x <= 100, `${location.id} has an out-of-bounds x coordinate`)
+    assert.ok(location.imagePoint.y >= 0 && location.imagePoint.y <= 100, `${location.id} has an out-of-bounds y coordinate`)
+  }
+
+  assert.equal(getCampusLocations('balitai').filter((location) => location.emergency).length, 1)
+  assert.equal(getCampusLocations('jinnan').filter((location) => location.emergency).length, 1)
 })

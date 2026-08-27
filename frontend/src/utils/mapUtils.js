@@ -31,13 +31,19 @@ export function shouldShowPriority(priority, zoom, baselineZoom) {
 
 export function limitCalloutItems(items, maxPerSide, requiredIds = []) {
   const required = new Set(requiredIds)
+  const requiredRank = new Map()
+  for (const id of requiredIds) {
+    if (id && !requiredRank.has(id)) requiredRank.set(id, requiredRank.size)
+  }
   return ['top', 'bottom'].flatMap((side) => {
     const sideItems = items.filter((item) => (item.side || 'bottom') === side)
     if (sideItems.length <= maxPerSide) return sideItems
 
     const protectedItems = sideItems
       .filter((item) => item.location?.emergency || required.has(item.id))
-      .sort((a, b) => Number(Boolean(b.location?.emergency)) - Number(Boolean(a.location?.emergency)) || (a.order ?? 0) - (b.order ?? 0))
+      .sort((a, b) => Number(Boolean(b.location?.emergency)) - Number(Boolean(a.location?.emergency))
+        || (requiredRank.get(a.id) ?? Number.MAX_SAFE_INTEGER) - (requiredRank.get(b.id) ?? Number.MAX_SAFE_INTEGER)
+        || (a.order ?? 0) - (b.order ?? 0))
       .slice(0, maxPerSide)
     const protectedIds = new Set(protectedItems.map((item) => item.id))
     const remainder = sideItems
