@@ -1,28 +1,223 @@
 <script setup>
-import { computed, ref } from 'vue'
+import { computed, nextTick, ref, watch } from 'vue'
+import CampusInteractiveMap from '../components/CampusInteractiveMap.vue'
+import CampusMapControls from '../components/CampusMapControls.vue'
+import {
+  campusConfigs,
+  categoryMeta,
+  getCampusLocations,
+  onlineMapProvider,
+} from '../data/campusLocations'
+
 const campus = ref('balitai')
-const campusData = {
-  balitai: { name: '八里台校区', short: '八里台', image: '/images/campus-map-balitai.jpg', alt: '南开大学八里台校区地图，校医院已使用红十字标识', hospital: { x: 59.8, y: 36.4 }, zones: ['宿舍区', '教学楼', '学生生活中心'] },
-  jinnan: { name: '津南校区', short: '津南', image: '/images/campus-map-jinnan.jpg', alt: '南开大学津南校区地图，校医院已使用红十字标识', hospital: { x: 33.6, y: 18.4 }, zones: ['宿舍区', '公共教学楼', '学生生活中心'] },
+const baseMode = ref('illustration')
+const labelMode = ref('markers')
+const category = ref('all')
+const query = ref('')
+const selectedId = ref('')
+const mapStatus = ref('八里台已收录 90 个地点；放大地图可逐步显示全部标号。')
+const interactiveMap = ref(null)
+
+const currentCampus = computed(() => campusConfigs[campus.value])
+const campusLocations = computed(() => getCampusLocations(campus.value))
+const normalizedQuery = computed(() => query.value.trim().toLocaleLowerCase('zh-CN'))
+const filteredLocations = computed(() => campusLocations.value.filter((location) => {
+  const matchesCategory = category.value === 'all' || location.category === category.value
+  const searchText = `${location.number} ${location.name} ${location.description}`.toLocaleLowerCase('zh-CN')
+  const matchesQuery = !normalizedQuery.value || searchText.includes(normalizedQuery.value)
+  return matchesCategory && matchesQuery
+}))
+// Filtering changes emphasis and the directory, but never removes context from
+// the map: unmatched places remain as small category-coloured dots.
+const mapLocations = computed(() => campusLocations.value)
+const forcedMarkerIds = computed(() => (
+  category.value !== 'all' || normalizedQuery.value
+    ? filteredLocations.value.map((location) => location.id)
+    : []
+))
+const selectedLocation = computed(() => campusLocations.value.find((location) => location.id === selectedId.value))
+const searchResults = computed(() => normalizedQuery.value ? filteredLocations.value.slice(0, 8) : [])
+const geocodedCount = computed(() => campusLocations.value.filter((location) => location.geoPoint).length)
+
+function handleMapSelection(locationId) {
+  selectedId.value = locationId
+  const location = campusLocations.value.find((item) => item.id === locationId)
+  if (location) mapStatus.value = `已选择：${location.name}`
 }
-const current = computed(() => campusData[campus.value])
-const locations = computed(() => [['✚', '医疗资源', `${current.value.name}校医院`, '请查看地图红十字标识'], ['◈', '安全服务', `${current.value.name}保卫值班点`, '请结合校园标识确认'], ['◎', '集合区域', '临时集合点', '由现场老师确认'], ['▦', '高频区域', current.value.zones.join('、'), '位置仅作分类参考']])
+
+function clearMapSelection() {
+  if (!selectedId.value) return
+  selectedId.value = ''
+  mapStatus.value = '已取消地点选择；点击任意色点或编号可以再次查看详情。'
+}
+
+async function selectAndFocus(location) {
+  selectedId.value = location.id
+  await nextTick()
+  const focused = interactiveMap.value?.focusLocation(location.id, true)
+  if (focused) mapStatus.value = `已定位到：${location.name}`
+}
+
+function handleCoordinateUnavailable(location) {
+  mapStatus.value = `${location.name}尚无经过核验的经纬度，请切换到“校园导览图”查看准确图上位置。`
+}
+
+function setBaseMode(mode) {
+  baseMode.value = mode
+  mapStatus.value = mode === 'online'
+    ? `已切换到在线地图。${onlineMapProvider.productionNote}`
+    : '已切换到校园导览图。'
+}
+
+function setLabelMode(mode) {
+  labelMode.value = mode
+  mapStatus.value = mode === 'callouts'
+    ? '已切换到引线全览；点击边缘标签可以突出对应建筑。'
+    : `已切换到点选标号；当前收录 ${campusLocations.value.length} 个地点，放大地图可显示更多标号。`
+}
+
+watch(campus, () => {
+  selectedId.value = ''
+  query.value = ''
+  category.value = 'all'
+  mapStatus.value = `已切换到${currentCampus.value.name}，当前收录 ${campusLocations.value.length} 个地点。`
+})
+
+watch(category, () => {
+  if (selectedLocation.value && !filteredLocations.value.some((item) => item.id === selectedId.value)) {
+    selectedId.value = ''
+  }
+})
 </script>
 
 <template>
   <div class="page inner-page map-page">
-    <header class="page-header"><span class="section-kicker"><i></i> CAMPUS MAP</span><h1>校园地图</h1><p>快速确认所在校区、常用建筑与集合位置，为报告与人员引导提供参考。</p></header>
-    <section class="campus-switcher" aria-labelledby="campus-title"><div class="section-heading compact"><span class="section-kicker"><i></i> 选择校区</span><h2 id="campus-title">你现在在哪个校区？</h2></div><div class="campus-tabs" role="group" aria-label="校区切换"><button v-for="(data, key) in campusData" :key="key" type="button" :aria-pressed="campus === key" :class="{ active: campus === key }" @click="campus = key">{{ data.name }}</button></div></section>
-    <figure class="campus-map-figure">
-      <a class="map-image-link" :href="current.image" target="_blank" rel="noopener" :aria-label="`在新标签页查看${current.name}地图原图`">
-        <span class="map-image-stage">
-          <img :src="current.image" :alt="current.alt" loading="lazy" decoding="async" />
-          <span class="hospital-marker" :style="{ left: `${current.hospital.x}%`, top: `${current.hospital.y}%` }" aria-hidden="true"><span class="hospital-cross"></span><strong>校医院</strong></span>
-        </span>
-      </a>
-      <figcaption><span>!</span><strong>{{ current.name }}</strong>：点击地图可查看原图。具体集合点与疏散路线以现场老师和学校官方通知为准。</figcaption>
-    </figure>
-    <section class="location-section" aria-labelledby="location-title"><div class="section-heading compact"><span class="section-kicker"><i></i> 常用位置</span><h2 id="location-title">{{ current.short }}常用位置清单</h2></div><div class="location-grid"><article v-for="item in locations" :key="item[1]"><span class="location-icon" aria-hidden="true">{{ item[0] }}</span><div><small>{{ item[1] }}</small><strong>{{ item[2] }}</strong><p>{{ item[3] }}</p></div></article></div></section>
-    <aside class="map-future-note"><strong>地图使用提示</strong><p>地图用于快速识别校区建筑与方位；遇到紧急情况时，请结合现场标识并听从老师与专业人员指引。</p></aside>
+    <header class="page-header">
+      <span class="section-kicker"><i></i> CAMPUS MAP</span>
+      <h1>交互式校园地图</h1>
+      <p>在校园导览图与在线地图之间切换，通过点选标号或引线全览快速确认常用建筑。</p>
+    </header>
+
+    <section class="campus-switcher" aria-labelledby="campus-title">
+      <div class="section-heading compact">
+        <span class="section-kicker"><i></i> 选择校区</span>
+        <h2 id="campus-title">你现在在哪个校区？</h2>
+      </div>
+      <div class="campus-tabs" role="group" aria-label="校区切换">
+        <button
+          v-for="(data, key) in campusConfigs"
+          :key="key"
+          type="button"
+          :aria-pressed="campus === key"
+          :class="{ active: campus === key }"
+          @click="campus = key"
+        >{{ data.name }}</button>
+      </div>
+    </section>
+
+    <section class="map-experience" aria-labelledby="interactive-map-title">
+      <div class="map-experience-heading">
+        <div class="section-heading compact">
+          <span class="section-kicker"><i></i> INTERACTIVE VIEW</span>
+          <h2 id="interactive-map-title">{{ currentCampus.name }}</h2>
+        </div>
+        <label class="map-search">
+          <span class="sr-only">搜索建筑编号或名称</span>
+          <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="m16.5 16.5 4 4"></path></svg>
+          <input v-model="query" type="search" placeholder="搜索编号或建筑名称" autocomplete="off" />
+          <small>{{ filteredLocations.length }} 个地点</small>
+        </label>
+      </div>
+
+      <div v-if="searchResults.length" class="map-search-results" aria-label="建筑搜索结果">
+        <button
+          v-for="location in searchResults"
+          :key="location.id"
+          type="button"
+          @click="selectAndFocus(location)"
+        >
+          <span>{{ location.number }}</span>
+          <strong>{{ location.name }}</strong>
+          <small>{{ categoryMeta[location.category].label }}</small>
+        </button>
+      </div>
+      <p v-else-if="normalizedQuery" class="map-empty-result" role="status">没有找到匹配的建筑，请尝试名称中的其他关键词。</p>
+
+      <div class="campus-map-workspace">
+        <CampusInteractiveMap
+          ref="interactiveMap"
+          :campus="currentCampus"
+          :locations="mapLocations"
+          :base-mode="baseMode"
+          :label-mode="labelMode"
+          :selected-id="selectedId"
+          :forced-ids="forcedMarkerIds"
+          @select="handleMapSelection"
+          @clear-selection="clearMapSelection"
+          @status="mapStatus = $event"
+          @coordinate-unavailable="handleCoordinateUnavailable"
+        />
+        <CampusMapControls
+          :base-mode="baseMode"
+          :label-mode="labelMode"
+          :category="category"
+          :location-status="mapStatus"
+          @update:base-mode="setBaseMode"
+          @update:label-mode="setLabelMode"
+          @update:category="category = $event"
+          @reset="interactiveMap?.resetView()"
+          @locate="interactiveMap?.locateUser()"
+        />
+      </div>
+
+      <div class="map-caption">
+        <span aria-hidden="true">!</span>
+        <p>
+          <strong>{{ currentCampus.sourceLabel }}</strong>
+          <template v-if="baseMode === 'online'">；当前有 {{ geocodedCount }} 个经过公开数据核验的在线点位。</template>
+          <template v-if="currentCampus.numberingNote"> {{ currentCampus.numberingNote }}</template>
+          地图仅作辅助参考，紧急情况以学校官方通知和现场人员指引为准。
+        </p>
+      </div>
+    </section>
+
+    <section v-if="selectedLocation" class="selected-location-card" aria-live="polite">
+      <div :class="`selected-location-number category-${selectedLocation.category}`">
+        <small>{{ selectedLocation.number }}</small>
+        <span aria-hidden="true">{{ categoryMeta[selectedLocation.category].symbol }}</span>
+      </div>
+      <div>
+        <span>{{ categoryMeta[selectedLocation.category].label }} · {{ currentCampus.name }}</span>
+        <h2>{{ selectedLocation.name }}</h2>
+        <p>{{ selectedLocation.description }}</p>
+        <small v-if="baseMode === 'online' && !selectedLocation.geoPoint">该地点目前仅提供校园导览图坐标。</small>
+      </div>
+      <button type="button" @click="selectAndFocus(selectedLocation)">在地图中定位</button>
+    </section>
+
+    <section class="map-directory" aria-labelledby="directory-title">
+      <div class="section-heading compact">
+        <span class="section-kicker"><i></i> LOCATION INDEX</span>
+        <h2 id="directory-title">{{ currentCampus.short }}地点索引</h2>
+      </div>
+      <div class="map-directory-grid">
+        <button
+          v-for="location in filteredLocations"
+          :key="location.id"
+          type="button"
+          :class="{ active: selectedId === location.id }"
+          @click="selectAndFocus(location)"
+        >
+          <span :class="`category-${location.category}`">{{ location.number }}</span>
+          <span><strong>{{ location.name }}</strong><small>{{ categoryMeta[location.category].label }}</small></span>
+          <b aria-hidden="true">→</b>
+        </button>
+      </div>
+    </section>
+
+    <aside class="map-future-note">
+      <strong>地图使用与数据说明</strong>
+      <p>{{ currentCampus.geoDataStatus }} 在线地图使用 OpenStreetMap 原型底图；正式发布前应复核境内地图服务的可用性、授权与合规要求。</p>
+    </aside>
   </div>
 </template>
