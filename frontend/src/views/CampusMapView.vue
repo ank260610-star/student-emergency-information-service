@@ -12,11 +12,11 @@ const locations = computed(() => [['✚', '医疗资源', `${current.value.name}
 <template>
   <div class="page inner-page map-page">
     <header class="page-header"><span class="section-kicker"><i></i> CAMPUS MAP</span><h1>校园地图</h1><p>快速确认所在校区、常用建筑与集合位置，为报告与人员引导提供参考。</p></header>
-    <section class="campus-switcher" aria-labelledby="campus-title"><div class="section-heading compact"><span class="section-kicker"><i></i> 选择校区</span><h2 id="campus-title">你现在在哪个校区？</h2></div><div class="campus-tabs" role="tablist" aria-label="校区切换"><button v-for="(data, key) in campusData" :key="key" role="tab" :aria-selected="campus === key" :class="{ active: campus === key }" @click="campus = key">{{ data.name }}</button></div></section>
+    <section class="campus-switcher" aria-labelledby="campus-title"><div class="section-heading compact"><span class="section-kicker"><i></i> 选择校区</span><h2 id="campus-title">你现在在哪个校区？</h2></div><div class="campus-tabs" role="group" aria-label="校区切换"><button v-for="(data, key) in campusData" :key="key" type="button" :aria-pressed="campus === key" :class="{ active: campus === key }" @click="campus = key">{{ data.name }}</button></div></section>
     <figure class="campus-map-figure">
       <a class="map-image-link" :href="current.image" target="_blank" rel="noopener" :aria-label="`在新标签页查看${current.name}地图原图`">
         <span class="map-image-stage">
-          <img :src="current.image" :alt="current.alt" />
+          <img :src="current.image" :alt="current.alt" loading="lazy" decoding="async" />
           <span class="hospital-marker" :style="{ left: `${current.hospital.x}%`, top: `${current.hospital.y}%` }" aria-hidden="true"><span class="hospital-cross"></span><strong>校医院</strong></span>
         </span>
       </a>
