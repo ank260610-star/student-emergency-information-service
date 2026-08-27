@@ -12,7 +12,7 @@ watch(() => route.fullPath, () => { menuOpen.value = false })
     <header class="mobile-header">
       <RouterLink class="mobile-brand" to="/" aria-label="返回首页"><span class="brand-mark logo-mark"><img src="/images/nankai-university-logo.png" alt="" /></span><span>应急信息服务</span></RouterLink>
       <button class="menu-button" type="button" :aria-expanded="menuOpen" aria-controls="site-sidebar" @click="menuOpen = !menuOpen">
-        <span class="sr-only">打开导航菜单</span><span></span><span></span><span></span>
+        <span class="sr-only">{{ menuOpen ? '关闭导航菜单' : '打开导航菜单' }}</span><span></span><span></span><span></span>
       </button>
     </header>
     <div v-if="menuOpen" class="menu-backdrop" aria-hidden="true" @click="menuOpen = false"></div>
