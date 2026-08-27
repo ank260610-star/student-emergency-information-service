@@ -151,7 +151,6 @@ export const jinnanLocations = jinnanRows.map(([number, name, category, x, y]) =
     imagePoint: { x, y },
     geoPoint: geo?.[0] || null,
     geoSource: geo?.[1] || null,
-    callout: { side: y < 45 ? 'top' : 'bottom', order: Math.round(x * 10) },
     priority: priorityOne.has(number) ? 1 : priorityTwo.has(number) ? 2 : 3,
     emergency: number === 'J01',
     description: descriptions[number] || `津南校区导览图地点；${number} 为本站交互检索编号。`,

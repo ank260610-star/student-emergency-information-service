@@ -1,12 +1,9 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import {
-  buildCalloutLayout,
   clampPointToViewportEdge,
   imagePointToSimpleLatLng,
-  limitCalloutItems,
   markerPresentationForLocation,
-  pointListToSvg,
   semanticZoomLevel,
   shouldShowPriority,
 } from './mapUtils.js'
@@ -43,28 +40,6 @@ test('keeps the hospital prominent and turns other locations from dots into numb
   assert.equal(markerPresentationForLocation(ordinary, 0, 0, { forced: true }), 'number')
 })
 
-test('callout limits never remove the hospital or an explicitly required result', () => {
-  const items = [
-    { id: 'ordinary-1', side: 'top', priority: 1, order: 1, location: {} },
-    { id: 'ordinary-2', side: 'top', priority: 1, order: 2, location: {} },
-    { id: 'hospital', side: 'top', priority: 1, order: 3, location: { emergency: true } },
-    { id: 'selected', side: 'top', priority: 3, order: 4, location: {} },
-  ]
-  const limited = limitCalloutItems(items, 2, ['selected'])
-  assert.deepEqual(new Set(limited.map((item) => item.id)), new Set(['hospital', 'selected']))
-})
-
-test('keeps the selected callout ahead of other forced results when space is limited', () => {
-  const items = [
-    { id: 'forced-1', side: 'top', priority: 1, order: 1, location: {} },
-    { id: 'forced-2', side: 'top', priority: 1, order: 2, location: {} },
-    { id: 'hospital', side: 'top', priority: 1, order: 3, location: { emergency: true } },
-    { id: 'selected', side: 'top', priority: 3, order: 99, location: {} },
-  ]
-  const limited = limitCalloutItems(items, 2, ['selected', 'forced-1', 'forced-2'])
-  assert.deepEqual(limited.map((item) => item.id), ['hospital', 'selected'])
-})
-
 test('clamps offscreen points to a safe viewport edge and leaves visible points alone', () => {
   assert.equal(clampPointToViewportEdge({ x: 500, y: 300 }, 1000, 600, 50), null)
   assert.deepEqual(clampPointToViewportEdge({ x: 1200, y: 300 }, 1000, 600, 50), {
@@ -72,19 +47,6 @@ test('clamps offscreen points to a safe viewport edge and leaves visible points 
     y: 300,
     angle: 0,
   })
-})
-
-test('orders callout labels by their anchor and keeps top and bottom rails separate', () => {
-  const layout = buildCalloutLayout([
-    { id: 'right', side: 'top', point: { x: 800, y: 200 } },
-    { id: 'left', side: 'top', point: { x: 200, y: 220 } },
-    { id: 'bottom', side: 'bottom', point: { x: 500, y: 500 } },
-  ], 1000, 600)
-
-  assert.deepEqual(layout.map((item) => item.id), ['left', 'right', 'bottom'])
-  assert.equal(layout[0].labelY, 30)
-  assert.equal(layout[2].labelY, 570)
-  assert.equal(pointListToSvg(layout[0].points).split(' ').length, 4)
 })
 
 test('keeps the complete Balitai 01–90 campus legend searchable', () => {

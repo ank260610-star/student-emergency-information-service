@@ -4,14 +4,12 @@ import { categoryMeta } from '../data/campusLocations'
 
 defineProps({
   baseMode: { type: String, required: true },
-  labelMode: { type: String, required: true },
   category: { type: String, required: true },
   locationStatus: { type: String, default: '' },
 })
 
 const emit = defineEmits([
   'update:baseMode',
-  'update:labelMode',
   'update:category',
   'reset',
   'locate',
@@ -50,24 +48,6 @@ const collapsed = ref(false)
             :class="{ active: baseMode === 'online' }"
             @click="emit('update:baseMode', 'online')"
           >在线地图</button>
-        </div>
-      </fieldset>
-
-      <fieldset>
-        <legend>标注</legend>
-        <div class="map-segmented">
-          <button
-            type="button"
-            :aria-pressed="labelMode === 'markers'"
-            :class="{ active: labelMode === 'markers' }"
-            @click="emit('update:labelMode', 'markers')"
-          >点选标号</button>
-          <button
-            type="button"
-            :aria-pressed="labelMode === 'callouts'"
-            :class="{ active: labelMode === 'callouts' }"
-            @click="emit('update:labelMode', 'callouts')"
-          >引线全览</button>
         </div>
       </fieldset>
 

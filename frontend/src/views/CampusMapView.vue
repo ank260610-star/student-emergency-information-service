@@ -10,12 +10,12 @@ import {
 
 const campus = ref('balitai')
 const baseMode = ref('illustration')
-const labelMode = ref('markers')
 const category = ref('all')
 const query = ref('')
 const selectedId = ref('')
 const mapStatus = ref('八里台 · 90 个地点')
 const interactiveMap = ref(null)
+const mapWorkspace = ref(null)
 
 const currentCampus = computed(() => campusConfigs[campus.value])
 const campusLocations = computed(() => getCampusLocations(campus.value))
@@ -50,11 +50,18 @@ function clearMapSelection() {
   mapStatus.value = '已取消选择。'
 }
 
-async function selectAndFocus(location) {
+function scrollToMap() {
+  const behavior = window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth'
+  mapWorkspace.value?.scrollIntoView({ behavior, block: 'start' })
+}
+
+async function selectAndFocus(location, shouldScroll = false) {
   selectedId.value = location.id
   await nextTick()
   const focused = interactiveMap.value?.focusLocation(location.id, true)
-  if (focused) mapStatus.value = `已定位到：${location.name}`
+  if (!focused) return
+  mapStatus.value = `已定位到：${location.name}`
+  if (shouldScroll) requestAnimationFrame(scrollToMap)
 }
 
 function handleCoordinateUnavailable(location) {
@@ -66,13 +73,6 @@ function setBaseMode(mode) {
   mapStatus.value = mode === 'online'
     ? '已切换到在线地图。'
     : '已切换到校园导览图。'
-}
-
-function setLabelMode(mode) {
-  labelMode.value = mode
-  mapStatus.value = mode === 'callouts'
-    ? '已切换到引线全览。'
-    : '已切换到点选标号。'
 }
 
 watch(campus, () => {
@@ -94,7 +94,7 @@ watch(category, () => {
     <header class="page-header">
       <span class="section-kicker"><i></i> CAMPUS MAP</span>
       <h1>交互式校园地图</h1>
-      <p>在校园导览图与在线地图之间切换，通过点选标号或引线全览快速确认常用建筑。</p>
+      <p>在校园导览图与在线地图之间切换，通过点选标号快速确认常用建筑。</p>
     </header>
 
     <section class="campus-switcher" aria-labelledby="campus-title">
@@ -142,13 +142,12 @@ watch(category, () => {
       </div>
       <p v-else-if="normalizedQuery" class="map-empty-result" role="status">没有找到匹配的建筑，请尝试名称中的其他关键词。</p>
 
-      <div class="campus-map-workspace">
+      <div ref="mapWorkspace" class="campus-map-workspace">
         <CampusInteractiveMap
           ref="interactiveMap"
           :campus="currentCampus"
           :locations="mapLocations"
           :base-mode="baseMode"
-          :label-mode="labelMode"
           :selected-id="selectedId"
           :forced-ids="forcedMarkerIds"
           @select="handleMapSelection"
@@ -158,11 +157,9 @@ watch(category, () => {
         />
         <CampusMapControls
           :base-mode="baseMode"
-          :label-mode="labelMode"
           :category="category"
           :location-status="mapStatus"
           @update:base-mode="setBaseMode"
-          @update:label-mode="setLabelMode"
           @update:category="category = $event"
           @reset="interactiveMap?.resetView()"
           @locate="interactiveMap?.locateUser()"
@@ -191,7 +188,7 @@ watch(category, () => {
         <p>{{ selectedLocation.description }}</p>
         <small v-if="baseMode === 'online' && !selectedLocation.geoPoint">该地点目前仅提供校园导览图坐标。</small>
       </div>
-      <button type="button" @click="selectAndFocus(selectedLocation)">在地图中定位</button>
+      <button type="button" @click="selectAndFocus(selectedLocation, true)">在地图中定位</button>
     </section>
 
     <section class="map-directory" aria-labelledby="directory-title">
@@ -205,7 +202,7 @@ watch(category, () => {
           :key="location.id"
           type="button"
           :class="{ active: selectedId === location.id }"
-          @click="selectAndFocus(location)"
+          @click="selectAndFocus(location, true)"
         >
           <span :class="`category-${location.category}`">{{ location.number }}</span>
           <span><strong>{{ location.name }}</strong><small>{{ categoryMeta[location.category].label }}</small></span>
