@@ -11,6 +11,7 @@ media/
 # Vue / Vite
 frontend/node_modules/
 frontend/dist/
+.pnpm-store/
 
 # Local tooling and operating-system files
 .DS_Store
