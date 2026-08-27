@@ -183,7 +183,6 @@ const balitaiLocations = balitaiLocationRows.map(([number, name, category, x, y]
   category,
   imagePoint: { x, y },
   geoPoint: null,
-  callout: { side: y < 40 ? 'top' : 'bottom', order: Math.round(x * 10) },
   priority: balitaiPriorityOne.has(number) ? 1 : balitaiPriorityTwo.has(number) ? 2 : 3,
   emergency: number === '42',
   description: balitaiDescriptions[number] || `校园导览图编号 ${number}，${name}。`,

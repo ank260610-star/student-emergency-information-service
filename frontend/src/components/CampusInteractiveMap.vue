@@ -1,21 +1,17 @@
 <script setup>
-import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import L from 'leaflet'
 import { categoryMeta, onlineMapProvider } from '../data/campusLocations'
 import {
-  buildCalloutLayout,
   clampPointToViewportEdge,
   imagePointToSimpleLatLng,
-  limitCalloutItems,
   markerPresentationForLocation,
-  pointListToSvg,
 } from '../utils/mapUtils'
 
 const props = defineProps({
   campus: { type: Object, required: true },
   locations: { type: Array, required: true },
   baseMode: { type: String, required: true },
-  labelMode: { type: String, required: true },
   selectedId: { type: String, default: '' },
   forceAllMarkers: { type: Boolean, default: false },
   forcedIds: { type: Array, default: () => [] },
@@ -27,11 +23,7 @@ const mapElement = ref(null)
 const loading = ref(true)
 const mapError = ref('')
 const tileError = ref(false)
-const callouts = ref([])
-const mobileCallouts = ref([])
-const hoveredCalloutId = ref('')
 const hospitalDirection = ref(null)
-const viewport = reactive({ width: 0, height: 0 })
 
 let map = null
 let baseLayer = null
@@ -40,26 +32,15 @@ let campusBounds = null
 let userLayer = null
 let resizeObserver = null
 let initialZoom = 0
-let calloutFrame = 0
 let loadingTimer = 0
 const featureById = new Map()
 
 const geocodedCount = computed(() => props.locations.filter((location) => location.geoPoint).length)
-const isMobileCallout = computed(() => viewport.width > 0 && viewport.width < 720)
 const emergencyLocation = computed(() => props.locations.find((location) => location.emergency))
 const forcedIdSet = computed(() => new Set(props.forcedIds))
 const hospitalUnavailableOnline = computed(() => (
   props.baseMode === 'online' && emergencyLocation.value && !emergencyLocation.value.geoPoint
 ))
-const categoryColors = {
-  emergency: '#b71f2d',
-  gate: '#315c83',
-  teaching: '#7e0c6e',
-  service: '#765223',
-  sports: '#277052',
-  landscape: '#646a2b',
-}
-
 function escapeHtml(value) {
   return String(value)
     .replaceAll('&', '&amp;')
@@ -153,15 +134,6 @@ function createFeature(location, latLng, presentation) {
       riseOnHover: true,
       zIndexOffset: 1500,
     })
-  } else if (props.labelMode === 'callouts') {
-    feature = L.circleMarker(latLng, {
-      radius: active ? 8 : presentation === 'number' ? 6 : 4,
-      weight: active ? 3 : 2,
-      color: '#fff',
-      fillColor: categoryColors[location.category] || '#7e0c6e',
-      fillOpacity: 1,
-      className: active ? 'campus-anchor is-active' : 'campus-anchor',
-    })
   } else {
     feature = L.marker(latLng, {
       icon: markerIcon(location, active, presentation),
@@ -215,75 +187,10 @@ function refreshFeatures() {
     })
   }
 
-  scheduleCallouts()
   updateHospitalDirection()
 }
 
-function selectCallout(location) {
-  emit('select', location.id)
-  focusLocation(location.id, true)
-}
-
-function limitCallouts(items, width) {
-  const maxPerSide = Math.max(3, Math.floor((width - 100) / 118))
-  return limitCalloutItems(items, maxPerSide, [props.selectedId, ...props.forcedIds].filter(Boolean))
-}
-
-function updateCallouts() {
-  calloutFrame = 0
-  if (!map || props.labelMode !== 'callouts') {
-    callouts.value = []
-    mobileCallouts.value = []
-    return
-  }
-
-  const width = mapElement.value?.clientWidth || 0
-  const height = mapElement.value?.clientHeight || 0
-  viewport.width = width
-  viewport.height = height
-
-  const candidates = props.locations
-    .map((location) => {
-      const latLng = locationLatLng(location)
-      if (!latLng) return null
-      const point = map.latLngToContainerPoint(latLng)
-      if (point.x < -10 || point.y < -10 || point.x > width + 10 || point.y > height + 10) return null
-      return {
-        id: location.id,
-        location,
-        priority: location.priority,
-        order: location.callout?.order ?? 0,
-        side: location.callout?.side || (point.y < height / 2 ? 'top' : 'bottom'),
-        point: { x: point.x, y: point.y },
-      }
-    })
-    .filter(Boolean)
-
-  const required = new Set([props.selectedId, ...props.forcedIds].filter(Boolean))
-  mobileCallouts.value = candidates
-    .filter((item) => item.location.emergency || required.has(item.id) || item.priority <= 2)
-    .sort((a, b) => Number(Boolean(b.location.emergency)) - Number(Boolean(a.location.emergency))
-      || Number(b.id === props.selectedId) - Number(a.id === props.selectedId)
-      || Number(required.has(b.id)) - Number(required.has(a.id))
-      || a.priority - b.priority
-      || a.order - b.order)
-    .slice(0, 18)
-
-  if (width < 720) {
-    callouts.value = []
-    return
-  }
-
-  callouts.value = buildCalloutLayout(limitCallouts(candidates, width), width, height)
-}
-
-function scheduleCallouts() {
-  if (calloutFrame) cancelAnimationFrame(calloutFrame)
-  calloutFrame = requestAnimationFrame(updateCallouts)
-}
-
 function handleMapMotion() {
-  scheduleCallouts()
   updateHospitalDirection()
 }
 
@@ -391,12 +298,8 @@ function onlineMap() {
 }
 
 function destroyMap() {
-  if (calloutFrame) cancelAnimationFrame(calloutFrame)
   if (loadingTimer) window.clearTimeout(loadingTimer)
-  calloutFrame = 0
   loadingTimer = 0
-  callouts.value = []
-  mobileCallouts.value = []
   hospitalDirection.value = null
   featureById.clear()
   featureLayer = null
@@ -428,7 +331,6 @@ async function buildMap() {
   map.on('click', handleMapBackgroundClick)
   refreshFeatures()
   map.invalidateSize({ animate: false })
-  scheduleCallouts()
 }
 
 function resetView() {
@@ -455,7 +357,6 @@ function focusLocation(locationId, openPopup = true) {
   map.setView(latLng, targetZoom, { animate: false })
   const feature = featureById.get(location.id)
   if (openPopup && feature) feature.openPopup()
-  scheduleCallouts()
   return true
 }
 
@@ -502,7 +403,7 @@ watch(
 )
 
 watch(
-  () => [props.labelMode, props.selectedId, props.forceAllMarkers, props.forcedIds, props.locations],
+  () => [props.selectedId, props.forceAllMarkers, props.forcedIds, props.locations],
   () => refreshFeatures(),
   { deep: true },
 )
@@ -510,10 +411,7 @@ watch(
 onMounted(() => {
   resizeObserver = new ResizeObserver(() => {
     if (!mapElement.value) return
-    viewport.width = mapElement.value.clientWidth
-    viewport.height = mapElement.value.clientHeight
     if (map) map.invalidateSize({ animate: false })
-    scheduleCallouts()
   })
   resizeObserver.observe(mapElement.value)
   buildMap()
@@ -528,7 +426,7 @@ defineExpose({ focusLocation, locateUser, resetView })
 </script>
 
 <template>
-  <div class="campus-interactive-map" :class="[`campus-${campus.id}`, `base-${baseMode}`, `labels-${labelMode}`]">
+  <div class="campus-interactive-map" :class="[`campus-${campus.id}`, `base-${baseMode}`]">
     <div
       ref="mapElement"
       class="leaflet-campus-map"
@@ -572,44 +470,5 @@ defineExpose({ focusLocation, locateUser, resetView })
       <small>导览图有核验位置</small>
     </button>
 
-    <template v-if="labelMode === 'callouts' && !isMobileCallout">
-      <svg
-        class="campus-callout-lines"
-        :viewBox="`0 0 ${viewport.width} ${viewport.height}`"
-        aria-hidden="true"
-      >
-        <g v-for="item in callouts" :key="item.id" :class="{ active: selectedId === item.id || hoveredCalloutId === item.id }">
-          <polyline :points="pointListToSvg(item.points)" />
-          <circle :cx="item.point.x" :cy="item.point.y" r="4" />
-        </g>
-      </svg>
-      <button
-        v-for="item in callouts"
-        :key="`label-${item.id}`"
-        type="button"
-        class="campus-callout-label"
-        :class="[item.side, { active: selectedId === item.id || hoveredCalloutId === item.id, emergency: item.location.emergency }]"
-        :style="{ left: `${item.labelX}px` }"
-        @click="selectCallout(item.location)"
-        @mouseenter="hoveredCalloutId = item.id"
-        @mouseleave="hoveredCalloutId = ''"
-        @focus="hoveredCalloutId = item.id"
-        @blur="hoveredCalloutId = ''"
-      >
-        <span>{{ item.location.number }}</span>{{ item.location.name }}
-      </button>
-    </template>
-
-    <div v-if="labelMode === 'callouts' && isMobileCallout && mobileCallouts.length" class="mobile-callout-strip">
-      <button
-        v-for="item in mobileCallouts"
-        :key="`mobile-${item.id}`"
-        type="button"
-        :class="{ active: selectedId === item.id, emergency: item.location.emergency }"
-        @click="selectCallout(item.location)"
-      >
-        <span>{{ item.location.number }}</span>{{ item.location.name }}
-      </button>
-    </div>
   </div>
 </template>
