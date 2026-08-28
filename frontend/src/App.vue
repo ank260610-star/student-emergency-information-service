@@ -1,10 +1,38 @@
 <script setup>
-import { ref, watch } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { RouterLink, RouterView, useRoute } from 'vue-router'
 
 const menuOpen = ref(false)
+const visitCount = ref(null)
+const visitCountStatus = ref('loading')
 const route = useRoute()
+const formattedVisitCount = computed(() => (
+  visitCount.value === null ? '—' : new Intl.NumberFormat('zh-CN').format(visitCount.value)
+))
+
 watch(() => route.fullPath, () => { menuOpen.value = false })
+
+onMounted(async () => {
+  try {
+    const response = await fetch('/api/visits', {
+      method: 'POST',
+      headers: { Accept: 'application/json' },
+      cache: 'no-store',
+      credentials: 'same-origin',
+    })
+
+    if (!response.ok) throw new Error(`Visit counter returned ${response.status}`)
+
+    const data = await response.json()
+    if (!Number.isSafeInteger(data.total) || data.total < 0) throw new Error('Invalid visit count')
+
+    visitCount.value = data.total
+    visitCountStatus.value = 'ready'
+  } catch (error) {
+    visitCountStatus.value = 'error'
+    console.warn('Unable to load the visit counter.', error)
+  }
+})
 </script>
 
 <template>
@@ -31,7 +59,23 @@ watch(() => route.fullPath, () => { menuOpen.value = false })
           <span><strong>校园地图</strong><small>确认校区与常用位置</small></span>
         </RouterLink>
       </nav>
-      <div class="sidebar-notice"><span aria-hidden="true">!</span><p>紧急情况请优先联系专业救援力量，并以学校官方通知为准。</p></div>
+      <div class="sidebar-bottom">
+        <section
+          class="visit-count-card"
+          :class="`is-${visitCountStatus}`"
+          :title="visitCountStatus === 'error' ? '暂时无法读取访问次数' : undefined"
+          aria-label="网站累计访问次数"
+        >
+          <span class="visit-count-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24"><path d="M2.8 12s3.2-6 9.2-6 9.2 6 9.2 6-3.2 6-9.2 6-9.2-6-9.2-6Z"/><circle cx="12" cy="12" r="2.7"/></svg>
+          </span>
+          <span class="visit-count-copy">
+            <small>累计访问次数</small>
+            <strong aria-live="polite">{{ formattedVisitCount }}</strong>
+          </span>
+        </section>
+        <div class="sidebar-notice"><span aria-hidden="true">!</span><p>紧急情况请优先联系专业救援力量，并以学校官方通知为准。</p></div>
+      </div>
     </aside>
     <main class="main-content">
       <RouterView />
