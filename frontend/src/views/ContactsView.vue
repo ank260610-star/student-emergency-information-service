@@ -58,8 +58,8 @@ const contacts = [
             <div class="tag-row"><span v-for="tag in contact.tags" :key="tag">{{ tag }}</span></div>
             <p>{{ contact.note }}</p>
             <div v-if="contact.featured" class="contact-detail"><span>{{ contact.featuredLabel }}</span><strong>{{ contact.featured }}</strong></div>
-            <button v-if="contact.more.length" class="expand-button" type="button" :aria-expanded="!!expanded[index]" @click="expanded[index] = !expanded[index]">{{ expanded[index] ? '收起全部联系方式' : '展开查看全部联系方式' }} <span>{{ expanded[index] ? '−' : '＋' }}</span></button>
-            <ul v-if="expanded[index]" class="subcontact-list">
+            <button v-if="contact.more.length" class="expand-button" type="button" :aria-expanded="!!expanded[index]" :aria-controls="`contact-details-${index}`" @click="expanded[index] = !expanded[index]">{{ expanded[index] ? '收起全部联系方式' : '展开查看全部联系方式' }} <span aria-hidden="true">{{ expanded[index] ? '−' : '＋' }}</span></button>
+            <ul v-if="expanded[index]" :id="`contact-details-${index}`" class="subcontact-list">
               <li v-for="item in contact.more" :key="item.name">
                 <span>{{ item.name }}</span>
                 <span class="campus-numbers"><strong v-if="item.jinnan">津南 {{ item.jinnan }}</strong><strong v-if="item.balitai">八里台 {{ item.balitai }}</strong></span>

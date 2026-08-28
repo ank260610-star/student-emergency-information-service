@@ -1,17 +1,42 @@
 <script setup>
-import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { RouterLink, RouterView, useRoute } from 'vue-router'
 
 const menuOpen = ref(false)
 const showIntro = ref(true)
+const visitCount = ref(null)
+const visitCountStatus = ref('loading')
 const route = useRoute()
+const formattedVisitCount = computed(() => (
+  visitCount.value === null ? '—' : new Intl.NumberFormat('zh-CN').format(visitCount.value)
+))
 let introTimer
 
 watch(() => route.fullPath, () => { menuOpen.value = false })
 
-onMounted(() => {
+onMounted(async () => {
   const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
   introTimer = window.setTimeout(() => { showIntro.value = false }, reducedMotion ? 500 : 3200)
+
+  try {
+    const response = await fetch('/api/visits', {
+      method: 'POST',
+      headers: { Accept: 'application/json' },
+      cache: 'no-store',
+      credentials: 'same-origin',
+    })
+
+    if (!response.ok) throw new Error(`Visit counter returned ${response.status}`)
+
+    const data = await response.json()
+    if (!Number.isSafeInteger(data.total) || data.total < 0) throw new Error('Invalid visit count')
+
+    visitCount.value = data.total
+    visitCountStatus.value = 'ready'
+  } catch (error) {
+    visitCountStatus.value = 'error'
+    console.warn('Unable to load the visit counter.', error)
+  }
 })
 
 onBeforeUnmount(() => window.clearTimeout(introTimer))
@@ -39,7 +64,7 @@ function dismissIntro() {
     <header class="mobile-header">
       <RouterLink class="mobile-brand" to="/" aria-label="返回首页"><span class="brand-mark logo-mark"><img src="/images/nankai-university-logo.png" alt="" /></span><span>南开新生指北</span></RouterLink>
       <button class="menu-button" type="button" :aria-expanded="menuOpen" aria-controls="site-sidebar" @click="menuOpen = !menuOpen">
-        <span class="sr-only">打开导航菜单</span><span></span><span></span><span></span>
+        <span class="sr-only">{{ menuOpen ? '关闭导航菜单' : '打开导航菜单' }}</span><span></span><span></span><span></span>
       </button>
     </header>
     <div v-if="menuOpen" class="menu-backdrop" aria-hidden="true" @click="menuOpen = false"></div>
@@ -74,7 +99,23 @@ function dismissIntro() {
           <span><strong>参与贡献</strong><small>学长学姐共建指北</small></span>
         </RouterLink>
       </nav>
-      <div class="sidebar-notice"><span aria-hidden="true">!</span><p>紧急情况请优先联系专业救援力量，并以学校官方通知为准。</p></div>
+      <div class="sidebar-bottom">
+        <section
+          class="visit-count-card"
+          :class="`is-${visitCountStatus}`"
+          :title="visitCountStatus === 'error' ? '暂时无法读取访问次数' : undefined"
+          aria-label="网站累计访问次数"
+        >
+          <span class="visit-count-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24"><path d="M2.8 12s3.2-6 9.2-6 9.2 6 9.2 6-3.2 6-9.2 6-9.2-6-9.2-6Z"/><circle cx="12" cy="12" r="2.7"/></svg>
+          </span>
+          <span class="visit-count-copy">
+            <small>累计访问次数</small>
+            <strong aria-live="polite">{{ formattedVisitCount }}</strong>
+          </span>
+        </section>
+        <div class="sidebar-notice"><span aria-hidden="true">!</span><p>紧急情况请优先联系专业救援力量，并以学校官方通知为准。</p></div>
+      </div>
     </aside>
     <main class="main-content">
       <RouterView />

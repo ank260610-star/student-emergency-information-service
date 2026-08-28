@@ -3,20 +3,25 @@
   "private": true,
   "version": "0.1.0",
   "type": "module",
+  "packageManager": "pnpm@11.19.0",
+  "engines": {
+    "node": "^22.18.0 || >=24.11.0"
+  },
   "scripts": {
     "dev": "vite",
     "build": "vite build",
+    "test:map": "node --test src/utils/mapUtils.test.js",
     "preview": "vite preview",
-    "deploy": "pnpm build && wrangler deploy",
-    "deploy:preview": "pnpm build && wrangler versions upload"
+    "deploy": "pnpm build && wrangler deploy"
   },
   "dependencies": {
-    "vue": "latest",
-    "vue-router": "^5.2.0"
+    "leaflet": "1.9.4",
+    "vue": "3.5.41",
+    "vue-router": "5.2.0"
   },
   "devDependencies": {
-    "@vitejs/plugin-vue": "latest",
-    "vite": "latest",
-    "wrangler": "^4.126.0"
+    "@vitejs/plugin-vue": "6.0.8",
+    "vite": "8.2.2",
+    "wrangler": "4.126.0"
   }
 }
