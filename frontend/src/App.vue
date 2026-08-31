@@ -94,6 +94,14 @@ function dismissIntro() {
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21s7-5.2 7-12a7 7 0 1 0-14 0c0 6.8 7 12 7 12Zm0-9a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z"/></svg>
           <span><strong>周边信息</strong><small>交通与公共服务设施</small></span>
         </RouterLink>
+        <RouterLink to="/links">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 14 8.5 15.5a4 4 0 0 1-5.7-5.7l3-3a4 4 0 0 1 5.7 0M14 10l1.5-1.5a4 4 0 0 1 5.7 5.7l-3 3a4 4 0 0 1-5.7 0M8.5 15.5l7-7"/></svg>
+          <span><strong>常用链接</strong><small>学习与校园服务入口</small></span>
+        </RouterLink>
+        <RouterLink to="/wechat">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9.5 5C5.9 5 3 7.4 3 10.4c0 1.7.9 3.2 2.4 4.2L4.8 17l2.7-1.3c.6.1 1.3.2 2 .2 3.6 0 6.5-2.5 6.5-5.5S13.1 5 9.5 5Zm7 6.1c2.5 0 4.5 1.7 4.5 3.8 0 1.2-.7 2.3-1.7 3l.4 1.7-1.9-.9c-.4.1-.9.1-1.3.1-2.5 0-4.5-1.7-4.5-3.9 0-.2 0-.4.1-.6 1.9-.7 3.4-1.8 4.1-3.2h.3Z"/></svg>
+          <span><strong>常用公众号</strong><small>校级与学院官方账号</small></span>
+        </RouterLink>
         <RouterLink to="/contribute">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.7A4 4 0 0 1 19 10c0 5.6-7 10-7 10Zm0-8v5m-2.5-2.5h5"/></svg>
           <span><strong>参与贡献</strong><small>学长学姐共建指北</small></span>

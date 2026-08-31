@@ -11,6 +11,8 @@ const router = createRouter({
     { path: '/contacts', name: 'contacts', component: () => import('./views/ContactsView.vue'), meta: { title: `紧急联络人 | ${siteTitle}` } },
     { path: '/campus-map', name: 'campus-map', component: () => import('./views/CampusMapView.vue'), meta: { title: `校园地图 | ${siteTitle}` } },
     { path: '/nearby', name: 'nearby', component: () => import('./views/NearbyInfoView.vue'), meta: { title: `周边信息 | ${siteTitle}` } },
+    { path: '/links', name: 'links', component: () => import('./views/CommonLinksView.vue'), meta: { title: `常用链接 | ${siteTitle}` } },
+    { path: '/wechat', name: 'wechat', component: () => import('./views/WechatAccountsView.vue'), meta: { title: `常用公众号 | ${siteTitle}` } },
     { path: '/contribute', name: 'contribute', component: () => import('./views/ContributeView.vue'), meta: { title: `参与贡献 | ${siteTitle}` } },
   ],
   scrollBehavior: () => ({ top: 0 }),
