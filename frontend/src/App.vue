@@ -82,6 +82,10 @@ function dismissIntro() {
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 3h14v18H5zM8 7h8M8 11h8M8 15h5"/></svg>
           <span><strong>报到指南</strong><small>新生入校关键事项</small></span>
         </RouterLink>
+        <RouterLink to="/service-guide">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v15H4zM8 5V3h8v2M8 10h8M8 14h8M8 18h5"/></svg>
+          <span><strong>办事指南</strong><small>窗口、报修与缴费信息</small></span>
+        </RouterLink>
         <RouterLink to="/contacts">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4h4l2 5-3 2a15 15 0 0 0 5 5l2-3 5 2v4a2 2 0 0 1-2 2C9.7 21 3 14.3 3 6a2 2 0 0 1 2-2Z"/></svg>
           <span><strong>紧急联络人</strong><small>查找角色与联络要点</small></span>

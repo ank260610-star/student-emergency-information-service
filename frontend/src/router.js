@@ -8,6 +8,7 @@ const router = createRouter({
   routes: [
     { path: '/', name: 'home', component: HomeView, meta: { title: siteTitle } },
     { path: '/orientation-guide', name: 'orientation-guide', component: () => import('./views/OrientationGuideView.vue'), meta: { title: `报到指南 | ${siteTitle}` } },
+    { path: '/service-guide', name: 'service-guide', component: () => import('./views/ServiceGuideView.vue'), meta: { title: `办事指南 | ${siteTitle}` } },
     { path: '/contacts', name: 'contacts', component: () => import('./views/ContactsView.vue'), meta: { title: `紧急联络人 | ${siteTitle}` } },
     { path: '/campus-map', name: 'campus-map', component: () => import('./views/CampusMapView.vue'), meta: { title: `校园地图 | ${siteTitle}` } },
     { path: '/nearby', name: 'nearby', component: () => import('./views/NearbyInfoView.vue'), meta: { title: `周边信息 | ${siteTitle}` } },

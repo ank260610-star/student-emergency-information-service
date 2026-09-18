@@ -40,14 +40,32 @@ const contacts = [
     ],
   },
   { icon: '▣', title: '学院辅导员 / 值班老师', tags: ['综合协调', '信息上报'], note: '需要学院层面协调资源、核实情况或进行后续上报时，联系辅导员或值班老师。', more: [] },
-  { icon: '⌂', title: '宿舍管理服务', tags: ['住宿事务', '设施风险'], note: '遇到宿舍设施故障、水电异常或楼内突发状况时，就近联系宿管人员。', more: [] },
-  { icon: '♡', title: '心理支持与咨询资源', tags: ['心理危机', '情绪支持'], note: '发现同学存在明显心理危机或伤害风险时，陪伴并及时向老师与专业人员求助。', more: [] },
+  {
+    icon: '⌂', title: '宿舍与后勤服务', tags: ['住宿事务', '设施故障'], verified: true,
+    note: '宿舍出现上下水、电气线路、门窗、空调、饮水机等故障时，说明校区、楼号、房间和故障现象后报修。',
+    featuredLabel: '津南综合报修', featured: '022-85358535',
+    more: [
+      { name: '综合 / 空调 / 饮水机 / 洗衣机 / 打印机 / 洗浴热水', jinnan: '85358535' },
+      { name: '暖气报修', jinnan: '85358535', balitai: '23509682 / 23509936' },
+      { name: '网络故障报修', jinnan: '85358100', balitai: '23503656 / 23503634' },
+      { name: '水电缴费服务', jinnan: '85358890 转8', balitai: '23502600' },
+      { name: '生活指导中心', jinnan: '85358890 转2 / 13682046472', balitai: '23509433 / 13194628628' },
+    ],
+  },
+  {
+    icon: '♡', title: '心理支持与咨询资源', tags: ['心理危机', '情绪支持'], verified: true,
+    note: '发现同学存在明显心理危机或伤害风险时，保持陪伴并及时向老师与专业人员求助。',
+    featuredLabel: '津南心理健康教育中心', featured: '022-85358432',
+    more: [
+      { name: '心理健康教育中心', jinnan: '85358432（大通学生中心 E306）' },
+    ],
+  },
 ]
 </script>
 
 <template>
   <div class="page inner-page">
-    <header class="page-header"><span class="section-kicker"><i></i> EMERGENCY CONTACTS</span><h1>紧急联络人</h1><p>已录入学校核验的保卫处与校医院联络信息。</p><div class="priority-note"><span>!</span><strong>紧急情况中，先保障安全，再报告与联络。</strong></div></header>
+    <header class="page-header"><span class="section-kicker"><i></i> EMERGENCY CONTACTS</span><h1>紧急联络人</h1><p>已录入学校核验的医疗、安全、心理与宿舍服务联系方式。</p><div class="priority-note"><span>!</span><strong>紧急情况中，先保障安全，再报告与联络。</strong></div></header>
     <section aria-labelledby="directory-title">
       <div class="section-heading compact"><span class="section-kicker"><i></i> 联络目录</span><h2 id="directory-title">按情形选择联系对象</h2></div>
       <div class="contact-list">
