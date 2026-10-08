@@ -6,6 +6,7 @@ defineProps({
   baseMode: { type: String, required: true },
   category: { type: String, required: true },
   locationStatus: { type: String, default: '' },
+  liveNavigation: { type: Boolean, default: false },
 })
 
 const emit = defineEmits([
@@ -13,6 +14,8 @@ const emit = defineEmits([
   'update:category',
   'reset',
   'locate',
+  'start-live-navigation',
+  'stop-live-navigation',
 ])
 
 const collapsed = ref(false)
@@ -63,7 +66,15 @@ const collapsed = ref(false)
 
       <div class="map-control-actions">
         <button type="button" @click="emit('reset')">恢复全图</button>
-        <button v-if="baseMode === 'online'" type="button" @click="emit('locate')">定位我</button>
+        <button type="button" class="map-locate-button" @click="emit('locate')">
+          <span aria-hidden="true"></span>使用当前位置
+        </button>
+        <button
+          type="button"
+          class="map-live-navigation-button"
+          :aria-pressed="liveNavigation"
+          @click="emit(liveNavigation ? 'stop-live-navigation' : 'start-live-navigation')"
+        >{{ liveNavigation ? '结束实时导航' : '开启实时导航' }}</button>
       </div>
 
       <ul class="map-legend" aria-label="地点分类图例">

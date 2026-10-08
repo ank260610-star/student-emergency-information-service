@@ -1,7 +1,7 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import HomeView from './views/HomeView.vue'
 
-const siteTitle = '南开大学新生生活指北'
+const siteTitle = '南开大学校园生活指北'
 
 const router = createRouter({
   history: createWebHistory(),
