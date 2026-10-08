@@ -4,6 +4,9 @@ import L from 'leaflet'
 import { categoryMeta, onlineMapProvider } from '../data/campusLocations'
 import {
   clampPointToViewportEdge,
+  gcj02ToWgs84,
+  distanceToPolylineMeters,
+  geoPointToImageLatLng,
   imagePointToSimpleLatLng,
   markerPresentationForLocation,
 } from '../utils/mapUtils'
@@ -15,9 +18,11 @@ const props = defineProps({
   selectedId: { type: String, default: '' },
   forceAllMarkers: { type: Boolean, default: false },
   forcedIds: { type: Array, default: () => [] },
+  candidateIds: { type: Array, default: () => [] },
+  tourStopIds: { type: Array, default: () => [] },
 })
 
-const emit = defineEmits(['select', 'clear-selection', 'status', 'coordinate-unavailable'])
+const emit = defineEmits(['select', 'clear-selection', 'status', 'coordinate-unavailable', 'live-navigation-change', 'live-position', 'route-deviation'])
 
 const mapElement = ref(null)
 const loading = ref(true)
@@ -27,17 +32,28 @@ const hospitalDirection = ref(null)
 
 let map = null
 let baseLayer = null
+let correctionLayer = null
 let featureLayer = null
 let campusBounds = null
 let userLayer = null
+let accuracyLayer = null
+let trackLayer = null
+let routeLayer = null
 let resizeObserver = null
 let initialZoom = 0
 let loadingTimer = 0
+let positionWatchId = null
+let trackedPoints = []
+let plannedRoutePoints = []
+let consecutiveDeviationSamples = 0
+let lastDeviationNoticeAt = 0
 const featureById = new Map()
 
 const geocodedCount = computed(() => props.locations.filter((location) => location.geoPoint).length)
 const emergencyLocation = computed(() => props.locations.find((location) => location.emergency))
 const forcedIdSet = computed(() => new Set(props.forcedIds))
+const candidateIdSet = computed(() => new Set(props.candidateIds))
+const tourOrderById = computed(() => new Map(props.tourStopIds.map((id, index) => [id, index + 1])))
 const hospitalUnavailableOnline = computed(() => (
   props.baseMode === 'online' && emergencyLocation.value && !emergencyLocation.value.geoPoint
 ))
@@ -73,17 +89,40 @@ function popupElement(location) {
   const description = document.createElement('p')
   description.textContent = location.description || `${props.campus.name}校园地点`
 
+  const representativePhoto = location.photos?.[0]
+  let photoFigure = null
+  if (representativePhoto) {
+    photoFigure = document.createElement('figure')
+    photoFigure.className = 'campus-popup-photo'
+
+    const photo = document.createElement('img')
+    photo.src = representativePhoto.src
+    photo.alt = representativePhoto.alt
+    photo.loading = 'lazy'
+    photo.decoding = 'async'
+
+    const caption = document.createElement('figcaption')
+    const remainingCount = location.photos.length - 1
+    caption.textContent = remainingCount
+      ? `${representativePhoto.caption} · 下方详情另有 ${remainingCount} 张实景照片`
+      : representativePhoto.caption
+
+    photoFigure.append(photo, caption)
+  }
+
   const campusName = document.createElement('small')
   campusName.textContent = props.campus.name
 
-  article.append(eyebrow, title, description, campusName)
+  article.append(eyebrow, title, description)
+  if (photoFigure) article.append(photoFigure)
+  article.append(campusName)
   return article
 }
 
-function markerIcon(location, active, presentation) {
+function markerIcon(location, active, presentation, candidate = false, tourOrder = null) {
   const category = escapeHtml(location.category)
-  const number = escapeHtml(location.number)
-  const stateClass = active ? ' is-active' : ''
+  const number = escapeHtml(tourOrder || location.number)
+  const stateClass = `${active ? ' is-active' : ''}${candidate ? ' is-candidate' : ''}${tourOrder ? ' is-tour-stop' : ''}`
 
   if (presentation === 'hospital') {
     const name = escapeHtml(location.name)
@@ -115,6 +154,48 @@ function markerIcon(location, active, presentation) {
   })
 }
 
+function correctionOverlay(correction) {
+  const topLeft = imagePointToSimpleLatLng(
+    { x: correction.bounds.left, y: correction.bounds.top },
+    props.campus.imageSize,
+  )
+  const bottomRight = imagePointToSimpleLatLng(
+    { x: correction.bounds.right, y: correction.bounds.bottom },
+    props.campus.imageSize,
+  )
+  if (!topLeft || !bottomRight) return null
+
+  const svgNamespace = 'http://www.w3.org/2000/svg'
+  const svg = document.createElementNS(svgNamespace, 'svg')
+  svg.setAttribute('viewBox', '0 0 180 120')
+  svg.setAttribute('preserveAspectRatio', 'none')
+  svg.setAttribute('aria-hidden', 'true')
+
+  const background = document.createElementNS(svgNamespace, 'rect')
+  background.setAttribute('width', '180')
+  background.setAttribute('height', '120')
+  background.setAttribute('fill', correction.fill)
+  svg.append(background)
+
+  correction.labelLines.forEach((line, index) => {
+    const label = document.createElementNS(svgNamespace, 'text')
+    label.setAttribute('x', '90')
+    label.setAttribute('y', String(50 + (index * 27)))
+    label.setAttribute('fill', '#f8fbfd')
+    label.setAttribute('font-family', 'Noto Sans SC, PingFang SC, Microsoft YaHei, sans-serif')
+    label.setAttribute('font-size', '18')
+    label.setAttribute('font-weight', '700')
+    label.setAttribute('text-anchor', 'middle')
+    label.textContent = line
+    svg.append(label)
+  })
+
+  return L.svgOverlay(svg, L.latLngBounds(bottomRight, topLeft), {
+    interactive: false,
+    opacity: 1,
+  })
+}
+
 function clearFeatures() {
   featureById.clear()
   if (featureLayer && map) map.removeLayer(featureLayer)
@@ -123,22 +204,24 @@ function clearFeatures() {
 
 function createFeature(location, latLng, presentation) {
   const active = props.selectedId === location.id
+  const candidate = candidateIdSet.value.has(location.id)
+  const tourOrder = tourOrderById.value.get(location.id) || null
   let feature
 
   if (presentation === 'hospital') {
     feature = L.marker(latLng, {
-      icon: markerIcon(location, active, presentation),
+      icon: markerIcon(location, active, presentation, candidate, tourOrder),
       keyboard: true,
-      title: `${location.name}（医疗与应急）`,
+      title: tourOrder ? `第 ${tourOrder} 站：${location.name}` : `${location.name}（医疗与应急）`,
       alt: `${location.number}，${location.name}，医疗与应急`,
       riseOnHover: true,
       zIndexOffset: 1500,
     })
   } else {
     feature = L.marker(latLng, {
-      icon: markerIcon(location, active, presentation),
+      icon: markerIcon(location, active, presentation, candidate, tourOrder),
       keyboard: true,
-      title: location.name,
+      title: tourOrder ? `第 ${tourOrder} 站：${location.name}` : location.name,
       alt: `${location.number}，${location.name}`,
       riseOnHover: true,
     })
@@ -175,7 +258,7 @@ function refreshFeatures() {
     if (!latLng) continue
     const presentation = markerPresentationForLocation(location, currentZoom, initialZoom, {
       selected: props.selectedId === location.id,
-      forced: props.forceAllMarkers || forcedIdSet.value.has(location.id),
+      forced: props.forceAllMarkers || forcedIdSet.value.has(location.id) || Boolean(tourOrderById.value.get(location.id)),
     })
     createFeature(location, latLng, presentation)
   }
@@ -247,6 +330,11 @@ function illustrationMap() {
     })
     .addTo(map)
 
+  correctionLayer = L.layerGroup().addTo(map)
+  for (const correction of props.campus.illustrationCorrections || []) {
+    correctionOverlay(correction)?.addTo(correctionLayer)
+  }
+
   map.fitBounds(campusBounds, { padding: [8, 8], animate: false })
   initialZoom = map.getZoom()
   map.setMinZoom(initialZoom - 0.75)
@@ -304,7 +392,12 @@ function destroyMap() {
   featureById.clear()
   featureLayer = null
   baseLayer = null
+  correctionLayer = null
+  stopLiveNavigation(false)
   userLayer = null
+  accuracyLayer = null
+  trackLayer = null
+  routeLayer = null
   campusBounds = null
   if (map) {
     map.stopLocate()
@@ -360,17 +453,173 @@ function focusLocation(locationId, openPopup = true) {
   return true
 }
 
+function showRoute(routePoints, coordinateSystem = 'GCJ-02') {
+  if (!map || props.baseMode !== 'online' || !Array.isArray(routePoints)) return false
+  const points = routePoints
+    .map((point) => coordinateSystem === 'GCJ-02' ? gcj02ToWgs84(point) : point)
+    .filter((point) => Array.isArray(point) && point.length === 2)
+  if (points.length < 2) return false
+
+  plannedRoutePoints = points
+  consecutiveDeviationSamples = 0
+  lastDeviationNoticeAt = 0
+
+  if (routeLayer) map.removeLayer(routeLayer)
+  routeLayer = L.polyline(points, {
+    color: '#7e0c6e',
+    weight: 6,
+    opacity: 0.92,
+    lineCap: 'round',
+    lineJoin: 'round',
+    className: 'campus-route-line',
+  }).addTo(map)
+  map.fitBounds(routeLayer.getBounds(), { padding: [36, 36], animate: false })
+  return true
+}
+
+function clearRoute() {
+  if (routeLayer && map) map.removeLayer(routeLayer)
+  routeLayer = null
+  plannedRoutePoints = []
+  consecutiveDeviationSamples = 0
+  lastDeviationNoticeAt = 0
+}
+
 function locationErrorMessage(error) {
   if (error.code === 1) return '定位权限被拒绝；你仍可手动拖动地图。'
   if (error.code === 3) return '定位请求超时，请检查系统定位设置后重试。'
   return '暂时无法获取当前位置，请稍后重试。'
 }
 
-function locateUser() {
-  if (props.baseMode !== 'online') {
-    emit('status', '请先切换到在线地图再使用定位。')
+function locationMapPoint(latitude, longitude) {
+  const geoPoint = [latitude, longitude]
+  return props.baseMode === 'online'
+    ? geoPoint
+    : geoPointToImageLatLng(geoPoint, props.campus.geoBounds, props.campus.imageSize)
+}
+
+function removeLiveNavigationLayers() {
+  if (userLayer && map) map.removeLayer(userLayer)
+  if (accuracyLayer && map) map.removeLayer(accuracyLayer)
+  if (trackLayer && map) map.removeLayer(trackLayer)
+  userLayer = null
+  accuracyLayer = null
+  trackLayer = null
+  trackedPoints = []
+}
+
+function updateLivePosition({ coords }) {
+  if (!map) return
+  const latitude = Number(coords.latitude)
+  const longitude = Number(coords.longitude)
+  const accuracy = Math.round(Number(coords.accuracy) || 0)
+  if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) return
+
+  emit('live-position', { latitude, longitude, accuracy })
+
+  const mapPoint = locationMapPoint(latitude, longitude)
+  if (!mapPoint) {
+    emit('status', `实时定位显示：当前位置不在${props.campus.name}范围内。`)
     return
   }
+
+  const point = L.latLng(mapPoint[0], mapPoint[1])
+  if (!userLayer) {
+    userLayer = L.circleMarker(point, {
+      radius: 8,
+      weight: 3,
+      color: '#fff',
+      fillColor: '#7e0c6e',
+      fillOpacity: 1,
+      className: 'campus-user-location',
+      zIndexOffset: 2200,
+    }).bindTooltip('你的位置', { permanent: false, direction: 'top' }).addTo(map)
+    map.setView(point, Math.max(map.getZoom(), 17), { animate: false })
+  } else {
+    userLayer.setLatLng(point)
+  }
+
+  // Meter-based accuracy circles only make sense on geographic online maps.
+  if (props.baseMode === 'online' && accuracy > 0) {
+    if (!accuracyLayer) {
+      accuracyLayer = L.circle(point, {
+        radius: accuracy,
+        color: '#7e0c6e',
+        weight: 1,
+        fillColor: '#7e0c6e',
+        fillOpacity: 0.12,
+        interactive: false,
+        className: 'campus-location-accuracy',
+      }).addTo(map)
+    } else {
+      accuracyLayer.setLatLng(point)
+      accuracyLayer.setRadius(accuracy)
+    }
+  }
+
+  const previousPoint = trackedPoints.at(-1)
+  if (!previousPoint || previousPoint.distanceTo(point) >= 8) {
+    trackedPoints.push(point)
+    if (!trackLayer) {
+      trackLayer = L.polyline(trackedPoints, {
+        color: '#7e0c6e',
+        weight: 4,
+        opacity: 0.72,
+        lineCap: 'round',
+        lineJoin: 'round',
+        className: 'campus-live-track',
+      }).addTo(map)
+    } else {
+      trackLayer.setLatLngs(trackedPoints)
+    }
+  }
+
+  emit('status', accuracy > 0
+    ? `实时导航中 · 定位精度约 ${accuracy} 米 · 本次轨迹仅保存在浏览器内存中。`
+    : '实时导航中 · 本次轨迹仅保存在浏览器内存中。')
+
+  const deviationMeters = distanceToPolylineMeters([latitude, longitude], plannedRoutePoints)
+  if (deviationMeters > 30 && accuracy <= 30) {
+    consecutiveDeviationSamples += 1
+  } else {
+    consecutiveDeviationSamples = 0
+  }
+  const now = Date.now()
+  if (consecutiveDeviationSamples >= 2 && now - lastDeviationNoticeAt >= 15000) {
+    lastDeviationNoticeAt = now
+    consecutiveDeviationSamples = 0
+    emit('route-deviation', { latitude, longitude, deviationMeters: Math.round(deviationMeters) })
+  }
+}
+
+function startLiveNavigation() {
+  if (!navigator.geolocation) {
+    emit('status', '当前浏览器不支持实时定位功能。')
+    return false
+  }
+  if (positionWatchId !== null) return true
+
+  emit('status', '正在开启实时导航定位…')
+  positionWatchId = navigator.geolocation.watchPosition(
+    updateLivePosition,
+    (error) => emit('status', locationErrorMessage(error)),
+    { enableHighAccuracy: true, timeout: 10000, maximumAge: 5000 },
+  )
+  emit('live-navigation-change', true)
+  return true
+}
+
+function stopLiveNavigation(announce = true) {
+  if (positionWatchId !== null && navigator.geolocation) {
+    navigator.geolocation.clearWatch(positionWatchId)
+  }
+  positionWatchId = null
+  removeLiveNavigationLayers()
+  emit('live-navigation-change', false)
+  if (announce) emit('status', '实时导航已结束，当前位置与本次轨迹已从浏览器内存清除。')
+}
+
+function locateUser() {
   if (!navigator.geolocation) {
     emit('status', '当前浏览器不支持定位功能。')
     return
@@ -380,17 +629,31 @@ function locateUser() {
   navigator.geolocation.getCurrentPosition(
     ({ coords }) => {
       if (!map) return
-      if (userLayer) map.removeLayer(userLayer)
-      const point = L.latLng(coords.latitude, coords.longitude)
+      if (userLayer) {
+        map.removeLayer(userLayer)
+        userLayer = null
+      }
+      const mapPoint = locationMapPoint(coords.latitude, coords.longitude)
+      if (!mapPoint) {
+        emit('status', `定位成功，但当前位置不在${props.campus.name}范围内。`)
+        return
+      }
+      const point = L.latLng(mapPoint[0], mapPoint[1])
       userLayer = L.circleMarker(point, {
         radius: 8,
         weight: 3,
         color: '#fff',
-        fillColor: '#1769aa',
+        fillColor: '#7e0c6e',
         fillOpacity: 1,
-      }).bindTooltip('你的位置').addTo(map)
-      map.setView(point, Math.max(map.getZoom(), 17), { animate: false })
-      emit('status', '已显示当前位置；位置不会上传或保存。')
+        className: 'campus-user-location',
+      }).bindTooltip('你的位置', { permanent: false, direction: 'top' }).addTo(map)
+      const targetZoom = props.baseMode === 'online'
+        ? Math.max(map.getZoom(), 17)
+        : Math.max(map.getZoom(), initialZoom + 2.2)
+      map.setView(point, targetZoom, { animate: false })
+      userLayer.openTooltip()
+      emit('live-position', { latitude: coords.latitude, longitude: coords.longitude, accuracy: coords.accuracy })
+      emit('status', '已显示当前位置；仅在你发起以当前位置为起点的导航时用于本次路线计算，不保存。')
     },
     (error) => emit('status', locationErrorMessage(error)),
     { enableHighAccuracy: false, timeout: 8000, maximumAge: 60000 },
@@ -403,7 +666,7 @@ watch(
 )
 
 watch(
-  () => [props.selectedId, props.forceAllMarkers, props.forcedIds, props.locations],
+  () => [props.selectedId, props.forceAllMarkers, props.forcedIds, props.candidateIds, props.locations],
   () => refreshFeatures(),
   { deep: true },
 )
@@ -422,7 +685,15 @@ onBeforeUnmount(() => {
   destroyMap()
 })
 
-defineExpose({ focusLocation, locateUser, resetView })
+defineExpose({
+  focusLocation,
+  locateUser,
+  resetView,
+  showRoute,
+  clearRoute,
+  startLiveNavigation,
+  stopLiveNavigation,
+})
 </script>
 
 <template>

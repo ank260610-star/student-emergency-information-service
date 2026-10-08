@@ -1,4 +1,6 @@
 import { jinnanLocations } from './jinnanLocations.js'
+import { landmarkNarratives } from './landmarkNarratives.js'
+import { gcj02ToWgs84 } from '../utils/mapUtils.js'
 
 export const categoryMeta = {
   emergency: { label: '医疗与应急', symbol: '✚' },
@@ -23,10 +25,12 @@ export const campusConfigs = {
     image: '/images/campus-map-balitai.jpg',
     imageAlt: '南开大学八里台校区校园导览图',
     imageSize: { width: 1280, height: 947 },
-    geoCenter: [39.1035701, 117.1622314],
-    geoBounds: [[39.0995339, 117.1494557], [39.1071409, 117.172567]],
+    // OSM tiles use WGS-84. These values are the WGS-84 conversion of the
+    // GCJ-02 field/map coordinates used for the Balitai POI dataset.
+    geoCenter: [39.1024928, 117.1611403],
+    geoBounds: [[39.0984362, 117.1486181], [39.1060847, 117.1736633]],
     geoZoom: 16,
-    geoDataStatus: '八里台在线地图暂无已核验的楼宇点位。',
+    geoDataStatus: '八里台在线地图仅显示已核验的现场 POI。',
     sourceLabel: '八里台校区图 · 01–90',
   },
   jinnan: {
@@ -41,7 +45,14 @@ export const campusConfigs = {
     geoZoom: 16,
     geoDataStatus: '津南在线地图只显示已核验的楼宇点位。',
     sourceLabel: '津南校区图 v3.0 · OpenStreetMap',
-    numberingNote: 'J01–J74 是本站交互检索编号，不是学校官方建筑编号。',
+    numberingNote: 'J01–J76 是本站交互检索编号，不是学校官方建筑编号。',
+    illustrationCorrections: [
+      {
+        bounds: { left: 54.5, right: 63.5, top: 39.2, bottom: 48.8 },
+        fill: '#8199aa',
+        labelLines: ['前沿交叉', '学科中心'],
+      },
+    ],
   },
 }
 
@@ -175,20 +186,245 @@ const balitaiDescriptions = {
 const balitaiPriorityOne = new Set(['01', '17', '19', '41', '42'])
 const balitaiPriorityTwo = new Set(['03', '09', '13', '18', '28', '32', '33', '35', '54', '61', '65', '73', '89'])
 
-const balitaiLocations = balitaiLocationRows.map(([number, name, category, x, y]) => ({
-  id: balitaiIdOverrides[number] || `balitai-location-${number}`,
-  campus: 'balitai',
-  number,
-  name,
-  category,
-  imagePoint: { x, y },
-  geoPoint: null,
-  priority: balitaiPriorityOne.has(number) ? 1 : balitaiPriorityTwo.has(number) ? 2 : 3,
-  emergency: number === '42',
-  description: balitaiDescriptions[number] || `校园导览图编号 ${number}，${name}。`,
+// Field-collected entrance coordinates from “地点经纬度信息采集_导航坐标整理版 -八里台”.
+// Although the table says “未做偏移”, the East/West Gate coordinates exactly
+// match AMap's published POI coordinates, so the raw values are GCJ-02.
+// Keep raw GCJ-02 values for AMap routing and convert only for OSM rendering.
+const balitaiVerifiedGeo = {
+  '01': { point: [39.1034, 117.178667], aliases: ['东门'], note: '正门入口' },
+  '03': { point: [39.102819, 117.176197], aliases: ['实验楼', '实验'], note: '入口' },
+  '05': { point: [39.101961, 117.175658], aliases: ['思源堂'], note: '校史路线点位。' },
+  '11': { point: [39.102909, 117.171207], aliases: ['校钟'], note: '校史路线点位。' },
+  '13': { point: [39.102738, 117.169277], aliases: ['西南联大纪念碑'], note: '校史路线点位。' },
+  '17': { point: [39.101921, 117.171236], aliases: ['主楼'], note: '入口' },
+  '18': { point: [39.101547, 117.171301], aliases: ['周恩来总理像', '周恩来像'], note: '校史路线点位。' },
+  '30': { point: [39.103352, 117.175596], aliases: ['马蹄湖'], note: '校史路线点位。' },
+  '35': { point: [39.105049, 117.171261], aliases: ['田径场', '大篮球场'], note: '入口' },
+  '41': { point: [39.10335, 117.171422], aliases: ['第二主教学楼', '二主教', '二教'], note: '入口' },
+  '50': { point: [39.103001, 117.168224], aliases: ['化学大楼', '化院大楼'], note: '入口' },
+  '54': { point: [39.102974, 117.166077], aliases: ['大图书馆', '逸夫图书馆'], note: '入口' },
+  '73': { point: [39.105689, 117.163289], aliases: ['南开大学学生活动中心', '学活'], note: '入口' },
+  '89': { point: [39.106113, 117.156348], aliases: ['西门'], note: '正门入口' },
+}
+
+// These POIs are part of the submitted field data but are not numbered in the
+// 01–90 illustration. They intentionally appear on the online map only rather
+// than being assigned an invented position on the campus guide image.
+const balitaiOnlineOnlyLocations = [
+  {
+    id: 'balitai-nankai-university-stop',
+    number: 'P01',
+    name: '南开大学站',
+    category: 'service',
+    geoPoint: [39.106387, 117.156283],
+    aliases: ['612上车点', '点对点上车点'],
+    description: '八里台校区周边交通站点；现场采集入口级坐标。',
+  },
+  {
+    id: 'balitai-haibing-building',
+    number: 'P02',
+    name: '海冰楼',
+    category: 'teaching',
+    geoPoint: [39.103677, 117.174653],
+    aliases: ['校史馆', '校史展览', '海冰楼校史展览馆'],
+    description: '八里台校区校史展览相关地点；现场采集入口级坐标。',
+  },
+  {
+    id: 'balitai-zhang-boling-statue',
+    number: 'P03',
+    name: '张伯苓塑像',
+    category: 'landscape',
+    geoPoint: [39.102786, 117.175618],
+    aliases: ['张伯苓像'],
+    description: '八里台校区校史探索路线点位；现场采集坐标。',
+  },
+  {
+    id: 'balitai-jialing-residence',
+    number: 'P04',
+    name: '迦陵学舍',
+    category: 'landscape',
+    geoPoint: [39.101938, 117.175099],
+    aliases: [],
+    description: '八里台校区校史探索路线点位；现场采集坐标。',
+  },
+  {
+    id: 'balitai-chen-shengshen-residence',
+    number: 'P05',
+    name: '陈省身故居',
+    category: 'landscape',
+    geoPoint: [39.101948, 117.174691],
+    aliases: [],
+    description: '八里台校区校史探索路线点位；现场采集坐标。',
+  },
+  {
+    id: 'balitai-zhou-enlai-monument',
+    number: 'P06',
+    name: '周恩来纪念碑',
+    category: 'landscape',
+    geoPoint: [39.103977, 117.175556],
+    aliases: [],
+    description: '八里台校区校史探索路线点位；现场采集坐标。',
+  },
+  {
+    id: 'balitai-yu-fangzhou-statue',
+    number: 'P07',
+    name: '于方舟烈士像',
+    category: 'landscape',
+    geoPoint: [39.104238, 117.173887],
+    aliases: [],
+    description: '八里台校区校史探索路线点位；现场采集坐标。',
+  },
+  {
+    id: 'balitai-cultural-store',
+    number: 'P08',
+    name: '校园文创店',
+    category: 'service',
+    geoPoint: [39.10288, 117.174054],
+    aliases: ['文创店'],
+    description: '八里台校区校史探索路线服务点；现场采集坐标。',
+  },
+  {
+    id: 'balitai-chen-shengshen-monument',
+    number: 'P09',
+    name: '陈省身碑',
+    category: 'landscape',
+    geoPoint: [39.100904, 117.170558],
+    aliases: [],
+    description: '八里台校区校史探索路线点位；现场采集坐标。',
+  },
+  {
+    id: 'balitai-yang-shixian-statue',
+    number: 'P10',
+    name: '杨石先像',
+    category: 'landscape',
+    geoPoint: [39.103449, 117.167359],
+    aliases: ['杨石先塑像'],
+    description: '八里台校区校史探索路线点位；现场采集坐标。',
+  },
+  {
+    id: 'balitai-patriotic-three-questions',
+    number: 'P11',
+    name: '爱国三问碑',
+    category: 'landscape',
+    geoPoint: [39.105198, 117.162811],
+    aliases: ['爱国三问'],
+    description: '八里台校区校史探索路线点位；现场采集坐标。',
+  },
+]
+
+const balitaiLocations = [
+  ...balitaiLocationRows.map(([number, name, category, x, y]) => {
+    const verified = balitaiVerifiedGeo[number]
+    return {
+      id: balitaiIdOverrides[number] || `balitai-location-${number}`,
+      campus: 'balitai',
+      number,
+      name,
+      category,
+      imagePoint: { x, y },
+      geoPoint: verified ? gcj02ToWgs84(verified.point) : null,
+      navigationPoint: verified?.point || null,
+      geoSource: verified ? '现场采集 GCJ-02 入口坐标' : null,
+      aliases: verified?.aliases || [],
+      priority: balitaiPriorityOne.has(number) ? 1 : balitaiPriorityTwo.has(number) ? 2 : 3,
+      emergency: number === '42',
+      description: verified
+        ? `${balitaiDescriptions[number] || `${name}。`} 现场核验：${verified.note}。`
+        : (balitaiDescriptions[number] || `校园导览图编号 ${number}，${name}。`),
+    }
+  }),
+  ...balitaiOnlineOnlyLocations.map((location) => ({
+    ...location,
+    campus: 'balitai',
+    imagePoint: null,
+    geoPoint: gcj02ToWgs84(location.geoPoint),
+    navigationPoint: location.geoPoint,
+    geoSource: '现场采集 GCJ-02 入口坐标',
+    priority: 2,
+    emergency: false,
+  })),
+]
+
+export const campusLocations = [...balitaiLocations, ...jinnanLocations].map((location) => ({
+  ...location,
+  landmarkNarrative: landmarkNarratives[location.id] || null,
 }))
 
-export const campusLocations = [...balitaiLocations, ...jinnanLocations]
+// A curated visit order, not a street-level walking geometry. NK 智行 can use
+// each adjacent pair for turn-by-turn routing after a visitor chooses a stop.
+export const campusTours = {
+  balitai: [
+    {
+      id: 'balitai-history-tour',
+      name: '南开校史探索路线',
+      summary: '东门出发，串联已采集校史地标，西门结束。地图紫线表示建议游览顺序，不替代步行道路导航。',
+      stopIds: [
+        'balitai-east-gate',
+        'balitai-haibing-building',
+        'balitai-zhang-boling-statue',
+        'balitai-location-05',
+        'balitai-jialing-residence',
+        'balitai-chen-shengshen-residence',
+        'balitai-zhou-enlai-monument',
+        'balitai-mati-lake',
+        'balitai-yu-fangzhou-statue',
+        'balitai-cultural-store',
+        'balitai-main-building',
+        'balitai-zhou-enlai-statue',
+        'balitai-location-11',
+        'balitai-memorial',
+        'balitai-chen-shengshen-monument',
+        'balitai-yang-shixian-statue',
+        'balitai-patriotic-three-questions',
+        'balitai-location-89',
+      ],
+    },
+    {
+      id: 'balitai-patriotic-tour',
+      name: '爱国主题路线',
+      summary: '从东门出发，串联周恩来纪念碑、于方舟烈士像、西南联大纪念碑与爱国三问碑。',
+      stopIds: [
+        'balitai-east-gate',
+        'balitai-zhou-enlai-monument',
+        'balitai-yu-fangzhou-statue',
+        'balitai-main-building',
+        'balitai-zhou-enlai-statue',
+        'balitai-memorial',
+        'balitai-patriotic-three-questions',
+        'balitai-location-89',
+      ],
+    },
+    {
+      id: 'balitai-public-ability-tour',
+      name: '公能主题路线',
+      summary: '围绕南开精神与治学传承，连接张伯苓塑像、海冰楼校史展览馆、主楼、校钟与新图书馆。',
+      stopIds: [
+        'balitai-east-gate',
+        'balitai-haibing-building',
+        'balitai-zhang-boling-statue',
+        'balitai-main-building',
+        'balitai-location-11',
+        'balitai-location-54',
+        'balitai-location-89',
+      ],
+    },
+    {
+      id: 'balitai-striving-tour',
+      name: '奋斗主题路线',
+      summary: '从东门步入学习与生活空间，串联综合实验楼、二主楼、化学楼、新图书馆、体育场和学生活动中心。',
+      stopIds: [
+        'balitai-east-gate',
+        'balitai-laboratory',
+        'balitai-second-main-building',
+        'balitai-location-50',
+        'balitai-location-54',
+        'balitai-stadium',
+        'balitai-student-center',
+        'balitai-location-89',
+      ],
+    },
+  ],
+}
 
 export function getCampusLocations(campusId) {
   return campusLocations.filter((location) => location.campus === campusId)
