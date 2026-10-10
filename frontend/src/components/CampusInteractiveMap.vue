@@ -9,6 +9,7 @@ import {
   geoPointToImageLatLng,
   imagePointToSimpleLatLng,
   markerPresentationForLocation,
+  wgs84ToGcj02,
 } from '../utils/mapUtils'
 
 const props = defineProps({
@@ -68,7 +69,10 @@ function escapeHtml(value) {
 
 function locationLatLng(location) {
   if (props.baseMode === 'online') {
-    return location.geoPoint ? L.latLng(location.geoPoint[0], location.geoPoint[1]) : null
+    const point = location.geoPoint && onlineMapProvider.coordinateSystem === 'GCJ-02'
+      ? wgs84ToGcj02(location.geoPoint)
+      : location.geoPoint
+    return point ? L.latLng(point[0], point[1]) : null
   }
 
   const point = imagePointToSimpleLatLng(location.imagePoint, props.campus.imageSize)
@@ -342,7 +346,10 @@ function illustrationMap() {
 }
 
 function onlineMap() {
-  campusBounds = L.latLngBounds(props.campus.geoBounds)
+  const bounds = onlineMapProvider.coordinateSystem === 'GCJ-02'
+    ? props.campus.geoBounds.map((point) => wgs84ToGcj02(point))
+    : props.campus.geoBounds
+  campusBounds = L.latLngBounds(bounds)
   map = L.map(mapElement.value, {
     zoomControl: true,
     attributionControl: true,
@@ -462,7 +469,11 @@ function focusLocation(locationId, openPopup = true) {
 function showRoute(routePoints, coordinateSystem = 'GCJ-02') {
   if (!map || props.baseMode !== 'online' || !Array.isArray(routePoints)) return false
   const points = routePoints
-    .map((point) => coordinateSystem === 'GCJ-02' ? gcj02ToWgs84(point) : point)
+    .map((point) => (
+      coordinateSystem === 'GCJ-02' && onlineMapProvider.coordinateSystem !== 'GCJ-02'
+        ? gcj02ToWgs84(point)
+        : point
+    ))
     .filter((point) => Array.isArray(point) && point.length === 2)
   if (points.length < 2) return false
 
@@ -500,7 +511,7 @@ function locationErrorMessage(error) {
 function locationMapPoint(latitude, longitude) {
   const geoPoint = [latitude, longitude]
   return props.baseMode === 'online'
-    ? geoPoint
+    ? (onlineMapProvider.coordinateSystem === 'GCJ-02' ? wgs84ToGcj02(geoPoint) : geoPoint)
     : geoPointToImageLatLng(geoPoint, props.campus.geoBounds, props.campus.imageSize)
 }
 
@@ -584,7 +595,10 @@ function updateLivePosition({ coords }) {
     ? `实时导航中 · 定位精度约 ${accuracy} 米 · 本次轨迹仅保存在浏览器内存中。`
     : '实时导航中 · 本次轨迹仅保存在浏览器内存中。')
 
-  const deviationMeters = distanceToPolylineMeters([latitude, longitude], plannedRoutePoints)
+  const navigationPoint = onlineMapProvider.coordinateSystem === 'GCJ-02'
+    ? wgs84ToGcj02([latitude, longitude])
+    : [latitude, longitude]
+  const deviationMeters = distanceToPolylineMeters(navigationPoint, plannedRoutePoints)
   if (deviationMeters > 30 && accuracy <= 30) {
     consecutiveDeviationSamples += 1
   } else {

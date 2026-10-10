@@ -1,5 +1,5 @@
 /*
-  Content-Security-Policy: default-src 'self'; base-uri 'self'; connect-src 'self'; font-src 'self'; form-action 'self'; frame-ancestors 'none'; img-src 'self' data: https://tile.openstreetmap.org; object-src 'none'; script-src 'self'; style-src 'self'
+  Content-Security-Policy: default-src 'self'; base-uri 'self'; connect-src 'self'; font-src 'self'; form-action 'self'; frame-ancestors 'none'; img-src 'self' data: https://webrd01.is.autonavi.com; object-src 'none'; script-src 'self'; style-src 'self'
   Permissions-Policy: camera=(), geolocation=(self), microphone=()
   Referrer-Policy: strict-origin-when-cross-origin
   X-Content-Type-Options: nosniff
