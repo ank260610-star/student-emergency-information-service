@@ -1,7 +1,13 @@
 <script setup>
 import { computed, onMounted, ref, watch } from 'vue'
 import { findLandmarkNarrative } from '../data/landmarkNarratives'
-import { askNkZhixingAgent, getRoute, resolveCampusPlace } from '../services/nkZhixingAgent'
+import {
+  askNkZhixingAgent,
+  extractNavigationDestination,
+  getRoute,
+  isNavigationRequest,
+  resolveCampusPlace,
+} from '../services/nkZhixingAgent'
 import { wgs84ToGcj02 } from '../utils/mapUtils'
 
 const props = defineProps({
@@ -127,7 +133,7 @@ async function showRoute(origin, destination, originName) {
     mode: travelMode.value,
   })
   emit('show-route', { ...route, destination, mode: travelMode.value })
-  emit('route-status', `已显示：${originName} → ${destination.name} 的${travelModeLabels[travelMode.value]}轨迹。`)
+  emit('route-status', `已显示：${originName} → ${destination.name} 的${travelModeLabels[travelMode.value]}轨迹（${destination.routeSource || '自建 MVP 坐标'}）。`)
 }
 
 async function resolveNavigationPoint(location) {
@@ -164,7 +170,10 @@ async function submit() {
     return
   }
 
-  const navigationIntent = !isLandmarkNarration && Boolean(selectedDestination || destinationCandidates[0] || needsCurrentPosition)
+  const navigationIntent = !isLandmarkNarration && (
+    Boolean(selectedDestination || destinationCandidates[0] || needsCurrentPosition)
+    || isNavigationRequest(prompt)
+  )
   const navigationProtocol = navigationIntent
     ? '\n【网页导航协同】请先确认建议的起点、终点和出行方式；不要自行估算距离、时长或给出分步路线。确认后由网站依据该建议生成唯一的路线图。'
     : ''
@@ -189,7 +198,23 @@ async function submit() {
     const recommendedDestination = result.value.locationId
       ? props.campus.locations?.find((location) => location.id === result.value.locationId)
       : findDestination(result.value.answer || '')
-    const destination = recommendedDestination || selectedDestination || destinationCandidates[0] || findDestination(prompt)
+    let destination = recommendedDestination || selectedDestination || destinationCandidates[0] || findDestination(prompt)
+    if (!destination && navigationIntent) {
+      const externalName = extractNavigationDestination(prompt)
+      if (externalName) {
+        try {
+          const navigationPoint = await resolveCampusPlace({ campus: props.campus.id, name: externalName })
+          destination = {
+            id: `amap-${externalName}`,
+            name: externalName,
+            navigationPoint,
+            routeSource: '高德地图地点兜底',
+          }
+        } catch (placeError) {
+          error.value = `自建地点库未收录“${externalName}”，且${placeError.message}`
+        }
+      }
+    }
     const originLocation = !liveOrigin && !props.selectedLocation?.navigationPoint
       ? findOrigin(prompt, destination)
       : null
@@ -203,11 +228,15 @@ async function submit() {
       : props.selectedLocation?.name || originLocation?.name
 
     if (origin && destinationPoint) {
-      await showRoute(origin, { ...destination, navigationPoint: destinationPoint }, originName || '起点')
+      await showRoute(origin, {
+        ...destination,
+        navigationPoint: destinationPoint,
+        routeSource: destination.routeSource || (destination.navigationPoint ? '自建 MVP 坐标' : '高德地图地点兜底'),
+      }, originName || '起点')
     } else if (props.liveNavigation && destinationPoint) {
       error.value = '正在获取当前位置，请稍候再次开始规划。'
     } else if (!destination) {
-      error.value = 'NK 智行未识别出可绘制的目的地，请补充具体地点名称。'
+      error.value = error.value || 'NK 智行未识别出可绘制的目的地，请补充具体地点名称。'
     } else if (!origin) {
       error.value = '请补充起点，或在地图控制区点击“使用当前位置”。'
     } else {

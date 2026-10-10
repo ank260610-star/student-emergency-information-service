@@ -3,6 +3,26 @@ const ROUTE_API_PATH = '/api/nk-zhixing/route'
 const PLACE_API_PATH = '/api/nk-zhixing/place'
 export const NK_ZHIXING_MESSAGE_LIMIT = 500
 const HANDOFF_KEY = 'nk-zhixing-home-handoff'
+const NAVIGATION_REQUEST_PATTERN = /(?:前往|抵达|到|去|怎么走|怎么去|如何去|导航|路线)/
+
+export function isNavigationRequest(value) {
+  return NAVIGATION_REQUEST_PATTERN.test(String(value || ''))
+}
+
+export function extractNavigationDestination(value) {
+  const text = String(value || '').replaceAll(/\s/g, '').trim()
+  if (!text || !isNavigationRequest(text)) return ''
+
+  const destination = text
+    .split(/(?:前往|抵达|到|去)/)
+    .at(-1)
+    ?.replace(/^(?:一下|往|校园内|校内)/, '')
+    .replace(/(?:怎么走|怎么去|如何去|导航|路线|在哪里|在哪儿|在哪|？|。|！|，|,).*/, '')
+    .trim()
+    .slice(0, 80)
+
+  return destination || ''
+}
 
 export function saveNkZhixingHandoff({ campus, message }, storage = window.sessionStorage) {
   const normalizedMessage = String(message || '').trim().slice(0, NK_ZHIXING_MESSAGE_LIMIT)

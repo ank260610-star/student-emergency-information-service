@@ -22,7 +22,7 @@ const props = defineProps({
   tourStopIds: { type: Array, default: () => [] },
 })
 
-const emit = defineEmits(['select', 'clear-selection', 'status', 'coordinate-unavailable', 'live-navigation-change', 'live-position', 'route-deviation'])
+const emit = defineEmits(['select', 'clear-selection', 'status', 'coordinate-unavailable', 'live-navigation-change', 'live-position', 'route-deviation', 'online-map-unavailable'])
 
 const mapElement = ref(null)
 const loading = ref(true)
@@ -354,6 +354,14 @@ function onlineMap() {
   map.attributionControl.setPrefix(false)
 
   let tileFailures = 0
+  let fallbackRequested = false
+  const requestIllustrationFallback = () => {
+    if (fallbackRequested) return
+    fallbackRequested = true
+    loading.value = false
+    tileError.value = true
+    emit('online-map-unavailable')
+  }
   baseLayer = L.tileLayer(onlineMapProvider.url, {
     attribution: onlineMapProvider.attribution,
     maxZoom: onlineMapProvider.maxZoom,
@@ -362,8 +370,7 @@ function onlineMap() {
     .on('tileerror', () => {
       tileFailures += 1
       if (tileFailures >= 3) {
-        loading.value = false
-        tileError.value = true
+        requestIllustrationFallback()
       }
     })
     .addTo(map)
@@ -380,8 +387,7 @@ function onlineMap() {
   initialZoom = map.getZoom()
   loadingTimer = window.setTimeout(() => {
     if (!loading.value) return
-    loading.value = false
-    tileError.value = true
+    requestIllustrationFallback()
   }, 8000)
 }
 

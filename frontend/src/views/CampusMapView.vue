@@ -145,7 +145,10 @@ async function handleAgentRoute(route) {
     // Wait for that second render pass before asking the new instance to draw.
     await nextTick()
   }
-  interactiveMap.value?.showRoute(route.routePoints, route.coordinateSystem)
+  const routeDrawn = interactiveMap.value?.showRoute(route.routePoints, route.coordinateSystem)
+  if (!routeDrawn) {
+    mapStatus.value = '已获得导航建议，但当前网络无法加载在线底图，路线轨迹将在在线地图可用时显示。'
+  }
   activeNavigation.value = route.destination ? {
     destination: route.destination,
     mode: route.mode || 'walking',
@@ -269,6 +272,12 @@ function setBaseMode(mode) {
     : '已切换到校园导览图。'
 }
 
+function handleOnlineMapUnavailable() {
+  if (baseMode.value !== 'online') return
+  baseMode.value = 'illustration'
+  mapStatus.value = '当前网络无法加载在线底图，已自动切换到校园导览图；地点检索可继续使用，路线轨迹请在网络恢复后重试。'
+}
+
 async function startLiveNavigation() {
   if (baseMode.value !== 'online') {
     baseMode.value = 'online'
@@ -385,6 +394,7 @@ watch(category, () => {
           @live-position="livePosition = $event"
           @route-deviation="rerouteFromCurrentPosition"
           @coordinate-unavailable="handleCoordinateUnavailable"
+          @online-map-unavailable="handleOnlineMapUnavailable"
         />
         <CampusMapControls
           :base-mode="baseMode"
