@@ -1,0 +1,5 @@
+# Optional Django scaffold; not required by the Vue/Worker site.
+Django==6.1.2
+django-simpleui==2026.1.13
+asgiref==3.12.1
+sqlparse==0.6.0

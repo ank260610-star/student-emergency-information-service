@@ -1,0 +1,127 @@
+/* Shared browser adaptations. Page-specific layout stays in the preceding files. */
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+body, .app-shell, .main-content {
+  min-height: 100vh;
+  min-height: 100dvh;
+}
+
+input, textarea, select, button {
+  font-family: inherit;
+}
+
+button, a, input, textarea, select {
+  -webkit-tap-highlight-color: rgba(126, 12, 110, .15);
+}
+
+button, a {
+  touch-action: manipulation;
+}
+
+input:focus-visible, textarea:focus-visible, select:focus-visible {
+  outline: 3px solid #d291c8;
+  outline-offset: 3px;
+}
+
+.main-content:focus {
+  outline: none;
+}
+
+.sidebar {
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  padding-bottom: max(26px, env(safe-area-inset-bottom, 0px));
+}
+
+.wechat-copy-result, .nk-agent-result, .nk-agent-error, .contact-detail,
+.campus-numbers strong, .wechat-id {
+  overflow-wrap: anywhere;
+}
+
+.wechat-copy-result strong {
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+.nk-agent-result p {
+  white-space: pre-wrap;
+}
+
+.location-photo-dialog {
+  max-height: calc(100dvh - 40px);
+}
+
+.location-photo-dialog figure {
+  max-height: calc(100dvh - 42px);
+}
+
+.location-photo-dialog img {
+  max-height: calc(100dvh - 100px);
+}
+
+@media (max-width: 820px) {
+  .mobile-header {
+    height: calc(62px + env(safe-area-inset-top, 0px));
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-left: max(20px, env(safe-area-inset-left, 0px));
+    padding-right: max(20px, env(safe-area-inset-right, 0px));
+  }
+
+  .menu-backdrop, .sidebar {
+    top: calc(62px + env(safe-area-inset-top, 0px));
+  }
+
+  .main-content {
+    padding-left: env(safe-area-inset-left, 0px);
+    padding-right: env(safe-area-inset-right, 0px);
+  }
+
+  .site-footer {
+    padding-bottom: max(20px, env(safe-area-inset-bottom, 0px));
+  }
+
+  .menu-button, .location-photo-close {
+    width: 44px;
+    height: 44px;
+  }
+
+  .map-controls button, .map-controls select, .campus-tour-grid button,
+  .campus-tour-actions button, .nk-agent-form button, .nk-agent-mode select,
+  .nk-agent-suggestions button, .nk-agent-narrate, .expand-button,
+  .wechat-account-card button, .college-account-card button {
+    min-height: 44px;
+  }
+
+  /* 16px fields avoid focus zoom on iOS without disabling user zoom. */
+  .home-agent-form textarea, .map-search input, .wechat-search input,
+  .nk-agent-form textarea, .map-category-filter select, .nk-agent-mode select {
+    font-size: 16px;
+  }
+
+  .campus-map-workspace {
+    scroll-margin-top: calc(76px + env(safe-area-inset-top, 0px));
+  }
+
+  .campus-numbers strong {
+    white-space: normal;
+  }
+
+  .wechat-copy-result {
+    flex-wrap: wrap;
+  }
+}
+
+@media (max-width: 540px) {
+  .location-photo-dialog {
+    max-height: calc(100dvh - 20px);
+  }
+}
+
+@media (hover: none) {
+  .role-card:hover, .common-link-card:hover {
+    transform: none;
+  }
+}

@@ -97,7 +97,7 @@ const landmarkSearchAliases = {
 // It intentionally returns only one strongest match so the agent receives a
 // precise context rather than a mixed, potentially contradictory dossier.
 export function findLandmarkNarrative(text) {
-  const normalizedText = String(text || '').toLocaleLowerCase('zh-CN').replaceAll(/\s/g, '')
+  const normalizedText = String(text || '').toLocaleLowerCase('zh-CN').replace(/\s/g, '')
   if (!normalizedText) return null
 
   return Object.entries(landmarkNarratives)
