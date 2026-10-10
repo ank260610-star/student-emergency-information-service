@@ -9,6 +9,7 @@ import {
   findDestinationCandidates,
   findOrigin,
   isNavigationPoint,
+  isPointNearCampus,
   isNavigationRequest,
   refersToCurrentPosition,
   requestsLandmarkHistory,
@@ -95,10 +96,18 @@ function requestLandmarkNarration() {
   submit()
 }
 
-async function resolveNavigationPoint(location, campusId, signal) {
+async function resolveNavigationPoint(location, campus, signal) {
   if (!location) return null
-  if (isNavigationPoint(location.navigationPoint)) return location.navigationPoint
-  return resolveCampusPlace({ campus: campusId, name: location.name, locationId: location.id }, { signal })
+  if (location.campus && location.campus !== campus.id) {
+    throw new Error(`“${location.name}”不属于当前${campus.name}。`)
+  }
+  const navigationPoint = isNavigationPoint(location.navigationPoint)
+    ? location.navigationPoint
+    : await resolveCampusPlace({ campus: campus.id, name: location.name, locationId: location.id }, { signal })
+  if (!isPointNearCampus(navigationPoint, campus.geoCenter)) {
+    throw new Error(`“${location.name}”的坐标不在当前${campus.name}附近，已停止绘制以避免跨校区路线。`)
+  }
+  return navigationPoint
 }
 
 async function submit() {
@@ -116,8 +125,11 @@ async function submit() {
   const position = props.livePosition
     ? [Number(props.livePosition.latitude), Number(props.livePosition.longitude)] : null
   const liveOrigin = isNavigationPoint(position) ? wgs84ToGcj02(position) : null
-  if (!narrative && needsCurrentPosition && !liveOrigin) {
-    error.value = '请先在地图控制区点击“使用当前位置”，授权定位后再开始规划。'
+  const campusLiveOrigin = isPointNearCampus(liveOrigin, campus.geoCenter) ? liveOrigin : null
+  if (!narrative && needsCurrentPosition && !campusLiveOrigin) {
+    error.value = liveOrigin
+      ? `当前位置不在当前${campus.name}附近，请切换到所在校区或明确输入校内起点。`
+      : '请先在地图控制区点击“使用当前位置”，授权定位后再开始规划。'
     return
   }
 
@@ -139,7 +151,8 @@ async function submit() {
   const explicitOrigin = needsCurrentPosition ? null : findOrigin(prompt, selectedDestination || destinationCandidates[0], campus)
   const instructions = buildAgentInstructions({
     campus, narrative, navigationIntent, mode, destination: selectedDestination,
-    liveOrigin: !explicitOrigin ? liveOrigin : null,
+    prompt,
+    liveOrigin: !explicitOrigin ? campusLiveOrigin : null,
   })
   const version = ++requestVersion
   const controller = typeof AbortController === 'function' ? new AbortController() : null
@@ -190,11 +203,11 @@ async function submit() {
 
     const originLocation = needsCurrentPosition ? null : findOrigin(prompt, destination, campus)
     const [destinationPoint, resolvedOrigin] = await Promise.all([
-      resolveNavigationPoint(destination, campus.id, signal),
-      resolveNavigationPoint(originLocation, campus.id, signal),
+      resolveNavigationPoint(destination, campus, signal),
+      resolveNavigationPoint(originLocation, campus, signal),
     ])
     if (!isCurrent()) return
-    const origin = resolvedOrigin || (!originLocation ? liveOrigin : null)
+    const origin = resolvedOrigin || (!originLocation ? campusLiveOrigin : null)
     if (!origin) {
       error.value = '请补充起点，或在地图控制区点击“使用当前位置”后再开始规划。'
       return

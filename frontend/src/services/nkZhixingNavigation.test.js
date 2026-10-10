@@ -7,6 +7,7 @@ import {
   findLocationMatches,
   findOrigin,
   isNavigationPoint,
+  isPointNearCampus,
 } from './nkZhixingNavigation.js'
 
 const campus = {
@@ -45,9 +46,12 @@ test('candidate selection uses the destination, preserves ambiguity, and prefers
 })
 
 test('request instructions include the confirmed destination and selected mode', () => {
-  const instructions = buildAgentInstructions({ campus, mode: 'bicycling', navigationIntent: true, destination: campus.locations[2], liveOrigin: [39, 117] })
+  const instructions = buildAgentInstructions({ campus, mode: 'bicycling', navigationIntent: true, destination: campus.locations[2], liveOrigin: [39, 117], prompt: '从西南门去中心图书馆' })
   assert.match(instructions, /用户已确认目的地：中心图书馆/)
-  assert.match(instructions, /出行方式：骑行/)
+  assert.match(instructions, /用户已选择出行方式：骑行/)
+  assert.match(instructions, /西南门（津南校区）/)
+  assert.match(instructions, /中心图书馆（津南校区）/)
+  assert.match(instructions, /禁止替换为另一校区同名 POI/)
   assert.match(instructions, /经度 117\.000000，纬度 39\.000000/)
   const narration = buildAgentInstructions({ campus, mode: 'walking', narrative: { title: '思源堂', brief: '简介', facts: '事实' } })
   assert.match(narration, /本站整理的校史材料/)
@@ -59,4 +63,11 @@ test('navigation coordinates must be finite latitude/longitude pairs', () => {
   for (const point of [null, [], [39], [39, 117, 1], [91, 117], [39, 181], [NaN, 117], ['39', 117]]) {
     assert.equal(isNavigationPoint(point), false)
   }
+})
+
+test('navigation coordinates are rejected when they belong to another campus', () => {
+  const jinnanCenter = [38.99, 117.34]
+  assert.equal(isPointNearCampus([38.992, 117.341], jinnanCenter), true)
+  assert.equal(isPointNearCampus([39.106, 117.156], jinnanCenter), false)
+  assert.equal(isPointNearCampus(null, jinnanCenter), false)
 })

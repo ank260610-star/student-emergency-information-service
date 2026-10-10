@@ -84,10 +84,25 @@ export function isNavigationPoint(point) {
     && Math.abs(point[0]) <= 90 && Math.abs(point[1]) <= 180
 }
 
-export function buildAgentInstructions({ campus, narrative, navigationIntent, liveOrigin, mode, destination }) {
-  const instructions = [`【当前校区已确定】用户正在查看${campus.name}地图，未明确提出跨校区时，所有地点均默认属于${campus.name}；不要再次询问用户所在校区。`]
+export function isPointNearCampus(point, geoCenter, maximumDistanceMeters = 8000) {
+  if (!isNavigationPoint(point) || !isNavigationPoint(geoCenter)) return false
+  const [latitude, longitude] = point
+  const [campusLatitude, campusLongitude] = geoCenter
+  const latitudeMeters = (latitude - campusLatitude) * 111320
+  const longitudeMeters = (longitude - campusLongitude) * 111320
+    * Math.cos(campusLatitude * Math.PI / 180)
+  return Math.hypot(latitudeMeters, longitudeMeters) <= maximumDistanceMeters
+}
+
+export function buildAgentInstructions({ campus, narrative, navigationIntent, liveOrigin, mode, destination, prompt = '' }) {
+  const instructions = [`【当前校区已确定】用户正在查看${campus.name}地图。未明确提出跨校区时，用户提到的所有校门、建筑、教学楼、图书馆、食堂、宿舍、场馆和地标均只允许在${campus.name}地点库内解析；不得使用另一校区的同名或相似地点，也不要再次询问用户所在校区。`]
   if (navigationIntent) {
-    instructions.push(`【网页导航协同】出行方式：${travelModeLabels[mode]}。${destination ? `用户已确认目的地：${destination.name}。` : ''}请说明建议的起点和终点；不要自行估算距离、时长或给出分步路线，由网站依据已确认地点生成路线图。`)
+    const matchedLocations = [...new Map(findLocationMatches(prompt, campus)
+      .map(({ location }) => [location.id, location])).values()]
+    instructions.push(`【网页导航协同】用户已选择出行方式：${travelModeLabels[mode]}；不得回答“未选择出行方式”。${destination ? `用户已确认目的地：${destination.name}。` : ''}请说明建议的起点和终点；不要自行估算距离、时长或给出分步路线，由网站依据已确认地点生成路线图。`)
+    if (matchedLocations.length) {
+      instructions.push(`【当前校区地点消歧】本次识别到：${matchedLocations.map((location) => `${location.name}（${campus.name}）`).join('、')}。这些地点均已由网页按当前校区限定，禁止替换为另一校区同名 POI。`)
+    }
     if (liveOrigin) instructions.push(`【本次导航起点】当前位置（GCJ-02）：经度 ${liveOrigin[1].toFixed(6)}，纬度 ${liveOrigin[0].toFixed(6)}。`)
   }
   if (narrative) {

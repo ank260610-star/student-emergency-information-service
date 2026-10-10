@@ -11,7 +11,6 @@ export const schoolAccounts = [
   { name: '南开后勤服务', category: '后勤报修', description: '宿舍设施损坏或需要维修时，可通过该账号查看报修服务。' },
   { name: '南开微学工', category: '学生工作', description: '发布学生社区、学生活动、党团建设及学生事务相关信息。' },
 ]
-
 export const collegeAccounts = [
   { college: '文学院', accounts: [{ name: '南开大学文学院', id: 'NKUWXY', type: '学院官方' }, { name: '南开文院人', id: 'gh_bbfa3b6d3662', type: '学生工作' }] },
   { college: '历史学院', accounts: [{ name: '南开史学', id: 'gh_2e78f9377be3', type: '学院官方' }] },
@@ -42,4 +41,3 @@ export const collegeAccounts = [
   { college: '社会学院', accounts: [{ name: '群学南开', id: 'gh_b5c9e2f11306', type: '学院官方' }] },
   { college: '环境科学与工程学院', accounts: [{ name: '南开环境', id: 'nkhuanjing', type: '学院官方' }] },
 ]
-
