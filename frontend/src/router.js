@@ -16,7 +16,11 @@ const router = createRouter({
     { path: '/wechat', name: 'wechat', component: () => import('./views/WechatAccountsView.vue'), meta: { title: `常用公众号 | ${siteTitle}` } },
     { path: '/contribute', name: 'contribute', component: () => import('./views/ContributeView.vue'), meta: { title: `参与贡献 | ${siteTitle}` } },
   ],
-  scrollBehavior: () => ({ top: 0 }),
+  scrollBehavior(to, from, savedPosition) {
+    if (savedPosition) return savedPosition
+    if (to.fullPath === from.fullPath) return false
+    return { top: 0 }
+  },
 })
 
 router.afterEach((to) => {

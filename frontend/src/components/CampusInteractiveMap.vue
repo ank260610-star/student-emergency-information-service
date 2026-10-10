@@ -2,6 +2,7 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import L from 'leaflet'
 import { categoryMeta, onlineMapProvider } from '../data/campusLocations'
+import { createGeolocationSession } from '../utils/geolocationSession'
 import {
   clampPointToViewportEdge,
   gcj02ToWgs84,
@@ -45,13 +46,24 @@ let routeLayer = null
 let resizeObserver = null
 let initialZoom = 0
 let loadingTimer = 0
-let positionWatchId = null
 let trackedPoints = []
 let plannedRoutePoints = []
 let consecutiveDeviationSamples = 0
 let lastDeviationNoticeAt = 0
 let initialLocationRequested = false
+let disposed = false
+let buildVersion = 0
+let mapReady = Promise.resolve()
+let resizeFrame = 0
 const featureById = new Map()
+const geolocationSession = createGeolocationSession({
+  onPosition: updateLivePosition,
+  onLiveChange: (live) => {
+    if (!live) removeLiveNavigationLayers()
+    emit('live-navigation-change', live)
+  },
+  onStatus: (message) => emit('status', message),
+})
 
 const geocodedCount = computed(() => props.locations.filter((location) => location.geoPoint).length)
 const emergencyLocation = computed(() => props.locations.find((location) => location.emergency))
@@ -63,11 +75,11 @@ const hospitalUnavailableOnline = computed(() => (
 ))
 function escapeHtml(value) {
   return String(value)
-    .replaceAll('&', '&amp;')
-    .replaceAll('<', '&lt;')
-    .replaceAll('>', '&gt;')
-    .replaceAll('"', '&quot;')
-    .replaceAll("'", '&#039;')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;')
 }
 
 function locationLatLng(location) {
@@ -311,7 +323,7 @@ function focusHospital() {
   if (emergencyLocation.value) focusLocation(emergencyLocation.value.id, true)
 }
 
-function illustrationMap() {
+function illustrationMap(version) {
   const { width, height } = props.campus.imageSize
   campusBounds = L.latLngBounds([0, 0], [height, width])
   map = L.map(mapElement.value, {
@@ -330,8 +342,9 @@ function illustrationMap() {
     alt: props.campus.imageAlt,
     className: 'campus-plan-overlay',
   })
-    .on('load', () => { loading.value = false })
+    .on('load', () => { if (version === buildVersion) loading.value = false })
     .on('error', () => {
+      if (version !== buildVersion) return
       loading.value = false
       mapError.value = '校园导览图加载失败，请稍后重试。'
     })
@@ -348,7 +361,7 @@ function illustrationMap() {
   map.setMaxBounds(campusBounds.pad(0.18))
 }
 
-function onlineMap() {
+function onlineMap(version) {
   const bounds = onlineMapProvider.coordinateSystem === 'GCJ-02'
     ? props.campus.geoBounds.map((point) => wgs84ToGcj02(point))
     : props.campus.geoBounds
@@ -366,7 +379,7 @@ function onlineMap() {
   let tileFailures = 0
   let fallbackRequested = false
   const requestIllustrationFallback = () => {
-    if (fallbackRequested) return
+    if (fallbackRequested || version !== buildVersion || disposed) return
     fallbackRequested = true
     loading.value = false
     tileError.value = true
@@ -376,8 +389,9 @@ function onlineMap() {
     attribution: onlineMapProvider.attribution,
     maxZoom: onlineMapProvider.maxZoom,
   })
-    .on('load', () => { loading.value = false })
+    .on('load', () => { if (version === buildVersion) loading.value = false })
     .on('tileerror', () => {
+      if (version !== buildVersion) return
       tileFailures += 1
       if (tileFailures >= 3) {
         requestIllustrationFallback()
@@ -409,14 +423,17 @@ function destroyMap() {
   featureLayer = null
   baseLayer = null
   correctionLayer = null
+  geolocationSession.invalidateLocation()
   stopLiveNavigation(false)
   userLayer = null
   accuracyLayer = null
   trackLayer = null
   routeLayer = null
+  plannedRoutePoints = []
+  consecutiveDeviationSamples = 0
+  lastDeviationNoticeAt = 0
   campusBounds = null
   if (map) {
-    map.stopLocate()
     map.off()
     map.remove()
     map = null
@@ -424,16 +441,17 @@ function destroyMap() {
 }
 
 async function buildMap() {
+  const version = ++buildVersion
   destroyMap()
   await nextTick()
-  if (!mapElement.value) return
+  if (disposed || version !== buildVersion || !mapElement.value) return
 
   loading.value = true
   mapError.value = ''
   tileError.value = false
 
-  if (props.baseMode === 'online') onlineMap()
-  else illustrationMap()
+  if (props.baseMode === 'online') onlineMap(version)
+  else illustrationMap(version)
 
   map.on('move zoom resize', handleMapMotion)
   map.on('zoomend', refreshFeatures)
@@ -441,6 +459,34 @@ async function buildMap() {
   refreshFeatures()
   map.invalidateSize({ animate: false })
   showCurrentPosition(props.currentPosition)
+}
+
+function rebuildMap() {
+  mapReady = buildMap()
+  return mapReady
+}
+
+function scheduleResize() {
+  if (resizeFrame || disposed) return
+  resizeFrame = requestAnimationFrame(() => {
+    resizeFrame = 0
+    if (map && mapElement.value?.clientWidth) {
+      map.invalidateSize({ animate: false, pan: false })
+    }
+  })
+}
+
+function handleVisibilityChange() {
+  if (document.hidden) geolocationSession.suspend()
+  else {
+    geolocationSession.resume()
+    scheduleResize()
+    requestInitialPosition()
+  }
+}
+
+function handlePageHide() {
+  geolocationSession.suspend()
 }
 
 function resetView() {
@@ -478,7 +524,7 @@ function showRoute(routePoints, coordinateSystem = 'GCJ-02') {
         ? gcj02ToWgs84(point)
         : point
     ))
-    .filter((point) => Array.isArray(point) && point.length === 2)
+    .filter((point) => Array.isArray(point) && point.length === 2 && point.every(Number.isFinite))
   if (points.length < 2) return false
 
   plannedRoutePoints = points
@@ -504,12 +550,6 @@ function clearRoute() {
   plannedRoutePoints = []
   consecutiveDeviationSamples = 0
   lastDeviationNoticeAt = 0
-}
-
-function locationErrorMessage(error) {
-  if (error.code === 1) return '定位权限被拒绝；你仍可手动拖动地图。'
-  if (error.code === 3) return '定位请求超时，请检查系统定位设置后重试。'
-  return '暂时无法获取当前位置，请稍后重试。'
 }
 
 function locationMapPoint(latitude, longitude) {
@@ -578,7 +618,7 @@ function updateLivePosition({ coords }) {
     }
   }
 
-  const previousPoint = trackedPoints.at(-1)
+  const previousPoint = trackedPoints[trackedPoints.length - 1]
   if (!previousPoint || previousPoint.distanceTo(point) >= 8) {
     trackedPoints.push(point)
     if (!trackLayer) {
@@ -603,7 +643,7 @@ function updateLivePosition({ coords }) {
     ? wgs84ToGcj02([latitude, longitude])
     : [latitude, longitude]
   const deviationMeters = distanceToPolylineMeters(navigationPoint, plannedRoutePoints)
-  if (deviationMeters > 30 && accuracy <= 30) {
+  if (Number.isFinite(deviationMeters) && deviationMeters > 30 && accuracy > 0 && accuracy <= 30) {
     consecutiveDeviationSamples += 1
   } else {
     consecutiveDeviationSamples = 0
@@ -626,15 +666,17 @@ function showCurrentPosition(position, { focus = false } = {}) {
   if (!mapPoint) return false
 
   const point = L.latLng(mapPoint[0], mapPoint[1])
-  if (userLayer) map.removeLayer(userLayer)
-  userLayer = L.circleMarker(point, {
-    radius: 8,
-    weight: 3,
-    color: '#fff',
-    fillColor: '#7e0c6e',
-    fillOpacity: 1,
-    className: 'campus-user-location',
-  }).bindTooltip('你的位置', { permanent: false, direction: 'top' }).addTo(map)
+  if (userLayer) userLayer.setLatLng(point)
+  else {
+    userLayer = L.circleMarker(point, {
+      radius: 8,
+      weight: 3,
+      color: '#fff',
+      fillColor: '#7e0c6e',
+      fillOpacity: 1,
+      className: 'campus-user-location',
+    }).bindTooltip('你的位置', { permanent: false, direction: 'top' }).addTo(map)
+  }
 
   if (focus) {
     const targetZoom = props.baseMode === 'online'
@@ -647,40 +689,17 @@ function showCurrentPosition(position, { focus = false } = {}) {
 }
 
 function startLiveNavigation() {
-  if (!navigator.geolocation) {
-    emit('status', '当前浏览器不支持实时定位功能。')
-    return false
-  }
-  if (positionWatchId !== null) return true
-
-  emit('status', '正在开启实时导航定位…')
-  positionWatchId = navigator.geolocation.watchPosition(
-    updateLivePosition,
-    (error) => emit('status', locationErrorMessage(error)),
-    { enableHighAccuracy: true, timeout: 10000, maximumAge: 5000 },
-  )
-  emit('live-navigation-change', true)
-  return true
+  return geolocationSession.start()
 }
 
 function stopLiveNavigation(announce = true) {
-  if (positionWatchId !== null && navigator.geolocation) {
-    navigator.geolocation.clearWatch(positionWatchId)
-  }
-  positionWatchId = null
+  geolocationSession.stop()
   removeLiveNavigationLayers()
-  emit('live-navigation-change', false)
   if (announce) emit('status', '实时导航已结束，当前位置与本次轨迹已从浏览器内存清除。')
 }
 
 function locateUser({ initial = false } = {}) {
-  if (!navigator.geolocation) {
-    emit('status', '当前浏览器不支持定位功能。')
-    return
-  }
-
-  emit('status', initial ? '正在请求定位，以识别所在校区…' : '正在请求浏览器定位…')
-  navigator.geolocation.getCurrentPosition(
+  geolocationSession.locate(
     ({ coords }) => {
       if (!map) return
       const position = { latitude: coords.latitude, longitude: coords.longitude, accuracy: coords.accuracy }
@@ -694,18 +713,23 @@ function locateUser({ initial = false } = {}) {
         ? '已获取当前位置；未说明起点的导航将默认从这里出发，不保存。'
         : '已显示当前位置；仅在你发起以当前位置为起点的导航时用于本次路线计算，不保存。')
     },
-    (error) => emit('status', locationErrorMessage(error)),
-    { enableHighAccuracy: false, timeout: 8000, maximumAge: 60000 },
+    { initial },
   )
+}
+
+function requestInitialPosition() {
+  if (disposed || !map || document.hidden || !props.requestInitialLocation || initialLocationRequested) return
+  initialLocationRequested = true
+  locateUser({ initial: true })
 }
 
 watch(
   () => [props.campus.id, props.baseMode],
-  () => buildMap(),
+  () => rebuildMap(),
 )
 
 watch(
-  () => [props.selectedId, props.forceAllMarkers, props.forcedIds, props.candidateIds, props.locations],
+  () => [props.selectedId, props.forceAllMarkers, props.forcedIds, props.candidateIds, props.tourStopIds, props.locations],
   () => refreshFeatures(),
   { deep: true },
 )
@@ -717,20 +741,31 @@ watch(
 )
 
 onMounted(async () => {
-  resizeObserver = new ResizeObserver(() => {
-    if (!mapElement.value) return
-    if (map) map.invalidateSize({ animate: false })
-  })
-  resizeObserver.observe(mapElement.value)
-  await buildMap()
-  if (props.requestInitialLocation && !initialLocationRequested) {
-    initialLocationRequested = true
-    locateUser({ initial: true })
+  if (typeof ResizeObserver === 'function') {
+    resizeObserver = new ResizeObserver(scheduleResize)
+    resizeObserver.observe(mapElement.value)
   }
+  window.addEventListener('resize', scheduleResize, { passive: true })
+  window.visualViewport?.addEventListener('resize', scheduleResize, { passive: true })
+  document.addEventListener('visibilitychange', handleVisibilityChange)
+  window.addEventListener('pagehide', handlePageHide)
+  window.addEventListener('pageshow', handleVisibilityChange)
+  handleVisibilityChange()
+  await rebuildMap()
+  requestInitialPosition()
 })
 
 onBeforeUnmount(() => {
+  disposed = true
+  buildVersion += 1
+  geolocationSession.dispose()
   resizeObserver?.disconnect()
+  cancelAnimationFrame(resizeFrame)
+  window.removeEventListener('resize', scheduleResize)
+  window.visualViewport?.removeEventListener('resize', scheduleResize)
+  document.removeEventListener('visibilitychange', handleVisibilityChange)
+  window.removeEventListener('pagehide', handlePageHide)
+  window.removeEventListener('pageshow', handleVisibilityChange)
   destroyMap()
 })
 
@@ -742,6 +777,7 @@ defineExpose({
   clearRoute,
   startLiveNavigation,
   stopLiveNavigation,
+  whenReady: () => mapReady,
 })
 </script>
 

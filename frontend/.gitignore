@@ -1,3 +1,10 @@
 node_modules/
 dist/
 .DS_Store
+
+# Local Worker secrets
+.dev.vars
+.dev.vars.*
+.env
+.env.*
+!.env.example

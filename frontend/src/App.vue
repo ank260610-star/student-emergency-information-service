@@ -1,46 +1,21 @@
 <script setup>
-import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import { RouterLink, RouterView, useRoute } from 'vue-router'
+import { onBeforeUnmount, onMounted, ref } from 'vue'
+import { RouterLink, RouterView } from 'vue-router'
+import { navigationItems } from './data/navigation'
+import { useMobileMenu } from './composables/useMobileMenu'
+import { useVisitCount } from './composables/useVisitCount'
 
-const menuOpen = ref(false)
+const { menuOpen, menuButton, sidebar, mainContent, closeMenu, onNavigationClick } = useMobileMenu()
+const { formattedVisitCount, visitCountStatus } = useVisitCount()
 const showIntro = ref(true)
-const visitCount = ref(null)
-const visitCountStatus = ref('loading')
-const route = useRoute()
-const formattedVisitCount = computed(() => (
-  visitCount.value === null ? '—' : new Intl.NumberFormat('zh-CN').format(visitCount.value)
-))
 let introTimer
 
-watch(() => route.fullPath, () => { menuOpen.value = false })
-
-onMounted(async () => {
+onMounted(() => {
   const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
   introTimer = window.setTimeout(() => { showIntro.value = false }, reducedMotion ? 100 : 650)
-
-  try {
-    const response = await fetch('/api/visits', {
-      method: 'POST',
-      headers: { Accept: 'application/json' },
-      cache: 'no-store',
-      credentials: 'same-origin',
-    })
-
-    if (!response.ok) throw new Error(`Visit counter returned ${response.status}`)
-
-    const data = await response.json()
-    if (!Number.isSafeInteger(data.total) || data.total < 0) throw new Error('Invalid visit count')
-
-    visitCount.value = data.total
-    visitCountStatus.value = 'ready'
-  } catch (error) {
-    visitCountStatus.value = 'error'
-    console.warn('Unable to load the visit counter.', error)
-  }
 })
 
 onBeforeUnmount(() => window.clearTimeout(introTimer))
-
 </script>
 
 <template>
@@ -56,54 +31,22 @@ onBeforeUnmount(() => window.clearTimeout(introTimer))
     </div>
   </Transition>
   <div class="app-shell">
-    <header class="mobile-header">
+    <header class="mobile-header" @click.capture="onNavigationClick">
       <RouterLink class="mobile-brand" to="/" aria-label="返回首页"><span class="brand-mark logo-mark"><img src="/images/nankai-university-logo.png" alt="" /></span><span>南开校园指北</span></RouterLink>
-      <button class="menu-button" type="button" :aria-expanded="menuOpen" aria-controls="site-sidebar" @click="menuOpen = !menuOpen">
+      <button ref="menuButton" class="menu-button" type="button" :aria-expanded="menuOpen" aria-controls="site-sidebar" @click="menuOpen = !menuOpen">
         <span class="sr-only">{{ menuOpen ? '关闭导航菜单' : '打开导航菜单' }}</span><span></span><span></span><span></span>
       </button>
     </header>
-    <div v-if="menuOpen" class="menu-backdrop" aria-hidden="true" @click="menuOpen = false"></div>
-    <aside id="site-sidebar" class="sidebar" :class="{ open: menuOpen }">
+    <div v-if="menuOpen" class="menu-backdrop" aria-hidden="true" @click="closeMenu()"></div>
+    <aside ref="sidebar" id="site-sidebar" class="sidebar" :class="{ open: menuOpen }">
       <RouterLink class="brand" to="/" aria-label="南开校园生活指北首页">
         <span class="brand-mark logo-mark"><img src="/images/nankai-university-logo.png" alt="" /></span>
         <span class="brand-copy"><strong>南开校园<br />生活指北</strong><small>找路 · 办事 · 安心生活</small></span>
       </RouterLink>
-      <nav class="side-nav" aria-label="主要导航">
-        <RouterLink to="/" exact-active-class="router-link-active">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m3 11 9-8 9 8v9H4v-9Zm6 9v-6h6v6"/></svg>
-          <span><strong>首页</strong><small>从校园日常需求开始</small></span>
-        </RouterLink>
-        <RouterLink to="/campus-map">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m3 6 6-3 6 3 6-3v15l-6 3-6-3-6 3V6Zm6-3v15m6-12v15"/></svg>
-          <span><strong>校园地图 · NK 智行</strong><small>找地点与路线建议</small></span>
-        </RouterLink>
-        <RouterLink to="/service-guide">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v15H4zM8 5V3h8v2M8 10h8M8 14h8M8 18h5"/></svg>
-          <span><strong>办事指南</strong><small>窗口、报修与缴费信息</small></span>
-        </RouterLink>
-        <RouterLink to="/contacts">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4h4l2 5-3 2a15 15 0 0 0 5 5l2-3 5 2v4a2 2 0 0 1-2 2C9.7 21 3 14.3 3 6a2 2 0 0 1 2-2Z"/></svg>
-          <span><strong>紧急联络人</strong><small>查找角色与联络要点</small></span>
-        </RouterLink>
-        <RouterLink to="/nearby">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21s7-5.2 7-12a7 7 0 1 0-14 0c0 6.8 7 12 7 12Zm0-9a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z"/></svg>
-          <span><strong>周边信息</strong><small>交通与公共服务设施</small></span>
-        </RouterLink>
-        <RouterLink to="/links">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 14 8.5 15.5a4 4 0 0 1-5.7-5.7l3-3a4 4 0 0 1 5.7 0M14 10l1.5-1.5a4 4 0 0 1 5.7 5.7l-3 3a4 4 0 0 1-5.7 0M8.5 15.5l7-7"/></svg>
-          <span><strong>常用链接</strong><small>学习与校园服务入口</small></span>
-        </RouterLink>
-        <RouterLink to="/wechat">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9.5 5C5.9 5 3 7.4 3 10.4c0 1.7.9 3.2 2.4 4.2L4.8 17l2.7-1.3c.6.1 1.3.2 2 .2 3.6 0 6.5-2.5 6.5-5.5S13.1 5 9.5 5Zm7 6.1c2.5 0 4.5 1.7 4.5 3.8 0 1.2-.7 2.3-1.7 3l.4 1.7-1.9-.9c-.4.1-.9.1-1.3.1-2.5 0-4.5-1.7-4.5-3.9 0-.2 0-.4.1-.6 1.9-.7 3.4-1.8 4.1-3.2h.3Z"/></svg>
-          <span><strong>常用公众号</strong><small>校级与学院官方账号</small></span>
-        </RouterLink>
-        <RouterLink to="/orientation-guide">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 3h14v18H5zM8 7h8M8 11h8M8 15h5"/></svg>
-          <span><strong>报到指南</strong><small>新生入校关键事项</small></span>
-        </RouterLink>
-        <RouterLink to="/contribute">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.7A4 4 0 0 1 19 10c0 5.6-7 10-7 10Zm0-8v5m-2.5-2.5h5"/></svg>
-          <span><strong>参与贡献</strong><small>学长学姐共建指北</small></span>
+      <nav class="side-nav" aria-label="主要导航" @click.capture="onNavigationClick">
+        <RouterLink v-for="item in navigationItems" :key="item.to" :to="item.to">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path v-for="path in item.paths" :key="path" :d="path" /></svg>
+          <span><strong>{{ item.title }}</strong><small>{{ item.subtitle }}</small></span>
         </RouterLink>
       </nav>
       <div class="sidebar-bottom">
@@ -124,7 +67,7 @@ onBeforeUnmount(() => window.clearTimeout(introTimer))
         <div class="sidebar-notice"><span aria-hidden="true">!</span><p>紧急情况请优先联系专业救援力量，并以学校官方通知为准。</p></div>
       </div>
     </aside>
-    <main class="main-content">
+    <main ref="mainContent" class="main-content" tabindex="-1" :inert="menuOpen || undefined" :aria-hidden="menuOpen ? true : undefined">
       <RouterView />
       <footer class="site-footer"><span>南开大学校园生活指北</span><span>实用信息持续更新 · 重要事项以学校官方通知为准</span></footer>
     </main>

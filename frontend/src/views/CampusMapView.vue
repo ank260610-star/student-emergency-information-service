@@ -1,11 +1,12 @@
 <script setup>
-import { computed, nextTick, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import CampusInteractiveMap from '../components/CampusInteractiveMap.vue'
 import CampusMapControls from '../components/CampusMapControls.vue'
 import NkZhixingAgentPanel from '../components/NkZhixingAgentPanel.vue'
 import { consumeNkZhixingHandoff, getRoute } from '../services/nkZhixingAgent'
 import { wgs84ToGcj02 } from '../utils/mapUtils'
+import { usePhotoDialog } from '../composables/usePhotoDialog'
 import {
   campusTours,
   campusConfigs,
@@ -26,8 +27,7 @@ const mapStatus = ref(`${campusConfigs[campus.value].name} · ${getCampusLocatio
 const interactiveMap = ref(null)
 const nkZhixingPanel = ref(null)
 const mapWorkspace = ref(null)
-const photoDialog = ref(null)
-const activePhoto = ref(null)
+const { photoDialog, activePhoto, photoFallback, openPhoto, closePhoto } = usePhotoDialog()
 const liveNavigation = ref(false)
 const livePosition = ref(null)
 const activeNavigation = ref(null)
@@ -35,6 +35,10 @@ const activeTourId = ref('')
 const tourPlanning = ref(false)
 let rerouteRequestId = 0
 let tourRequestId = 0
+let routeDrawVersion = 0
+let tourController = null
+let rerouteController = null
+let disposed = false
 
 const currentCampus = computed(() => campusConfigs[campus.value])
 const campusLocations = computed(() => getCampusLocations(campus.value))
@@ -90,6 +94,7 @@ async function handleLocationFound(position) {
   campus.value = detectedCampus
   baseMode.value = 'online'
   await nextTick()
+  if (disposed || campus.value !== detectedCampus) return
   mapStatus.value = campusChanged
     ? `已根据当前位置切换到${campusConfigs[detectedCampus].name}在线地图。`
     : `已确认当前位置位于${campusConfigs[detectedCampus].name}。`
@@ -131,6 +136,7 @@ function scrollToMap() {
 async function selectAndFocus(location, shouldScroll = false) {
   selectedId.value = location.id
   await nextTick()
+  if (disposed || selectedId.value !== location.id) return
   const focused = interactiveMap.value?.focusLocation(location.id, true)
   if (!focused) return
   mapStatus.value = `已定位到：${location.name}`
@@ -162,20 +168,35 @@ function clearAgentCandidates() {
   candidateLocationIds.value = []
 }
 
-async function handleAgentRoute(route) {
+function cancelTourRequest() {
   tourRequestId += 1
+  tourController?.abort()
+  tourController = null
   tourPlanning.value = false
+}
+
+function cancelRerouteRequest() {
+  rerouteRequestId += 1
+  rerouteController?.abort()
+  rerouteController = null
+}
+
+async function ensureOnlineMap() {
+  baseMode.value = 'online'
+  await nextTick()
+  await interactiveMap.value?.whenReady()
+  return !disposed && baseMode.value === 'online'
+}
+
+async function handleAgentRoute(route) {
+  cancelTourRequest()
+  cancelRerouteRequest()
+  const version = ++routeDrawVersion
   activeTourId.value = ''
-  if (baseMode.value !== 'online') {
-    baseMode.value = 'online'
-    await nextTick()
-    // CampusInteractiveMap rebuilds the Leaflet instance after its prop changes.
-    // Wait for that second render pass before asking the new instance to draw.
-    await nextTick()
-  }
+  if (!await ensureOnlineMap() || version !== routeDrawVersion) return
   const routeDrawn = interactiveMap.value?.showRoute(route.routePoints, route.coordinateSystem)
   if (!routeDrawn) {
-    mapStatus.value = '已获得导航建议，但当前网络无法加载在线底图，路线轨迹将在在线地图可用时显示。'
+    mapStatus.value = '已获得导航建议，但当前无法绘制路线，请在在线地图可用后重新规划。'
   }
   activeNavigation.value = route.destination ? {
     destination: route.destination,
@@ -194,20 +215,20 @@ async function showCampusTour(tour) {
   }
 
   const requestId = ++tourRequestId
+  const requestCampus = campus.value
+  const controller = new AbortController()
+  tourController = controller
+  cancelRerouteRequest()
+  routeDrawVersion += 1
+  tourPlanning.value = true
   activeTourId.value = tour.id
   candidateLocationIds.value = []
   activeNavigation.value = null
-  if (baseMode.value !== 'online') {
-    baseMode.value = 'online'
-    await nextTick()
-    await nextTick()
-  }
-  interactiveMap.value?.clearRoute()
-  tourPlanning.value = true
-  mapStatus.value = `正在按道路网络规划“${tour.name}”的 ${stops.length - 1} 段步行路线…`
-  requestAnimationFrame(scrollToMap)
-
   try {
+    if (!await ensureOnlineMap() || requestId !== tourRequestId || campus.value !== requestCampus) return
+    interactiveMap.value?.clearRoute()
+    mapStatus.value = `正在按道路网络规划“${tour.name}”的 ${stops.length - 1} 段步行路线…`
+    requestAnimationFrame(scrollToMap)
     const routePoints = []
     let distanceMeters = 0
     let durationSeconds = 0
@@ -221,8 +242,8 @@ async function showCampusTour(tour) {
         origin: `${origin[1]},${origin[0]}`,
         destination: `${destination[1]},${destination[0]}`,
         mode: 'walking',
-      })
-      if (requestId !== tourRequestId) return
+      }, { signal: controller.signal })
+      if (disposed || requestId !== tourRequestId) return
       if (!Array.isArray(segment.routePoints) || segment.routePoints.length < 2) {
         throw new Error(`未获取到“${stops[index].name} → ${stops[index + 1].name}”的真实步行路线。`)
       }
@@ -237,24 +258,28 @@ async function showCampusTour(tour) {
       durationSeconds += Number(segment.durationSeconds) || 0
     }
 
-    if (requestId !== tourRequestId) return
-    interactiveMap.value?.showRoute(routePoints, 'GCJ-02')
+    if (disposed || requestId !== tourRequestId) return
+    if (!interactiveMap.value?.showRoute(routePoints, 'GCJ-02')) {
+      throw new Error('当前无法显示完整路线，请在在线地图可用后重试。')
+    }
     const distance = distanceMeters >= 1000 ? `${(distanceMeters / 1000).toFixed(1)} 公里` : `${Math.round(distanceMeters)} 米`
     const duration = Math.max(1, Math.round(durationSeconds / 60))
     mapStatus.value = `已按真实步行道路绘制“${tour.name}”：约 ${distance}，约 ${duration} 分钟。`
   } catch (error) {
-    if (requestId !== tourRequestId) return
+    if (disposed || requestId !== tourRequestId || controller.signal.aborted) return
     interactiveMap.value?.clearRoute()
     activeTourId.value = ''
     mapStatus.value = error.message || '未能获取完整的真实步行路线，未绘制站点直线。'
   } finally {
-    if (requestId === tourRequestId) tourPlanning.value = false
+    if (requestId === tourRequestId) {
+      tourPlanning.value = false
+      tourController = null
+    }
   }
 }
 
 function clearCampusTour() {
-  tourRequestId += 1
-  tourPlanning.value = false
+  cancelTourRequest()
   activeTourId.value = ''
   interactiveMap.value?.clearRoute()
   mapStatus.value = '已关闭校史游览路线。'
@@ -267,33 +292,38 @@ async function rerouteFromCurrentPosition({ latitude, longitude, deviationMeters
 
   const origin = wgs84ToGcj02([latitude, longitude])
   if (!origin) return
+  cancelRerouteRequest()
   const requestId = ++rerouteRequestId
+  const controller = new AbortController()
+  rerouteController = controller
   mapStatus.value = `检测到偏离路线约 ${deviationMeters} 米，正在重新规划…`
   try {
     const routeResult = await getRoute({
       origin: `${origin[1]},${origin[0]}`,
       destination: `${destination[1]},${destination[0]}`,
       mode: navigation.mode,
-    })
-    if (requestId !== rerouteRequestId) return
-    interactiveMap.value?.showRoute(routeResult.routePoints, routeResult.coordinateSystem)
-    mapStatus.value = '已根据当前位置重新规划路线。'
+    }, { signal: controller.signal })
+    if (disposed || requestId !== rerouteRequestId || activeNavigation.value !== navigation) return
+    if (!interactiveMap.value?.showRoute(routeResult.routePoints, routeResult.coordinateSystem)) return
+    const source = navigation.destination.routeSource
+    mapStatus.value = source
+      ? `已根据当前位置重新规划路线（高德地图路线；目的地：${source}）。`
+      : '已根据当前位置重新规划路线。'
   } catch (error) {
-    if (requestId === rerouteRequestId) mapStatus.value = error.message
+    if (!disposed && requestId === rerouteRequestId && !controller.signal.aborted) mapStatus.value = error.message
+  } finally {
+    if (requestId === rerouteRequestId) rerouteController = null
   }
 }
 
-async function openPhoto(photo) {
-  activePhoto.value = photo
-  await nextTick()
-  photoDialog.value?.showModal()
-}
-
-function closePhoto() {
-  if (photoDialog.value?.open) photoDialog.value.close()
-}
-
 function setBaseMode(mode) {
+  if (mode === 'illustration' && baseMode.value !== mode) {
+    cancelTourRequest()
+    cancelRerouteRequest()
+    routeDrawVersion += 1
+    activeTourId.value = ''
+    activeNavigation.value = null
+  }
   baseMode.value = mode
   mapStatus.value = mode === 'online'
     ? '已切换到在线地图。'
@@ -302,16 +332,13 @@ function setBaseMode(mode) {
 
 function handleOnlineMapUnavailable() {
   if (baseMode.value !== 'online') return
-  baseMode.value = 'illustration'
+  setBaseMode('illustration')
   mapStatus.value = '当前网络无法加载在线底图，已自动切换到校园导览图；地点检索可继续使用，路线轨迹请在网络恢复后重试。'
 }
 
 async function startLiveNavigation() {
-  if (baseMode.value !== 'online') {
-    baseMode.value = 'online'
-    await nextTick()
-  }
-  interactiveMap.value?.startLiveNavigation()
+  const requestCampus = campus.value
+  if (await ensureOnlineMap() && campus.value === requestCampus) interactiveMap.value?.startLiveNavigation()
 }
 
 function stopLiveNavigation() {
@@ -319,9 +346,9 @@ function stopLiveNavigation() {
   livePosition.value = null
   activeNavigation.value = null
   activeTourId.value = ''
-  tourRequestId += 1
-  tourPlanning.value = false
-  rerouteRequestId += 1
+  cancelTourRequest()
+  cancelRerouteRequest()
+  routeDrawVersion += 1
 }
 
 function handleLiveNavigationChange(isLive) {
@@ -330,7 +357,7 @@ function handleLiveNavigationChange(isLive) {
   if (!isLive && wasLive) {
     livePosition.value = null
     activeNavigation.value = null
-    rerouteRequestId += 1
+    cancelRerouteRequest()
   }
 }
 
@@ -340,9 +367,12 @@ watch(campus, () => {
   selectedId.value = ''
   query.value = ''
   category.value = 'all'
+  candidateLocationIds.value = []
   activeTourId.value = ''
-  tourRequestId += 1
-  tourPlanning.value = false
+  activeNavigation.value = null
+  cancelTourRequest()
+  cancelRerouteRequest()
+  routeDrawVersion += 1
   mapStatus.value = `${currentCampus.value.name} · ${campusLocations.value.length} 个地点`
 })
 
@@ -350,6 +380,13 @@ watch(category, () => {
   if (selectedLocation.value && !filteredLocations.value.some((item) => item.id === selectedId.value)) {
     selectedId.value = ''
   }
+})
+
+onBeforeUnmount(() => {
+  disposed = true
+  routeDrawVersion += 1
+  cancelTourRequest()
+  cancelRerouteRequest()
 })
 </script>
 
@@ -483,7 +520,7 @@ watch(category, () => {
           </article>
         </div>
         <div v-if="activeTour" class="campus-tour-actions">
-          <button type="button" :disabled="tourPlanning" @click="clearCampusTour">关闭当前路线</button>
+          <button type="button" @click="clearCampusTour">关闭当前路线</button>
         </div>
         <ol v-if="activeTourStops.length" class="campus-tour-stops">
           <li v-for="(location, index) in activeTourStops" :key="location.id">
@@ -515,7 +552,7 @@ watch(category, () => {
             v-for="photo in selectedLocation.photos"
             :key="photo.src"
             type="button"
-            @click="openPhoto(photo)"
+            @click="openPhoto(photo, $event.currentTarget)"
           >
             <img :src="photo.src" :alt="photo.alt" loading="lazy" decoding="async" />
             <span>{{ photo.caption }}</span>
@@ -525,12 +562,18 @@ watch(category, () => {
     </section>
 
     <Teleport to="body">
+      <div v-if="activePhoto && photoFallback" class="location-photo-backdrop" aria-hidden="true" @click="closePhoto"></div>
       <dialog
+        v-show="activePhoto"
         ref="photoDialog"
         class="location-photo-dialog"
+        :class="{ 'is-fallback': photoFallback }"
+        role="dialog"
+        aria-modal="true"
         aria-label="地点实景大图"
+        @cancel.prevent="closePhoto"
         @click.self="closePhoto"
-        @close="activePhoto = null"
+        @close="!photoDialog?.open && closePhoto()"
       >
         <button type="button" class="location-photo-close" aria-label="关闭实景照片" @click="closePhoto">×</button>
         <figure v-if="activePhoto">
@@ -562,3 +605,21 @@ watch(category, () => {
 
   </div>
 </template>
+
+<style scoped>
+.location-photo-backdrop {
+  position: fixed;
+  z-index: 2000;
+  inset: 0;
+  background: rgba(20, 7, 18, .84);
+}
+
+.location-photo-dialog.is-fallback {
+  position: fixed;
+  z-index: 2001;
+  top: 50%;
+  left: 50%;
+  margin: 0;
+  transform: translate(-50%, -50%);
+}
+</style>

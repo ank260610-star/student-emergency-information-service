@@ -1,41 +1,160 @@
 const { randomUUID } = require('node:crypto')
 
-function headers(request) {
+// Includes the browser's 500-character input plus campus/location/history context.
+// Keep this aligned with frontend/worker/services.js.
+const MAX_AGENT_MESSAGE_LENGTH = 8_000
+const MAX_BODY_BYTES = 64 * 1024
+const CREATE_TIMEOUT_MS = 10_000
+const ANSWER_TIMEOUT_MS = 45_000
+
+function responseHeaders(request) {
   const origin = request.headers.origin
-  const allowed = new Set((process.env.NK_ZHIXING_ALLOWED_ORIGINS || '').split(',').map((item) => item.trim()))
-  const result = { 'Cache-Control': 'no-store', 'Content-Type': 'application/json; charset=utf-8' }
-  if (origin && allowed.has(origin)) { result['Access-Control-Allow-Origin'] = origin; result.Vary = 'Origin' }
-  return result
+  const allowedOrigins = new Set((process.env.NK_ZHIXING_ALLOWED_ORIGINS || '')
+    .split(',').map((item) => item.trim()).filter(Boolean))
+  const headers = {
+    'Cache-Control': 'no-store',
+    'Content-Type': 'application/json; charset=utf-8',
+    'X-Content-Type-Options': 'nosniff',
+    Vary: 'Origin',
+  }
+  if (origin && allowedOrigins.has(origin)) headers['Access-Control-Allow-Origin'] = origin
+  return headers
 }
-function send(response, request, status, payload) { response.writeHead(status, headers(request)); response.end(JSON.stringify(payload)) }
+
+function send(response, request, status, payload, extraHeaders = {}) {
+  response.writeHead(status, { ...responseHeaders(request), ...extraHeaders })
+  response.end(JSON.stringify(payload))
+}
+
+function bodyTooLarge() {
+  const error = new Error('Request body too large')
+  error.statusCode = 413
+  return error
+}
+
 function readBody(request) {
-  return new Promise((resolve, reject) => { let body = ''; request.setEncoding('utf8'); request.on('data', (chunk) => { body += chunk }); request.on('end', () => resolve(body)); request.on('error', reject) })
+  return new Promise((resolve, reject) => {
+    let body = ''
+    let bytes = 0
+    let exceeded = false
+    request.setEncoding('utf8')
+    request.on('data', (chunk) => {
+      if (exceeded) return
+      bytes += Buffer.byteLength(chunk, 'utf8')
+      if (bytes > MAX_BODY_BYTES) {
+        exceeded = true
+        body = ''
+        reject(bodyTooLarge())
+        return
+      }
+      body += chunk
+    })
+    request.on('end', () => resolve(body))
+    request.on('error', reject)
+    request.on('aborted', () => reject(new Error('Request aborted')))
+  })
 }
-function parsePayload(text) {
-  try { return JSON.parse(text) } catch {
-    for (const line of text.split('\n').reverse()) { if (!line.startsWith('data:')) continue; try { const payload = JSON.parse(line.slice(5).trim()); if (payload.answer || payload?.data?.answer) return payload } catch {} }
+
+async function readPayload(request) {
+  // Vercel can supply an already parsed body; raw Node requests remain supported.
+  const body = request.body === undefined ? await readBody(request) : request.body
+  const text = typeof body === 'string' || Buffer.isBuffer(body) ? body.toString() : JSON.stringify(body)
+  if (Buffer.byteLength(text || '', 'utf8') > MAX_BODY_BYTES) throw bodyTooLarge()
+  return JSON.parse(text)
+}
+
+function parseAgentPayload(text) {
+  try {
+    return JSON.parse(text)
+  } catch {
+    // Some deployments return SSE frames even when blocking mode is requested.
+    for (const line of text.split('\n').reverse()) {
+      if (!line.startsWith('data:')) continue
+      try {
+        const payload = JSON.parse(line.slice(5).trim())
+        if (payload?.answer || payload?.data?.answer) return payload
+      } catch {
+        // Ignore stream markers and incomplete frames.
+      }
+    }
     return null
   }
 }
+
+async function callAgent(url, headers, body, timeoutMs) {
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), timeoutMs)
+  try {
+    const response = await fetch(url, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(body),
+      signal: controller.signal,
+    })
+    // Keep the deadline active while the upstream response body is being read.
+    return { response, payload: parseAgentPayload(await response.text()) }
+  } finally {
+    clearTimeout(timer)
+  }
+}
+
 module.exports = async function handler(request, response) {
-  if (request.method === 'OPTIONS') { const result = headers(request); result['Access-Control-Allow-Headers'] = 'Content-Type'; result['Access-Control-Allow-Methods'] = 'POST, OPTIONS'; response.writeHead(204, result); response.end(); return }
-  if (request.method !== 'POST') return send(response, request, 405, { error: 'Method not allowed' })
-  if (!process.env.NK_GENIOS_AGENT_API_URL || !process.env.NK_GENIOS_AGENT_TOKEN) return send(response, request, 503, { error: 'NK 智行服务尚未完成配置。' })
-  let message
-  try { message = JSON.parse(await readBody(request)).message?.trim() } catch {}
-  if (!message || message.length > 500) return send(response, request, 400, { error: '请输入 1–500 个字的导航需求。' })
+  if (request.method === 'OPTIONS') {
+    response.writeHead(204, {
+      ...responseHeaders(request),
+      'Access-Control-Allow-Headers': 'Content-Type',
+      'Access-Control-Allow-Methods': 'POST, OPTIONS',
+    })
+    response.end()
+    return
+  }
+  if (request.method !== 'POST') {
+    return send(response, request, 405, { error: 'Method not allowed' }, { Allow: 'POST, OPTIONS' })
+  }
+  if (!process.env.NK_GENIOS_AGENT_API_URL || !process.env.NK_GENIOS_AGENT_TOKEN) {
+    return send(response, request, 503, { error: 'NK 智行服务尚未完成配置。' })
+  }
+
+  let payload
+  try {
+    payload = await readPayload(request)
+  } catch (error) {
+    const tooLarge = error.statusCode === 413
+    return send(response, request, tooLarge ? 413 : 400, {
+      error: tooLarge ? '请求内容过长，请缩短后重试。' : '请求格式无效。',
+    })
+  }
+  const message = typeof payload?.message === 'string' ? payload.message.trim() : ''
+  if (!message || message.length > MAX_AGENT_MESSAGE_LENGTH) {
+    return send(response, request, 400, { error: '导航请求为空或附带上下文过长，请缩短后重试。' })
+  }
+
   const baseUrl = process.env.NK_GENIOS_AGENT_API_URL.replace(/\/$/, '')
   const apiKey = process.env.NK_GENIOS_AGENT_TOKEN
   const userId = `nkweb-${randomUUID().replaceAll('-', '').slice(0, 12)}`
   const agentHeaders = { Apikey: apiKey, 'Content-Type': 'application/json' }
   try {
-    const created = await fetch(`${baseUrl}/create_conversation`, { method: 'POST', headers: agentHeaders, body: JSON.stringify({ AppKey: apiKey, UserID: userId }) })
-    const conversation = parsePayload(await created.text())?.Conversation?.AppConversationID
-    if (!created.ok || !conversation) return send(response, request, 502, { error: 'NK 智行暂时无法创建会话，请稍后再试。' })
-    const answered = await fetch(`${baseUrl}/chat_query_v2`, { method: 'POST', headers: agentHeaders, body: JSON.stringify({ AppKey: apiKey, AppConversationID: conversation, Query: message, ResponseMode: 'blocking', UserID: userId }) })
-    const payload = parsePayload(await answered.text())
-    const answer = payload?.answer || payload?.data?.answer
-    if (!answered.ok || !answer?.trim()) return send(response, request, 502, { error: 'NK 智行暂时未返回有效回答，请稍后再试。' })
+    const created = await callAgent(`${baseUrl}/create_conversation`, agentHeaders, {
+      AppKey: apiKey,
+      UserID: userId,
+    }, CREATE_TIMEOUT_MS)
+    const conversation = created.payload?.Conversation?.AppConversationID
+    if (!created.response.ok || typeof conversation !== 'string' || !conversation.trim()) {
+      return send(response, request, 502, { error: 'NK 智行暂时无法创建会话，请稍后再试。' })
+    }
+    const answered = await callAgent(`${baseUrl}/chat_query_v2`, agentHeaders, {
+      AppKey: apiKey,
+      AppConversationID: conversation,
+      Query: message,
+      ResponseMode: 'blocking',
+      UserID: userId,
+    }, ANSWER_TIMEOUT_MS)
+    const answer = answered.payload?.answer || answered.payload?.data?.answer
+    if (!answered.response.ok || typeof answer !== 'string' || !answer.trim()) {
+      return send(response, request, 502, { error: 'NK 智行暂时未返回有效回答，请稍后再试。' })
+    }
     return send(response, request, 200, { answer })
-  } catch { return send(response, request, 502, { error: 'NK 智行暂时无法响应，请稍后再试。' }) }
+  } catch {
+    return send(response, request, 502, { error: 'NK 智行暂时无法响应，请稍后再试。' })
+  }
 }

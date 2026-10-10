@@ -1,135 +1,146 @@
 # 南开校园生活指北 · NK 智行
 
-面向南开大学新生与在校生的校园信息与导航网站。项目将报到、办事、紧急联络、周边出行等常用信息集中到一个移动端友好的站点，并在“校园地图”页面提供 **NK 智行**：自然语言地点识别、步行/骑行/驾车路线、浏览器实时定位与路线轨迹展示。
+面向南开大学新生与在校生的校园信息与导航网站，集中提供报到、办事、紧急联络、周边服务、常用链接和公众号入口。校园地图提供双校区地点检索、实景照片、主题游览路线，以及 NK 智行自然语言问答和导航。
 
-> 重要信息、开放时间和应急处置均应以学校官方通知及现场情况为准；本项目不替代 110、119、120 或校内专业救援渠道。
+> 电话、开放时间与应急安排以学校官方通知和现场情况为准。本项目不替代专业救援渠道。
 
-## 当前能力
+## 当前功能与运行边界
 
-- 双校区信息入口：八里台与津南的报到、办事、紧急联络、周边服务、常用链接及公众号。
-- 校园地图：地点搜索、分类筛选、校园导览图与在线地图切换、地点卡片和参观路线。
-- NK 智行导航：识别自然语言中的起点、终点与歧义地点；支持步行、骑行、驾车三种方式。
-- 实时导航：在用户主动授权定位后显示当前位置、精度范围和本次浏览轨迹；偏离路线时尝试重新规划。位置与轨迹只保存在当前浏览器内存，结束导航即清除。
-- 路线与地点兜底：优先使用项目地点数据；未收录地点可通过高德 Web 服务接口查找并绘制路线。
-- Agent 安全边界：包含天气开场、安全提醒、无法定位时追问和紧急情形优先提示。详细规则与测试语料见 [`agent/`](agent/README.md)。
-- 三维校园原型：[`wws/`](wws/) 中提供基于 Three.js 的津南校园 WebGL 漫游原型，后续可接入实景全景素材。
+- **校园信息**：八里台、津南的报到指南、办事指南、紧急联络、周边信息、常用链接、公众号与参与贡献入口。
+- **校园地图**：校园导览图 / 在线底图、地点搜索、分类筛选、地点实景照片、候选地点确认、八里台主题游览路线。
+- **NK 智行**：首页问题传递、校园问答、地标校史讲解；确认起终点后支持步行、骑行、驾车路线，高德检索用于未收录地点的坐标兜底。
+- **实时导航**：主动授权定位后展示位置、精度范围、当前会话轨迹与偏航重规划；页面进入后台暂停定位，返回时恢复尚未结束的导航，结束或离开地图时清理。
+- **独立保留部分**：`wws/` 三维校园原型、Django 信息管理脚手架和 Vercel Agent 代理均保留，部署边界见下表。
 
-## 目录说明
+| 部分 | 技术与职责 | 发布方式 |
+| --- | --- | --- |
+| 主站 | Vue 3、Vue Router、Leaflet；页面与地图交互 | `frontend/` 构建为静态资源 |
+| 主站 API | Cloudflare Worker；访问计数、问答转发、高德路线与地点代理 | 与主站一起发布；访问计数使用 Durable Object |
+| 校园 Agent 代理 | `api/nk-zhixing.js`；创建 NK-GeniOS 会话并提问 | 独立服务；当前 Worker 调用 `nk-api.fallaxaura.com` |
+| Django | `information/`、`student_emergency/`；管理脚手架 | 单独 Python 环境；不承载当前主站 API |
+| 三维校园原型 | `wws/`；Three.js WebGL 漫游 | 独立静态页面；不随 `frontend/` 自动发布 |
 
-```text
-.
-├── frontend/                 # 当前线上主站：Vue 3 + Vite + Leaflet + Cloudflare Worker
-│   ├── src/                  # 页面、组件、地图数据、导航服务和测试
-│   ├── worker/index.js       # 访问计数、NK 智行、路线与地点代理接口
-│   └── wrangler.jsonc        # Worker、静态资源和 Durable Object 配置
-├── agent/                    # NK 智行 Agent 的提示词、接入说明、POI 与评测语料
-├── wws/                      # 独立运行的三维校园原型
-├── api/                      # 兼容 Vercel 的 NK 智行代理实现
-├── information/              # Django 信息管理脚手架
-├── student_emergency/        # Django 配置（不参与当前 Worker 部署）
-├── CLOUDFLARE_DEPLOYMENT.md  # Cloudflare 一次性配置与发布流程
-└── *.md / output/            # 项目方案、汇报素材和已生成的交付材料
-```
+## 本地运行
 
-## 架构与数据流
-
-```text
-浏览器（Vue + Leaflet）
-  ├─ /api/visits                 → Cloudflare Durable Object 访问计数
-  ├─ /api/nk-zhixing             → 校园 NK 智行代理 → NK-GeniOS Agent
-  ├─ /api/nk-zhixing/route       → Worker → 高德路线服务
-  └─ /api/nk-zhixing/place       → Worker → 高德地点检索服务
-```
-
-浏览器不会持有高德 Web 服务密钥或 Agent 平台凭据。地图坐标按用途处理：浏览器定位的 WGS-84 坐标会在请求路线前转换为 GCJ-02；高德返回的路线折线按 GCJ-02 绘制。
-
-## 本地启动主站
-
-### 前置条件
-
-- Node.js 24（版本以 [`frontend/.node-version`](frontend/.node-version) 为准）
-- pnpm 11
+使用 Node.js 24（见 `frontend/.node-version`）和项目固定的 pnpm 11.19.0。已有 nvm / Corepack 时可以执行：
 
 ```bash
 cd frontend
+nvm use 24
+corepack enable
 pnpm install --frozen-lockfile
 pnpm dev
 ```
 
-随后打开终端给出的本地地址。生产构建和预览：
+没有 nvm / Corepack 时可使用已安装的 Node.js 24 和 pnpm 11.19.0；不要为安装依赖而重写锁文件。
+
+Vite 地址默认为 `http://127.0.0.1:5173`。仅启动 Vite 即可查看页面，但需要 API 的功能还需启动本地 Worker。在另一个终端执行：
 
 ```bash
 cd frontend
-pnpm build
-pnpm preview
+pnpm dev:worker
 ```
 
-说明：本地 Vite 开发服务器不会自动提供 Cloudflare Worker 接口；访问计数、Agent、在线地点检索和路线服务需要在 Worker 环境中配置后才可完整使用。
+此命令先构建页面，再在 `http://127.0.0.1:8787` 启动本地 Worker。Vite 的 `/api` 默认转发到该地址；直接打开 8787 可检查生产构建、静态资源响应头和本地访问计数。Worker 代码修改由 Wrangler 重载，直接查看 8787 上的页面时需要重新构建前端。
 
-## 配置 NK 智行与地图服务
-
-Cloudflare Worker 需要设置以下密钥，均不得写入前端代码、`wrangler.jsonc` 或 Git：
+如需指定其他 API 环境：
 
 ```bash
-cd frontend
-pnpm wrangler secret put AMAP_WEB_SERVICE_KEY
+API_PROXY_TARGET=http://127.0.0.1:8787 pnpm dev
 ```
 
-`AMAP_WEB_SERVICE_KEY` 用于服务器侧路线规划与地点检索。NK 智行的对话请求会转发到已部署的校园代理；若需调整 Agent API、令牌、工作流或 POI，请遵循 [`agent/NK_GENIOS_CONNECTION.md`](agent/NK_GENIOS_CONNECTION.md)。
+本地高德接口需要 `frontend/.dev.vars` 中的 `AMAP_WEB_SERVICE_KEY`，该文件不得提交。未配置时接口返回明确错误，静态页面仍可用。NK 智行会调用外置校园代理，需该服务正常响应；本地启动不会自动部署或替换它。
 
-开发或验收时，建议依次确认：
+## 配置与数据流
 
-1. 在“校园地图”输入已收录地点，确认地点识别和候选地点选择正常。
-2. 分别选择步行、骑行、驾车，确认在线地图能绘制路线。
-3. 在 HTTPS 或 `localhost` 环境点击“使用当前位置”，授予定位权限后检查当前位置、轨迹和“结束实时导航”的清除行为。
-4. 用 [`agent/Agent演示能力清单与测试语料.md`](agent/Agent演示能力清单与测试语料.md) 的 20 条语料回归测试 Agent。
-
-## 常用检查
-
-```bash
-# 前端地图工具与导航服务的单元测试
-cd frontend
-pnpm test:map
-
-# Vue 生产构建
-pnpm build
-
-# 仅检查 Cloudflare 打包，不发布
-pnpm exec wrangler deploy --dry-run
+```text
+浏览器
+  ├─ /api/visits            → Worker → Durable Object
+  ├─ /api/nk-zhixing        → Worker → 校园代理 → NK-GeniOS
+  ├─ /api/nk-zhixing/route  → Worker → 高德路线 API
+  └─ /api/nk-zhixing/place  → Worker → 高德地点 API
 ```
 
-仓库根目录还保留 Django 管理脚手架。它当前不承载线上业务，也不随 Cloudflare Worker 发布；如本机已准备 Django 环境，可执行：
+- `AMAP_WEB_SERVICE_KEY` 配在 **Cloudflare Worker**，用于步行、骑行、驾车路线及地点查询；生产环境通过 `pnpm wrangler secret put AMAP_WEB_SERVICE_KEY` 设置。
+- `NK_GENIOS_AGENT_API_URL`、`NK_GENIOS_AGENT_TOKEN` 配在 **独立校园代理**，不是主站 Worker。真实鉴权与接入步骤见 [连接配置](agent/NK_GENIOS_CONNECTION.md)。
+- 页面输入最多 500 字；两层代理允许最多 8000 字的“用户输入＋校区 / 导航 / 校史上下文”。修改该边界时必须同步两个代理。**只发布主站，不能修复仍使用旧 500 字限制的外置代理。**
+- 浏览器定位为 WGS-84；高德路线请求前转换为 GCJ-02。导览图点位、在线地图坐标与导航坐标用途不同，不应互换。
+- 会话轨迹只保存在页面内存。用户发起路线规划或偏航重规划时，起终点坐标会发送至 Worker / 高德；以当前位置提问时，坐标也会随上下文转发给校园 Agent。结束导航不代表已发送给服务端的请求可以撤回。
+
+## 代码结构与维护
+
+```text
+frontend/src/
+├── App.vue                 # 应用外壳与导航渲染
+├── composables/            # 移动菜单、访问计数的生命周期
+├── components/             # 地图、地图控制、智行问答面板
+├── views/                  # 页面组合与页面状态
+├── data/                   # 校区地点、校史、导航目录、公众号资料
+├── services/               # API 契约、地点解析与导航上下文
+├── utils/                  # 请求、复制、定位会话、滚动锁、坐标工具
+├── styles/                 # 基础、地图、页面、浏览器适配样式
+└── style.css               # 样式加载顺序入口
+frontend/worker/
+├── index.js                # 路由、同源校验与访问计数
+├── services.js             # 问答、路线、地点代理
+└── requestUtils.js         # 响应、超时与坐标校验
+```
+
+维护时遵守以下边界：
+
+1. 地点 / 公众号资料放 `data/`，不在组件中维护第二份；地点坐标需注明坐标系、来源和核验状态。
+2. API 访问集中在 `services/`；请求必须有期限。切换校区、修改需求或离开页面后，不让旧响应覆盖新状态。
+3. 地图实例、定位监听、定时器和弹窗必须在所属生命周期内释放。进入地图可请求一次定位以识别校区，实时导航由用户点击开启；两者都遵守浏览器权限。
+4. 样式入口的导入顺序保留原有覆盖关系；页面规则写到对应样式文件，跨浏览器适配集中在 `styles/browser.css`。避免继续在单个文件末尾叠加互相覆盖的补丁。
+5. 不删除看似未使用的旧模块、样式或原型来缩短文件；调整功能范围需先确认。项目工作流程以 [AGENTS.md](AGENTS.md) 为准。
+
+## 检查与回归
+
+在 `frontend/` 执行：
 
 ```bash
+pnpm test          # 地图、定位、请求、导航解析、Worker 与 Vercel 代理回归
+pnpm build        # Vue 生产构建
+pnpm exec wrangler deploy --dry-run  # 只检查打包，不发布
+# 或一次执行上述三项
+pnpm check
+```
+
+保留 `pnpm test:map` 供单独检查地图工具。GitHub 部署流程会先运行完整 `pnpm test`，通过后才构建和发布。单元测试使用替代的定位与网络响应，不证明高德或 NK-GeniOS 线上可用。
+
+浏览器回归至少覆盖：
+
+| 场景 | 核验点 |
+| --- | --- |
+| 桌面 Chrome / Edge、Firefox、Safari | 九个页面、导航、刷新深链接、前进后退恢复滚动、键盘 Tab / Escape |
+| iOS Safari、Android Chrome、常见系统浏览器 | 320px 起的窄屏、横竖屏、输入焦点、触控按钮、菜单滚动与关闭后恢复 |
+| iOS / Android 微信内置浏览器 | 搜索、复制成功与拒绝后的手动复制、存储不可用时首页跳转、照片弹窗回退 |
+| 地图 | 两校区与两种底图切换、搜索 / 筛选 / 地点选择、照片开关、主题游览路线 |
+| 定位 | 同意 / 拒绝 / 超时，切后台返回，结束导航及离开页后停止监听 |
+| 智行与路线 | 三种出行方式、候选确认、改问题 / 改校区后丢弃旧结果、校史讲解、接口超时 |
+
+构建语法目标设为 Chrome 87、Edge 88、Firefox 78、Safari 14；这是语法转换目标，不是这些历史版本或所有微信内核的通过证明。使用能力检测处理剪贴板、弹窗与地图尺寸监听；动态视口高度有 `vh` 回退，保留用户缩放。定位依赖 HTTPS 或 localhost 以及系统 / 浏览器权限。微信真机仍需在 HTTPS 预览地址验收。
+
+相关行为依据：[Vite 构建目标](https://vite.dev/config/build-options.html#build-target)、[Clipboard API](https://developer.mozilla.org/en-US/docs/Web/API/Clipboard/writeText)、[dialog](https://developer.mozilla.org/en-US/docs/Web/HTML/Reference/Elements/dialog)。
+
+## Django 与三维原型
+
+Django 为独立脚手架。Python 3.12+ 可在仓库根目录创建独立环境：
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install -r requirements-dev.txt
 python manage.py check
+python manage.py runserver
 ```
 
-## 三维校园原型
+`requirements-dev.txt` 固定本次已检查的依赖。需要使用管理后台时再按 Django 流程准备数据库和账号；主站不需要启动它，也不需要迁移数据库。
 
-`wws/` 为单独的静态 WebGL 原型，不会随 `frontend/` 的 Cloudflare 发布流程自动构建。可在仓库根目录启动任意静态文件服务器后访问：
+三维原型可以在仓库根目录执行 `python3 -m http.server 8000` 后打开 `http://localhost:8000/wws/`。它通过 CDN 加载 Three.js，首次运行需要网络；素材授权、实景全景和主站联动仍需独立推进。本轮主站浏览器回归不代表三维原型经过相同验收。
 
-```bash
-python3 -m http.server 8000
-```
+## 提交与发布
 
-然后打开 `http://localhost:8000/wws/`。原型通过 CDN 加载 Three.js，因此首次打开需要网络。实景全景图、建筑采景和主站地图的深度联动仍是后续工作，应先完成素材授权、压缩和热点坐标校验。
+开发使用持久 `codex` 分支；提交并推送后创建至 `main` 的 PR。合并后 `main` 的 `frontend/**` 或部署工作流变更触发 GitHub Actions 发布。`api/` 的改动必须在校园代理对应环境另行发布；Django 和 `wws/` 也有独立部署边界。
 
-## 发布流程
-
-线上发布由 GitHub Actions 在 `main` 分支的 `frontend/**` 变更后自动执行。首次部署的 Cloudflare 配置、权限和自定义域名说明见 [`CLOUDFLARE_DEPLOYMENT.md`](CLOUDFLARE_DEPLOYMENT.md)。
-
-日常协作使用持久的 `codex` 分支：
-
-1. 从 `main` 同步 `codex`。
-2. 在 `codex` 完成修改和检查。
-3. 提交并推送 `codex`，创建或更新至 `main` 的 Pull Request。
-4. 在预览环境核验后合并；合并后再次将 `codex` 同步到 `main`。
-
-具体约束与合并前检查清单见 [`AGENTS.md`](AGENTS.md)。
-
-## 信息维护原则
-
-- 联系电话、窗口地点、校车与迎新时间会变动；发布前必须用官方来源或现场信息复核。
-- 个人定位信息不应上传、持久化或用于画像；本项目仅在用户主动开启实时导航时临时使用。
-- 遇到医疗急症、火灾、违法犯罪或人身危险时，页面与 Agent 都应优先引导用户联系专业救援，不承诺响应时长。
-- 新增 POI 时需注明校区、数据来源、坐标系、核验状态与更新时间；津南自建 MVP 与高德兜底数据必须明确区分。
+完整发布说明见 [CLOUDFLARE_DEPLOYMENT.md](CLOUDFLARE_DEPLOYMENT.md)。本地测试、生产构建和打包检查均不等于线上发布成功。

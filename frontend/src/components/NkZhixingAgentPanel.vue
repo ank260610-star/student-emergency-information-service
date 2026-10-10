@@ -1,14 +1,21 @@
 <script setup>
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { findLandmarkNarrative } from '../data/landmarkNarratives'
+import { askNkZhixingAgent, getRoute, NK_ZHIXING_MESSAGE_LIMIT, resolveCampusPlace } from '../services/nkZhixingAgent'
 import {
-  askNkZhixingAgent,
+  buildAgentInstructions,
   extractNavigationDestination,
-  getRoute,
+  findDestination,
+  findDestinationCandidates,
+  findOrigin,
+  isNavigationPoint,
   isNavigationRequest,
-  resolveCampusPlace,
-} from '../services/nkZhixingAgent'
+  refersToCurrentPosition,
+  requestsLandmarkHistory,
+  travelModeLabels,
+} from '../services/nkZhixingNavigation'
 import { wgs84ToGcj02 } from '../utils/mapUtils'
+import { isAbortError } from '../utils/request'
 
 const props = defineProps({
   campus: { type: Object, required: true },
@@ -20,85 +27,62 @@ const props = defineProps({
 })
 
 const emit = defineEmits(['focus-location', 'show-route', 'route-status', 'show-candidates', 'clear-candidates'])
-
 const message = ref('')
 const loading = ref(false)
+const composing = ref(false)
 const error = ref('')
 const result = ref(null)
 const travelMode = ref('walking')
 const selectedDestinationId = ref('')
 const landmarkNarrationMode = ref(false)
-const landmarkNarrationMessage = ref('')
-
-const travelModeLabels = {
-  walking: '步行',
-  bicycling: '骑行',
-  driving: '驾车',
-}
-
-const campusAliases = {
-  jinnan: {
-    'jinnan-public-teaching': ['公教'],
-  },
-}
-
-function findLocationMatches(text) {
-  const locations = props.campus.locations || []
-  const normalizedText = text.toLocaleLowerCase('zh-CN').replaceAll(/\s/g, '')
-  return locations.flatMap((location) => {
-    const aliases = [
-      location.name,
-      ...(location.aliases || []),
-      ...(campusAliases[props.campus.id]?.[location.id] || []),
-    ]
-    const matches = aliases.map((alias) => ({
-      index: normalizedText.lastIndexOf(alias.toLocaleLowerCase('zh-CN')),
-      aliasLength: alias.length,
-    })).filter((match) => match.index >= 0)
-    const match = matches.sort((left, right) => right.aliasLength - left.aliasLength || right.index - left.index)[0]
-    return match ? [{ location, ...match }] : []
-  }).sort((left, right) => left.index - right.index)
-}
-
-function findDestination(text) {
-  return findLocationMatches(text).at(-1)?.location || null
-}
-
-function findDestinationCandidates(text) {
-  const destinationText = text.split(/(?:前往|抵达|到|去)/).at(-1)?.replace(/[，。！？、,.!？]/g, '') || text
-  const directMatches = findLocationMatches(destinationText)
-  const longestMatch = Math.max(...directMatches.map((match) => match.aliasLength || 0), 0)
-  const directLocations = directMatches
-    .filter((match) => (match.aliasLength || 0) === longestMatch)
-    .map(({ location }) => location)
-  if (directLocations.length) return [...new Map(directLocations.map((location) => [location.id, location])).values()]
-
-  const genericTerms = ['图书馆', '食堂', '宿舍', '体育馆', '教学楼', '校门', '大门', '医院', '广场']
-  const term = genericTerms.find((item) => destinationText.includes(item))
-  if (!term) return []
-  return (props.campus.locations || []).filter((location) => location.name.includes(term))
-}
-
-function findOrigin(text, destination) {
-  const matches = findLocationMatches(text)
-  const origin = matches.find(({ location }) => location.id !== destination?.id)?.location || null
-  return matches.length > 1 ? origin : null
-}
+let pendingCandidates = null
+let requestVersion = 0
+let requestController = null
 
 const suggestions = computed(() => [
   `从${props.campus.short}西南门去中心图书馆怎么走？`,
   `我在${props.campus.short}，想去校医院。`,
   '晚上一个人在学校里迷路了，该怎么办？',
 ])
-
 const selectedLandmarkNarrative = computed(() => props.selectedLocation?.landmarkNarrative || null)
+
+function cancelRequest() {
+  requestVersion += 1
+  requestController?.abort()
+  requestController = null
+  loading.value = false
+}
+
+function clearCandidates() {
+  pendingCandidates = null
+  selectedDestinationId.value = ''
+  emit('clear-candidates')
+}
+
+function resetQuestion() {
+  cancelRequest()
+  clearCandidates()
+  error.value = ''
+  result.value = null
+  landmarkNarrationMode.value = false
+}
+
+// Synchronous invalidation prevents an already-resolving request from writing
+// results for a previous campus, question, or travel mode in the same tick.
+watch([message, travelMode, () => props.campus.id], resetQuestion, { flush: 'sync' })
+onBeforeUnmount(cancelRequest)
 
 function useSuggestion(value) {
   message.value = value
 }
 
 function chooseCandidate(locationId) {
+  if (loading.value || composing.value || !pendingCandidates
+    || pendingCandidates.campusId !== props.campus.id
+    || pendingCandidates.prompt !== message.value.trim()
+    || !pendingCandidates.ids.includes(locationId)) return
   selectedDestinationId.value = locationId
+  pendingCandidates = null
   emit('clear-candidates')
   submit()
 }
@@ -106,63 +90,45 @@ function chooseCandidate(locationId) {
 function requestLandmarkNarration() {
   const narrative = selectedLandmarkNarrative.value
   if (!narrative || loading.value) return
-  const prompt = `请介绍一下${narrative.title}，用适合校园参观的讲解口吻。`
+  message.value = `请介绍一下${narrative.title}，用适合校园参观的讲解口吻。`
   landmarkNarrationMode.value = true
-  landmarkNarrationMessage.value = prompt
-  message.value = prompt
   submit()
 }
 
-watch(message, (value) => {
-  selectedDestinationId.value = ''
-  if (value !== landmarkNarrationMessage.value) landmarkNarrationMode.value = false
-})
-
-function refersToCurrentPosition(value) {
-  return /(我的位置|当前位置|从我这里|从我这儿|从我当前位置)/.test(value)
-}
-
-function requestsLandmarkHistory(value) {
-  return /(历史|校史|故事|来历|介绍|讲解|建造|建筑|人物|纪念|为什么|意义|背景|何时|谁|是什么|什么)/.test(value)
-}
-
-async function showRoute(origin, destination, originName) {
-  const route = await getRoute({
-    origin: `${origin[1]},${origin[0]}`,
-    destination: `${destination.navigationPoint[1]},${destination.navigationPoint[0]}`,
-    mode: travelMode.value,
-  })
-  emit('show-route', { ...route, destination, mode: travelMode.value })
-  emit('route-status', `已显示：${originName} → ${destination.name} 的${travelModeLabels[travelMode.value]}轨迹（${destination.routeSource || '自建 MVP 坐标'}）。`)
-}
-
-async function resolveNavigationPoint(location) {
+async function resolveNavigationPoint(location, campusId, signal) {
   if (!location) return null
-  if (location.navigationPoint) return location.navigationPoint
-  return resolveCampusPlace({ campus: props.campus.id, name: location.name, locationId: location.id })
+  if (isNavigationPoint(location.navigationPoint)) return location.navigationPoint
+  return resolveCampusPlace({ campus: campusId, name: location.name, locationId: location.id }, { signal })
 }
 
 async function submit() {
-  const prompt = message.value.trim()
-  if (!prompt || loading.value) return
+  const prompt = message.value.trim().slice(0, NK_ZHIXING_MESSAGE_LIMIT)
+  if (!prompt || loading.value || composing.value) return
 
-  const selectedNarrative = selectedLandmarkNarrative.value
-  const retrievedNarrative = requestsLandmarkHistory(prompt) ? findLandmarkNarrative(prompt) : null
-  const narrative = landmarkNarrationMode.value ? selectedNarrative : retrievedNarrative
-  const isLandmarkNarration = Boolean(narrative)
-
+  // Keep one immutable selection context for every request in this chain.
+  const campus = props.campus
+  const mode = travelMode.value
+  const selectedLocation = props.selectedLocation
+  const narrative = landmarkNarrationMode.value
+    ? selectedLandmarkNarrative.value
+    : (requestsLandmarkHistory(prompt) ? findLandmarkNarrative(prompt) : null)
   const needsCurrentPosition = refersToCurrentPosition(prompt)
-  const liveOrigin = props.livePosition
-    ? wgs84ToGcj02([Number(props.livePosition.latitude), Number(props.livePosition.longitude)])
-    : null
-  if (needsCurrentPosition && !liveOrigin) {
+  const position = props.livePosition
+    ? [Number(props.livePosition.latitude), Number(props.livePosition.longitude)] : null
+  const liveOrigin = isNavigationPoint(position) ? wgs84ToGcj02(position) : null
+  if (!narrative && needsCurrentPosition && !liveOrigin) {
     error.value = '请先在地图控制区点击“使用当前位置”，授权定位后再开始规划。'
     return
   }
 
-  const destinationCandidates = isLandmarkNarration ? [] : findDestinationCandidates(prompt)
-  const selectedDestination = props.campus.locations?.find((location) => location.id === selectedDestinationId.value) || null
-  if (!selectedDestination && destinationCandidates.length) {
+  const destinationCandidates = narrative ? [] : findDestinationCandidates(prompt, campus)
+  const selectedDestination = campus.locations?.find((location) => location.id === selectedDestinationId.value) || null
+  const navigationIntent = !narrative && (
+    isNavigationRequest(prompt) || needsCurrentPosition || Boolean(selectedDestination)
+    || destinationCandidates.some((location) => [location.name, ...(location.aliases || [])].includes(prompt))
+  )
+  if (navigationIntent && !selectedDestination && destinationCandidates.length) {
+    pendingCandidates = { campusId: campus.id, prompt, ids: destinationCandidates.map((location) => location.id) }
     emit('show-candidates', destinationCandidates)
     error.value = destinationCandidates.length > 1
       ? '发现多个可能的目的地，已在地图上高亮，请点击对应地点后继续。'
@@ -170,89 +136,93 @@ async function submit() {
     return
   }
 
-  const navigationIntent = !isLandmarkNarration && (
-    Boolean(selectedDestination || destinationCandidates[0] || needsCurrentPosition)
-    || isNavigationRequest(prompt)
-  )
-  const explicitOrigin = findOrigin(prompt, selectedDestination || destinationCandidates[0])
-  const useCurrentPositionByDefault = navigationIntent && !explicitOrigin && Boolean(liveOrigin)
-  const navigationProtocol = navigationIntent
-    ? '\n【网页导航协同】请先确认建议的起点、终点和出行方式；不要自行估算距离、时长或给出分步路线。确认后由网站依据该建议生成唯一的路线图。'
-    : ''
-  const campusProtocol = `\n【当前校区已确定】用户正在查看${props.campus.name}地图，未明确提出跨校区时，所有地点均默认属于${props.campus.name}；不要再次询问用户所在校区。`
-  const landmarkNarrationProtocol = isLandmarkNarration
-    ? `\n【校史检索资料】命中地点：${narrative.title}。简介：${narrative.brief}。事实资料：${narrative.facts}\n【答复要求】仅依据上述资料，用自然、克制的校园讲解口吻回答用户问题；不要新增具体年份、尺寸、人物经历、建筑功能、开放安排或无法核验的细节。不要规划路线，也不要询问校区。末尾另起一行标注“【资料依据】本站整理的校史材料”。当前并未检索南开大学官网，不得声称信息来自官网。`
-    : ''
-  const agentMessage = (needsCurrentPosition || useCurrentPositionByDefault) && liveOrigin
-    ? `${prompt}\n【本次导航起点】当前位置（GCJ-02）：经度 ${liveOrigin[1].toFixed(6)}，纬度 ${liveOrigin[0].toFixed(6)}。用户未说明明确起点时，默认从当前位置出发。出行方式：${travelModeLabels[travelMode.value]}。${campusProtocol}${navigationProtocol}${landmarkNarrationProtocol}`
-    : `${prompt}${campusProtocol}${navigationProtocol}${landmarkNarrationProtocol}`
+  const explicitOrigin = needsCurrentPosition ? null : findOrigin(prompt, selectedDestination || destinationCandidates[0], campus)
+  const instructions = buildAgentInstructions({
+    campus, narrative, navigationIntent, mode, destination: selectedDestination,
+    liveOrigin: !explicitOrigin ? liveOrigin : null,
+  })
+  const version = ++requestVersion
+  const controller = typeof AbortController === 'function' ? new AbortController() : null
+  requestController = controller
+  const signal = controller?.signal
+  const isCurrent = () => version === requestVersion && !signal?.aborted
   loading.value = true
   error.value = ''
   result.value = null
+
   try {
-    result.value = await askNkZhixingAgent({
-      message: agentMessage,
-      campus: props.campus.id,
-      selectedLocation: props.selectedLocation,
-    })
-    if (isLandmarkNarration) return
-    if (result.value.locationId) emit('focus-location', result.value.locationId)
-    const recommendedDestination = result.value.locationId
-      ? props.campus.locations?.find((location) => location.id === result.value.locationId)
-      : findDestination(result.value.answer || '')
-    let destination = recommendedDestination || selectedDestination || destinationCandidates[0] || findDestination(prompt)
-    if (!destination && navigationIntent) {
-      const externalName = extractNavigationDestination(prompt)
+    const answer = await askNkZhixingAgent({
+      message: `${prompt}\n${instructions}`,
+      campus: campus.id,
+      selectedLocation: selectedDestination || selectedLocation,
+    }, { signal })
+    if (!isCurrent()) return
+    result.value = answer
+    if (narrative) return
+    if (!navigationIntent) {
+      if (answer.locationId) emit('focus-location', answer.locationId)
+      return
+    }
+
+    const recommendedDestination = campus.locations?.find((location) => location.id === answer.locationId)
+      || findDestination(answer.answer, campus)
+    // A suggestion from the model must never override a location the user confirmed.
+    const externalName = extractNavigationDestination(prompt)
+    let destination = selectedDestination || destinationCandidates[0] || (!externalName ? recommendedDestination : null)
+    if (!destination) {
       if (externalName) {
         try {
-          const navigationPoint = await resolveCampusPlace({ campus: props.campus.id, name: externalName })
-          destination = {
-            id: `amap-${externalName}`,
-            name: externalName,
-            navigationPoint,
-            routeSource: '高德地图地点兜底',
-          }
+          const navigationPoint = await resolveCampusPlace({ campus: campus.id, name: externalName }, { signal })
+          if (!isCurrent()) return
+          destination = { id: `amap-${externalName}`, name: externalName, navigationPoint, routeSource: '高德地图地点兜底' }
         } catch (placeError) {
+          if (!isCurrent() || isAbortError(placeError)) return
           error.value = `自建地点库未收录“${externalName}”，且${placeError.message}`
         }
       }
     }
-    const originLocation = findOrigin(prompt, destination)
-    const [destinationPoint, resolvedOrigin] = await Promise.all([
-      resolveNavigationPoint(destination).catch(() => null),
-      resolveNavigationPoint(originLocation).catch(() => null),
-    ])
-    const origin = resolvedOrigin || (!originLocation ? liveOrigin : null)
-    const originName = originLocation?.name || (!originLocation && liveOrigin ? '当前位置' : '')
-
-    if (origin && destinationPoint) {
-      await showRoute(origin, {
-        ...destination,
-        navigationPoint: destinationPoint,
-        routeSource: destination.routeSource || (destination.navigationPoint ? '自建 MVP 坐标' : '高德地图地点兜底'),
-      }, originName || '起点')
-    } else if (!originLocation && destinationPoint) {
-      error.value = '正在获取当前位置，请稍候再次开始规划。'
-    } else if (!destination) {
+    if (!isCurrent()) return
+    if (!destination) {
       error.value = error.value || 'NK 智行未识别出可绘制的目的地，请补充具体地点名称。'
-    } else if (!origin) {
-      error.value = '请补充起点，或允许页面获取当前位置后再开始规划。'
-    } else {
-      error.value = 'NK 智行已给出建议，但暂未获取到该地点的可用坐标。'
+      return
     }
+    if (campus.locations?.some((location) => location.id === destination.id)) emit('focus-location', destination.id)
+
+    const originLocation = needsCurrentPosition ? null : findOrigin(prompt, destination, campus)
+    const [destinationPoint, resolvedOrigin] = await Promise.all([
+      resolveNavigationPoint(destination, campus.id, signal),
+      resolveNavigationPoint(originLocation, campus.id, signal),
+    ])
+    if (!isCurrent()) return
+    const origin = resolvedOrigin || (!originLocation ? liveOrigin : null)
+    if (!origin) {
+      error.value = '请补充起点，或在地图控制区点击“使用当前位置”后再开始规划。'
+      return
+    }
+
+    const route = await getRoute({
+      origin: `${origin[1]},${origin[0]}`,
+      destination: `${destinationPoint[1]},${destinationPoint[0]}`,
+      mode,
+    }, { signal })
+    if (!isCurrent()) return
+    const routeSource = destination.routeSource || (isNavigationPoint(destination.navigationPoint) ? destination.geoSource || '本站收录坐标' : '高德地图地点兜底')
+    emit('show-route', { ...route, destination: { ...destination, navigationPoint: destinationPoint, routeSource }, mode })
+    emit('route-status', `已显示：${originLocation?.name || '当前位置'} → ${destination.name} 的${travelModeLabels[mode]}轨迹（高德地图路线；目的地：${routeSource}）。`)
   } catch (requestError) {
-    error.value = requestError.message
+    if (isCurrent() && !isAbortError(requestError)) error.value = requestError.message || '请求失败，请稍后再试。'
   } finally {
-    if (isLandmarkNarration) {
+    if (isCurrent()) {
       landmarkNarrationMode.value = false
-      landmarkNarrationMessage.value = ''
+      loading.value = false
+      requestController = null
+      controller?.abort()
     }
-    loading.value = false
   }
 }
 
 onMounted(() => {
-  const initialMessage = props.initialMessage.trim().slice(0, 500)
+  const initialMessage = props.initialMessage.trim().slice(0, NK_ZHIXING_MESSAGE_LIMIT)
   if (!initialMessage) return
   message.value = initialMessage
   if (props.autoSubmit) submit()
@@ -294,12 +264,14 @@ defineExpose({ chooseCandidate })
       </button>
     </div>
 
-    <form class="nk-agent-form" @submit.prevent="submit">
+    <form class="nk-agent-form" :aria-busy="loading" @submit.prevent="submit">
       <label for="nk-agent-input">向 NK 智行描述你的需求</label>
       <textarea
         id="nk-agent-input"
         v-model="message"
-        maxlength="500"
+        :maxlength="NK_ZHIXING_MESSAGE_LIMIT"
+        @compositionstart="composing = true"
+        @compositionend="composing = false"
         placeholder="例如：我在西南门，带着行李去中心图书馆，想少走一点。"
       ></textarea>
       <label class="nk-agent-mode" for="nk-agent-mode">
@@ -312,7 +284,7 @@ defineExpose({ chooseCandidate })
       </label>
       <div>
         <small>可直接问“思源堂的历史是什么？”；请勿输入身份证号、手机号、病历等敏感信息。</small>
-        <button type="submit" :disabled="!message.trim() || loading">{{ loading ? '正在分析…' : '开始规划 →' }}</button>
+        <button type="submit" :disabled="!message.trim() || loading || composing">{{ loading ? '正在分析…' : '开始规划 →' }}</button>
       </div>
     </form>
 
@@ -325,7 +297,7 @@ defineExpose({ chooseCandidate })
         <li v-for="step in result.steps" :key="step">{{ step }}</li>
       </ol>
       <p v-if="result.warning" class="nk-agent-warning">{{ result.warning }}</p>
-      <a v-if="result.mapUrl" :href="result.mapUrl" target="_blank" rel="noopener">在地图中继续查看 →</a>
+      <a v-if="result.mapUrl" :href="result.mapUrl" target="_blank" rel="noopener noreferrer">在地图中继续查看 →</a>
     </article>
   </section>
 </template>
