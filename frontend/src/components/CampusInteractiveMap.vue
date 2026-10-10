@@ -9,6 +9,7 @@ import {
   geoPointToImageLatLng,
   imagePointToSimpleLatLng,
   markerPresentationForLocation,
+  wgs84ToGcj02,
 } from '../utils/mapUtils'
 
 const props = defineProps({
@@ -20,9 +21,11 @@ const props = defineProps({
   forcedIds: { type: Array, default: () => [] },
   candidateIds: { type: Array, default: () => [] },
   tourStopIds: { type: Array, default: () => [] },
+  currentPosition: { type: Object, default: null },
+  requestInitialLocation: { type: Boolean, default: false },
 })
 
-const emit = defineEmits(['select', 'clear-selection', 'status', 'coordinate-unavailable', 'live-navigation-change', 'live-position', 'route-deviation'])
+const emit = defineEmits(['select', 'clear-selection', 'status', 'coordinate-unavailable', 'live-navigation-change', 'live-position', 'location-found', 'route-deviation', 'online-map-unavailable'])
 
 const mapElement = ref(null)
 const loading = ref(true)
@@ -47,6 +50,7 @@ let trackedPoints = []
 let plannedRoutePoints = []
 let consecutiveDeviationSamples = 0
 let lastDeviationNoticeAt = 0
+let initialLocationRequested = false
 const featureById = new Map()
 
 const geocodedCount = computed(() => props.locations.filter((location) => location.geoPoint).length)
@@ -68,7 +72,10 @@ function escapeHtml(value) {
 
 function locationLatLng(location) {
   if (props.baseMode === 'online') {
-    return location.geoPoint ? L.latLng(location.geoPoint[0], location.geoPoint[1]) : null
+    const point = location.geoPoint && onlineMapProvider.coordinateSystem === 'GCJ-02'
+      ? wgs84ToGcj02(location.geoPoint)
+      : location.geoPoint
+    return point ? L.latLng(point[0], point[1]) : null
   }
 
   const point = imagePointToSimpleLatLng(location.imagePoint, props.campus.imageSize)
@@ -342,7 +349,10 @@ function illustrationMap() {
 }
 
 function onlineMap() {
-  campusBounds = L.latLngBounds(props.campus.geoBounds)
+  const bounds = onlineMapProvider.coordinateSystem === 'GCJ-02'
+    ? props.campus.geoBounds.map((point) => wgs84ToGcj02(point))
+    : props.campus.geoBounds
+  campusBounds = L.latLngBounds(bounds)
   map = L.map(mapElement.value, {
     zoomControl: true,
     attributionControl: true,
@@ -354,6 +364,14 @@ function onlineMap() {
   map.attributionControl.setPrefix(false)
 
   let tileFailures = 0
+  let fallbackRequested = false
+  const requestIllustrationFallback = () => {
+    if (fallbackRequested) return
+    fallbackRequested = true
+    loading.value = false
+    tileError.value = true
+    emit('online-map-unavailable')
+  }
   baseLayer = L.tileLayer(onlineMapProvider.url, {
     attribution: onlineMapProvider.attribution,
     maxZoom: onlineMapProvider.maxZoom,
@@ -362,8 +380,7 @@ function onlineMap() {
     .on('tileerror', () => {
       tileFailures += 1
       if (tileFailures >= 3) {
-        loading.value = false
-        tileError.value = true
+        requestIllustrationFallback()
       }
     })
     .addTo(map)
@@ -380,8 +397,7 @@ function onlineMap() {
   initialZoom = map.getZoom()
   loadingTimer = window.setTimeout(() => {
     if (!loading.value) return
-    loading.value = false
-    tileError.value = true
+    requestIllustrationFallback()
   }, 8000)
 }
 
@@ -424,6 +440,7 @@ async function buildMap() {
   map.on('click', handleMapBackgroundClick)
   refreshFeatures()
   map.invalidateSize({ animate: false })
+  showCurrentPosition(props.currentPosition)
 }
 
 function resetView() {
@@ -456,7 +473,11 @@ function focusLocation(locationId, openPopup = true) {
 function showRoute(routePoints, coordinateSystem = 'GCJ-02') {
   if (!map || props.baseMode !== 'online' || !Array.isArray(routePoints)) return false
   const points = routePoints
-    .map((point) => coordinateSystem === 'GCJ-02' ? gcj02ToWgs84(point) : point)
+    .map((point) => (
+      coordinateSystem === 'GCJ-02' && onlineMapProvider.coordinateSystem !== 'GCJ-02'
+        ? gcj02ToWgs84(point)
+        : point
+    ))
     .filter((point) => Array.isArray(point) && point.length === 2)
   if (points.length < 2) return false
 
@@ -494,7 +515,7 @@ function locationErrorMessage(error) {
 function locationMapPoint(latitude, longitude) {
   const geoPoint = [latitude, longitude]
   return props.baseMode === 'online'
-    ? geoPoint
+    ? (onlineMapProvider.coordinateSystem === 'GCJ-02' ? wgs84ToGcj02(geoPoint) : geoPoint)
     : geoPointToImageLatLng(geoPoint, props.campus.geoBounds, props.campus.imageSize)
 }
 
@@ -578,7 +599,10 @@ function updateLivePosition({ coords }) {
     ? `实时导航中 · 定位精度约 ${accuracy} 米 · 本次轨迹仅保存在浏览器内存中。`
     : '实时导航中 · 本次轨迹仅保存在浏览器内存中。')
 
-  const deviationMeters = distanceToPolylineMeters([latitude, longitude], plannedRoutePoints)
+  const navigationPoint = onlineMapProvider.coordinateSystem === 'GCJ-02'
+    ? wgs84ToGcj02([latitude, longitude])
+    : [latitude, longitude]
+  const deviationMeters = distanceToPolylineMeters(navigationPoint, plannedRoutePoints)
   if (deviationMeters > 30 && accuracy <= 30) {
     consecutiveDeviationSamples += 1
   } else {
@@ -590,6 +614,36 @@ function updateLivePosition({ coords }) {
     consecutiveDeviationSamples = 0
     emit('route-deviation', { latitude, longitude, deviationMeters: Math.round(deviationMeters) })
   }
+}
+
+function showCurrentPosition(position, { focus = false } = {}) {
+  if (!map || !position) return false
+  const latitude = Number(position.latitude)
+  const longitude = Number(position.longitude)
+  if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) return false
+
+  const mapPoint = locationMapPoint(latitude, longitude)
+  if (!mapPoint) return false
+
+  const point = L.latLng(mapPoint[0], mapPoint[1])
+  if (userLayer) map.removeLayer(userLayer)
+  userLayer = L.circleMarker(point, {
+    radius: 8,
+    weight: 3,
+    color: '#fff',
+    fillColor: '#7e0c6e',
+    fillOpacity: 1,
+    className: 'campus-user-location',
+  }).bindTooltip('你的位置', { permanent: false, direction: 'top' }).addTo(map)
+
+  if (focus) {
+    const targetZoom = props.baseMode === 'online'
+      ? Math.max(map.getZoom(), 17)
+      : Math.max(map.getZoom(), initialZoom + 2.2)
+    map.setView(point, targetZoom, { animate: false })
+    userLayer.openTooltip()
+  }
+  return true
 }
 
 function startLiveNavigation() {
@@ -619,41 +673,26 @@ function stopLiveNavigation(announce = true) {
   if (announce) emit('status', '实时导航已结束，当前位置与本次轨迹已从浏览器内存清除。')
 }
 
-function locateUser() {
+function locateUser({ initial = false } = {}) {
   if (!navigator.geolocation) {
     emit('status', '当前浏览器不支持定位功能。')
     return
   }
 
-  emit('status', '正在请求浏览器定位…')
+  emit('status', initial ? '正在请求定位，以识别所在校区…' : '正在请求浏览器定位…')
   navigator.geolocation.getCurrentPosition(
     ({ coords }) => {
       if (!map) return
-      if (userLayer) {
-        map.removeLayer(userLayer)
-        userLayer = null
-      }
-      const mapPoint = locationMapPoint(coords.latitude, coords.longitude)
-      if (!mapPoint) {
+      const position = { latitude: coords.latitude, longitude: coords.longitude, accuracy: coords.accuracy }
+      emit('live-position', position)
+      emit('location-found', position)
+      if (!showCurrentPosition(position, { focus: true })) {
         emit('status', `定位成功，但当前位置不在${props.campus.name}范围内。`)
         return
       }
-      const point = L.latLng(mapPoint[0], mapPoint[1])
-      userLayer = L.circleMarker(point, {
-        radius: 8,
-        weight: 3,
-        color: '#fff',
-        fillColor: '#7e0c6e',
-        fillOpacity: 1,
-        className: 'campus-user-location',
-      }).bindTooltip('你的位置', { permanent: false, direction: 'top' }).addTo(map)
-      const targetZoom = props.baseMode === 'online'
-        ? Math.max(map.getZoom(), 17)
-        : Math.max(map.getZoom(), initialZoom + 2.2)
-      map.setView(point, targetZoom, { animate: false })
-      userLayer.openTooltip()
-      emit('live-position', { latitude: coords.latitude, longitude: coords.longitude, accuracy: coords.accuracy })
-      emit('status', '已显示当前位置；仅在你发起以当前位置为起点的导航时用于本次路线计算，不保存。')
+      emit('status', initial
+        ? '已获取当前位置；未说明起点的导航将默认从这里出发，不保存。'
+        : '已显示当前位置；仅在你发起以当前位置为起点的导航时用于本次路线计算，不保存。')
     },
     (error) => emit('status', locationErrorMessage(error)),
     { enableHighAccuracy: false, timeout: 8000, maximumAge: 60000 },
@@ -671,13 +710,23 @@ watch(
   { deep: true },
 )
 
-onMounted(() => {
+watch(
+  () => props.currentPosition,
+  (position) => { showCurrentPosition(position) },
+  { deep: true },
+)
+
+onMounted(async () => {
   resizeObserver = new ResizeObserver(() => {
     if (!mapElement.value) return
     if (map) map.invalidateSize({ animate: false })
   })
   resizeObserver.observe(mapElement.value)
-  buildMap()
+  await buildMap()
+  if (props.requestInitialLocation && !initialLocationRequested) {
+    initialLocationRequested = true
+    locateUser({ initial: true })
+  }
 })
 
 onBeforeUnmount(() => {

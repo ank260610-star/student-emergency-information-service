@@ -48,8 +48,8 @@ function transformLongitude(longitude, latitude) {
   return value + (150 * Math.sin(longitude / 12 * Math.PI) + 300 * Math.sin(longitude / 30 * Math.PI)) * 2 / 3
 }
 
-// AMap route geometry is GCJ-02. Leaflet's OSM tiles use WGS-84, so route
-// points must be converted before they are rendered on the online base map.
+// Retain this conversion for any WGS-84 base layer. The current online map
+// uses AMap tiles and therefore renders GCJ-02 route geometry directly.
 export function gcj02ToWgs84(point) {
   if (!Array.isArray(point) || point.length !== 2) return null
   const [latitude, longitude] = point

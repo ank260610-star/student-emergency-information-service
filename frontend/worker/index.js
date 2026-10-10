@@ -145,9 +145,6 @@ async function resolvePlace(request, env) {
     return jsonResponse({ error: '地点名称或校区无效。' }, 400)
   }
 
-  if (payload?.campus === 'balitai') {
-    return jsonResponse({ error: '八里台地点坐标尚未完成核验，暂不绘制路线以避免误导。' }, 422)
-  }
   const parameters = new URLSearchParams({
       key: env.AMAP_WEB_SERVICE_KEY,
       keywords: `南开大学${campus}${name}`,
@@ -158,11 +155,17 @@ async function resolvePlace(request, env) {
   try {
     const upstream = await fetch(`https://restapi.amap.com/v5/place/text?${parameters}`)
     const placePayload = await upstream.json().catch(() => null)
-    const coordinate = placePayload?.pois?.[0]?.location
+    const place = placePayload?.pois?.[0]
+    const coordinate = place?.location
     if (!upstream.ok || placePayload?.status !== '1' || !isCoordinate(coordinate)) {
       return jsonResponse({ error: '高德暂未找到该地点的可用坐标。' }, 404)
     }
-    return jsonResponse({ coordinate, coordinateSystem: 'GCJ-02' })
+    return jsonResponse({
+      coordinate,
+      coordinateSystem: 'GCJ-02',
+      name: typeof place?.name === 'string' ? place.name : name,
+      source: 'amap-fallback',
+    })
   } catch (error) {
     console.error('AMap place request failed.', error)
     return jsonResponse({ error: '地点服务暂时无法响应，请稍后再试。' }, 502)

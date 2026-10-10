@@ -1,0 +1,28 @@
+{
+  "schemaVersion": "0.1",
+  "updatedAt": "2026-09-20",
+  "scope": "jinnan-campus-mvp",
+  "usage": "Seed data for place search only. It is not a verified pedestrian-routing network.",
+  "pois": [
+    {"id":"jinnan-southwest-gate","name":"西南门","aliases":["津南西南门"],"campus":"jinnan","category":"gate","geoPoint":[38.9828622,117.3332177],"verificationStatus":"map-verified","source":"frontend/src/data/jinnanLocations.js#J07"},
+    {"id":"jinnan-west-gate","name":"西门","aliases":["津南西门"],"campus":"jinnan","category":"gate","geoPoint":[38.9900753,117.3281921],"verificationStatus":"map-verified","source":"frontend/src/data/jinnanLocations.js#J06"},
+    {"id":"jinnan-north-gate","name":"北门","aliases":["津南北门"],"campus":"jinnan","category":"gate","geoPoint":[38.9940386,117.3348347],"verificationStatus":"map-verified","source":"frontend/src/data/jinnanLocations.js#J03"},
+    {"id":"jinnan-east-gate","name":"东门","aliases":["津南东门"],"campus":"jinnan","category":"gate","geoPoint":[38.986498,117.3511918],"verificationStatus":"map-verified","source":"frontend/src/data/jinnanLocations.js#J04"},
+    {"id":"jinnan-hospital","name":"南开大学医院","aliases":["津南校医院","校医院"],"campus":"jinnan","category":"emergency","geoPoint":[38.9930869,117.3354414],"verificationStatus":"map-verified","source":"frontend/src/data/jinnanLocations.js#J01"},
+    {"id":"jinnan-muzhai-library","name":"木斋图书馆","aliases":["木斋馆"],"campus":"jinnan","category":"service","geoPoint":[38.9887377,117.3331247],"verificationStatus":"map-verified","source":"frontend/src/data/jinnanLocations.js#J41"},
+    {"id":"jinnan-library","name":"中心图书馆","aliases":["津南图书馆"],"campus":"jinnan","category":"service","geoPoint":[38.985287,117.3405293],"verificationStatus":"map-verified","source":"frontend/src/data/jinnanLocations.js#J68"},
+    {"id":"jinnan-public-teaching","name":"公共教学楼","aliases":["公教"],"campus":"jinnan","category":"teaching","geoPoint":[38.9909662,117.3411024],"verificationStatus":"map-verified","source":"frontend/src/data/jinnanLocations.js#J66"},
+    {"id":"jinnan-integrated-lab","name":"综合实验楼","aliases":["综实"],"campus":"jinnan","category":"teaching","geoPoint":[38.9872226,117.3418429],"verificationStatus":"map-verified","source":"frontend/src/data/jinnanLocations.js#J67"},
+    {"id":"jinnan-student-center","name":"大通学生活动中心","aliases":["大通学活","学生活动中心"],"campus":"jinnan","category":"service","geoPoint":[38.9872244,117.3440134],"verificationStatus":"map-verified","source":"frontend/src/data/jinnanLocations.js#J71"},
+    {"id":"jinnan-gymnasium","name":"体育馆","aliases":["津南体育馆"],"campus":"jinnan","category":"sports","geoPoint":[38.9909662,117.3411024],"verificationStatus":"map-verified","source":"frontend/src/data/jinnanLocations.js#J39"},
+    {"id":"jinnan-main-stadium","name":"主体育场","aliases":["津南主体育场"],"campus":"jinnan","category":"sports","geoPoint":[38.9911161,117.3434146],"verificationStatus":"map-verified","source":"frontend/src/data/jinnanLocations.js#J40"},
+    {"id":"jinnan-law-school","name":"法学院","aliases":["津南法学院"],"campus":"jinnan","category":"teaching","geoPoint":null,"verificationStatus":"needs-field-verification","source":"frontend/src/data/jinnanLocations.js#J35"},
+    {"id":"jinnan-software-school","name":"软件学院","aliases":["软件学院楼"],"campus":"jinnan","category":"teaching","geoPoint":null,"verificationStatus":"needs-field-verification","source":"frontend/src/data/jinnanLocations.js#J46"},
+    {"id":"jinnan-ai-school","name":"计算机学院、网络空间安全学院、人工智能学院","aliases":["人工智能学院","计算机学院","网安学院"],"campus":"jinnan","category":"teaching","geoPoint":null,"verificationStatus":"needs-field-verification","source":"frontend/src/data/jinnanLocations.js#J51"},
+    {"id":"jinnan-cafeteria-humanities","name":"文科食堂","aliases":["文科区食堂"],"campus":"jinnan","category":"service","geoPoint":null,"verificationStatus":"needs-field-verification","source":"frontend/src/data/jinnanLocations.js#J10"},
+    {"id":"jinnan-cafeteria-science","name":"理科食堂","aliases":["理科区食堂"],"campus":"jinnan","category":"service","geoPoint":null,"verificationStatus":"needs-field-verification","source":"frontend/src/data/jinnanLocations.js#J54"},
+    {"id":"jinnan-dormitory-1a","name":"学1-A","aliases":["一学A","学一A"],"campus":"jinnan","category":"service","geoPoint":null,"verificationStatus":"needs-field-verification","source":"frontend/src/data/jinnanLocations.js#J14"},
+    {"id":"jinnan-dormitory-5a","name":"学5-A","aliases":["五学A","学五A"],"campus":"jinnan","category":"service","geoPoint":null,"verificationStatus":"needs-field-verification","source":"frontend/src/data/jinnanLocations.js#J58"},
+    {"id":"jinnan-lake-xinkai","name":"新开湖","aliases":[],"campus":"jinnan","category":"landscape","geoPoint":null,"verificationStatus":"needs-field-verification","source":"frontend/src/data/jinnanLocations.js#J73"}
+  ]
+}

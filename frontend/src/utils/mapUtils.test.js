@@ -29,7 +29,7 @@ test('projects a browser location into the campus guide image and rejects off-ca
   assert.equal(geoPointToImageLatLng([40.1, 117.5], bounds, imageSize), null)
 })
 
-test('converts a Tianjin GCJ-02 point before rendering on OSM tiles', () => {
+test('converts a Tianjin GCJ-02 point for a WGS-84 map when needed', () => {
   const point = gcj02ToWgs84([38.9865, 117.347034])
   assert.ok(point)
   assert.ok(Math.abs(point[0] - 38.9864) < 0.01)

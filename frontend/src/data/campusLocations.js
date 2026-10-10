@@ -12,8 +12,11 @@ export const categoryMeta = {
 }
 
 export const onlineMapProvider = {
-  url: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-  attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap contributors</a>',
+  // OSM's public tile service rejects or times out for some campus networks.
+  // AMap's public base tiles keep the online view reachable in mainland China.
+  url: 'https://webrd01.is.autonavi.com/appmaptile?lang=zh_cn&size=1&scale=1&style=8&x={x}&y={y}&z={z}',
+  attribution: '&copy; <a href="https://ditu.amap.com/">高德地图</a>',
+  coordinateSystem: 'GCJ-02',
   maxZoom: 19,
 }
 
@@ -44,7 +47,7 @@ export const campusConfigs = {
     geoBounds: [[38.9810281, 117.3264947], [38.9952273, 117.3519729]],
     geoZoom: 16,
     geoDataStatus: '津南在线地图只显示已核验的楼宇点位。',
-    sourceLabel: '津南校区图 v3.0 · OpenStreetMap',
+    sourceLabel: '津南校区图 v3.0 · 高德地图',
     numberingNote: 'J01–J76 是本站交互检索编号，不是学校官方建筑编号。',
     illustrationCorrections: [
       {

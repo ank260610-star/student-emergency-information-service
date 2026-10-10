@@ -67,6 +67,34 @@ const selectedLocation = computed(() => campusLocations.value.find((location) =>
 const searchResults = computed(() => normalizedQuery.value ? filteredLocations.value.slice(0, 8) : [])
 const geocodedCount = computed(() => campusLocations.value.filter((location) => location.geoPoint).length)
 
+function campusForPosition({ latitude, longitude }) {
+  const pointLatitude = Number(latitude)
+  const pointLongitude = Number(longitude)
+  if (!Number.isFinite(pointLatitude) || !Number.isFinite(pointLongitude)) return null
+
+  return Object.entries(campusConfigs).find(([, config]) => {
+    const [[south, west], [north, east]] = config.geoBounds
+    return pointLatitude >= south && pointLatitude <= north
+      && pointLongitude >= west && pointLongitude <= east
+  })?.[0] || null
+}
+
+async function handleLocationFound(position) {
+  const detectedCampus = campusForPosition(position)
+  if (!detectedCampus) {
+    mapStatus.value = '已获取当前位置，但不在八里台或津南校区范围内；请手动选择校区。'
+    return
+  }
+
+  const campusChanged = campus.value !== detectedCampus
+  campus.value = detectedCampus
+  baseMode.value = 'online'
+  await nextTick()
+  mapStatus.value = campusChanged
+    ? `已根据当前位置切换到${campusConfigs[detectedCampus].name}在线地图。`
+    : `已确认当前位置位于${campusConfigs[detectedCampus].name}。`
+}
+
 function straightLineMeters(start, end) {
   const [startLatitude, startLongitude] = start || []
   const [endLatitude, endLongitude] = end || []
@@ -145,7 +173,10 @@ async function handleAgentRoute(route) {
     // Wait for that second render pass before asking the new instance to draw.
     await nextTick()
   }
-  interactiveMap.value?.showRoute(route.routePoints, route.coordinateSystem)
+  const routeDrawn = interactiveMap.value?.showRoute(route.routePoints, route.coordinateSystem)
+  if (!routeDrawn) {
+    mapStatus.value = '已获得导航建议，但当前网络无法加载在线底图，路线轨迹将在在线地图可用时显示。'
+  }
   activeNavigation.value = route.destination ? {
     destination: route.destination,
     mode: route.mode || 'walking',
@@ -269,6 +300,12 @@ function setBaseMode(mode) {
     : '已切换到校园导览图。'
 }
 
+function handleOnlineMapUnavailable() {
+  if (baseMode.value !== 'online') return
+  baseMode.value = 'illustration'
+  mapStatus.value = '当前网络无法加载在线底图，已自动切换到校园导览图；地点检索可继续使用，路线轨迹请在网络恢复后重试。'
+}
+
 async function startLiveNavigation() {
   if (baseMode.value !== 'online') {
     baseMode.value = 'online'
@@ -288,8 +325,9 @@ function stopLiveNavigation() {
 }
 
 function handleLiveNavigationChange(isLive) {
+  const wasLive = liveNavigation.value
   liveNavigation.value = isLive
-  if (!isLive) {
+  if (!isLive && wasLive) {
     livePosition.value = null
     activeNavigation.value = null
     rerouteRequestId += 1
@@ -297,7 +335,7 @@ function handleLiveNavigationChange(isLive) {
 }
 
 watch(campus, () => {
-  stopLiveNavigation()
+  if (liveNavigation.value) stopLiveNavigation()
   closePhoto()
   selectedId.value = ''
   query.value = ''
@@ -378,13 +416,17 @@ watch(category, () => {
           :forced-ids="forcedMarkerIds"
           :candidate-ids="candidateLocationIds"
           :tour-stop-ids="activeTour?.stopIds || []"
+          :current-position="livePosition"
+          :request-initial-location="true"
           @select="handleMapSelection"
           @clear-selection="clearMapSelection"
           @status="mapStatus = $event"
           @live-navigation-change="handleLiveNavigationChange"
           @live-position="livePosition = $event"
+          @location-found="handleLocationFound"
           @route-deviation="rerouteFromCurrentPosition"
           @coordinate-unavailable="handleCoordinateUnavailable"
+          @online-map-unavailable="handleOnlineMapUnavailable"
         />
         <CampusMapControls
           :base-mode="baseMode"
