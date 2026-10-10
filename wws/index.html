@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>NKU: 津南极速校园</title>
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js",
+          "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/"
+        }
+      }
+    </script>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <main class="game-shell">
+      <canvas id="game" aria-label="南开大学津南校区三维开放世界"></canvas>
+      <section class="hud" aria-live="polite">
+        <div class="brand"><span>NKU</span><small>津南极速校园</small></div>
+        <div class="mission"><b id="mission-title">自由漫游</b><span id="mission-text">去图书馆、食堂或教学楼探索校园</span></div>
+        <div class="stats"><span id="vehicle">Aventador</span><span id="speed">0 km/h</span><span id="credits">校园币 0</span><span id="clock">10:20</span></div>
+      </section>
+      <section class="garage" aria-label="超级跑车车库">
+        <b>超级跑车车库</b>
+        <button class="selected" data-car="0"><span>Aventador</span><small>V12 · 350 km/h</small></button>
+        <button data-car="1"><span>Huracán Tecnica</span><small>V10 · 325 km/h</small></button>
+        <button data-car="2"><span>Revuelto</span><small>V12 HPEV · 350+ km/h</small></button>
+        <em>数字键 1 / 2 / 3 快速换车</em>
+      </section>
+      <section class="legend">
+        <b>操控</b>
+        <span>WASD 驾驶 / 步行 / 骑车</span><span>1–9 换车</span><span>跑车极速 320 km/h</span><span>F 模拟飞行 · Shift 上升</span><span>C 人物 · E 骑自行车</span><span>N 切换夜景</span><span>B 碰撞边界</span><span>人物：拖动鼠标环视 · 滚轮缩放</span>
+      </section>
+      <div class="map-credit">地图坐标：© OpenStreetMap contributors · 校园范围与功能分区参考南开大学公开资料</div>
+      <div id="toast" class="toast">欢迎来到南开大学津南校区</div>
+      <section id="start" class="start-card">
+        <p class="eyebrow">OPEN CAMPUS</p>
+        <h1>津南极速校园</h1>
+        <p>Ultra 真实光照模式：遵循道路、限速、开放时段与建筑碰撞规则的三维校园。</p>
+        <button id="start-btn" onclick="document.getElementById('start').style.display='none';window.__nkuStartRequested=true">进入校园</button>
+        <small>WebGL 三维原型 · 非兰博基尼官方产品，不含官方模型或商标素材</small>
+      </section>
+    </main>
+    <script type="module" src="game3d.js?v=desktop-12"></script>
+  </body>
+</html>
