@@ -1,6 +1,7 @@
 <script setup>
 import { computed, onMounted, ref, watch } from 'vue'
 import { findLandmarkNarrative } from '../data/landmarkNarratives'
+import { findPlaceProfile } from '../data/placeProfiles'
 import {
   askNkZhixingAgent,
   extractNavigationDestination,
@@ -91,7 +92,7 @@ const suggestions = computed(() => [
   '晚上一个人在学校里迷路了，该怎么办？',
 ])
 
-const selectedLandmarkNarrative = computed(() => props.selectedLocation?.landmarkNarrative || null)
+const selectedLandmarkNarrative = computed(() => props.selectedLocation?.placeProfile || props.selectedLocation?.landmarkNarrative || null)
 
 function useSuggestion(value) {
   message.value = value
