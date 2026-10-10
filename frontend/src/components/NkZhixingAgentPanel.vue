@@ -122,6 +122,18 @@ function refersToCurrentPosition(value) {
   return /(我的位置|当前位置|从我这里|从我这儿|从我当前位置)/.test(value)
 }
 
+function isPointNearCurrentCampus(point) {
+  if (!Array.isArray(point) || point.length !== 2) return false
+  const [latitude, longitude] = point.map(Number)
+  const [campusLatitude, campusLongitude] = props.campus.geoCenter || []
+  if (![latitude, longitude, campusLatitude, campusLongitude].every(Number.isFinite)) return false
+
+  const latitudeMeters = (latitude - campusLatitude) * 111320
+  const longitudeMeters = (longitude - campusLongitude) * 111320
+    * Math.cos(campusLatitude * Math.PI / 180)
+  return Math.hypot(latitudeMeters, longitudeMeters) <= 8000
+}
+
 function requestsLandmarkHistory(value) {
   return /(历史|校史|故事|来历|介绍|讲解|建造|建筑|人物|纪念|为什么|意义|背景|何时|谁|是什么|什么)/.test(value)
 }
@@ -138,8 +150,15 @@ async function showRoute(origin, destination, originName) {
 
 async function resolveNavigationPoint(location) {
   if (!location) return null
-  if (location.navigationPoint) return location.navigationPoint
-  return resolveCampusPlace({ campus: props.campus.id, name: location.name, locationId: location.id })
+  if (location.campus && location.campus !== props.campus.id) {
+    throw new Error(`“${location.name}”不属于当前${props.campus.name}。`)
+  }
+  const navigationPoint = location.navigationPoint
+    || await resolveCampusPlace({ campus: props.campus.id, name: location.name, locationId: location.id })
+  if (!isPointNearCurrentCampus(navigationPoint)) {
+    throw new Error(`“${location.name}”的坐标不在当前${props.campus.name}附近，已停止绘制以避免跨校区路线。`)
+  }
+  return navigationPoint
 }
 
 async function submit() {
@@ -155,8 +174,11 @@ async function submit() {
   const liveOrigin = props.livePosition
     ? wgs84ToGcj02([Number(props.livePosition.latitude), Number(props.livePosition.longitude)])
     : null
-  if (needsCurrentPosition && !liveOrigin) {
-    error.value = '请先在地图控制区点击“使用当前位置”，授权定位后再开始规划。'
+  const campusLiveOrigin = liveOrigin && isPointNearCurrentCampus(liveOrigin) ? liveOrigin : null
+  if (needsCurrentPosition && !campusLiveOrigin) {
+    error.value = liveOrigin
+      ? `当前位置不在当前${props.campus.name}附近，请切换到所在校区或明确输入校内起点。`
+      : '请先在地图控制区点击“使用当前位置”，授权定位后再开始规划。'
     return
   }
 
@@ -174,18 +196,27 @@ async function submit() {
     Boolean(selectedDestination || destinationCandidates[0] || needsCurrentPosition)
     || isNavigationRequest(prompt)
   )
+  const matchedCampusLocations = [...new Map(
+    findLocationMatches(prompt).map(({ location }) => [location.id, location]),
+  ).values()]
   const explicitOrigin = findOrigin(prompt, selectedDestination || destinationCandidates[0])
-  const useCurrentPositionByDefault = navigationIntent && !explicitOrigin && Boolean(liveOrigin)
+  const useCurrentPositionByDefault = navigationIntent && !explicitOrigin && Boolean(campusLiveOrigin)
   const navigationProtocol = navigationIntent
     ? '\n【网页导航协同】请先确认建议的起点、终点和出行方式；不要自行估算距离、时长或给出分步路线。确认后由网站依据该建议生成唯一的路线图。'
     : ''
-  const campusProtocol = `\n【当前校区已确定】用户正在查看${props.campus.name}地图，未明确提出跨校区时，所有地点均默认属于${props.campus.name}；不要再次询问用户所在校区。`
+  const campusProtocol = `\n【当前校区已确定】用户正在查看${props.campus.name}地图。未明确提出跨校区时，用户提到的所有校门、建筑、教学楼、图书馆、食堂、宿舍、场馆和地标均只允许在${props.campus.name}地点库内解析；不得使用另一校区的同名或相似地点，也不要再次询问用户所在校区。`
+  const placeDisambiguationProtocol = navigationIntent && matchedCampusLocations.length
+    ? `\n【当前校区地点消歧】本次识别到：${matchedCampusLocations.map((location) => `${location.name}（${props.campus.name}）`).join('、')}。这些地点均已由网页按当前校区限定，禁止替换为另一校区同名 POI。`
+    : ''
+  const travelModeProtocol = navigationIntent
+    ? `\n【用户已选择出行方式】${travelModeLabels[travelMode.value]}。不得回答“未选择出行方式”，并按照该方式给出建议。`
+    : ''
   const landmarkNarrationProtocol = isLandmarkNarration
     ? `\n【校史检索资料】命中地点：${narrative.title}。简介：${narrative.brief}。事实资料：${narrative.facts}\n【答复要求】仅依据上述资料，用自然、克制的校园讲解口吻回答用户问题；不要新增具体年份、尺寸、人物经历、建筑功能、开放安排或无法核验的细节。不要规划路线，也不要询问校区。末尾另起一行标注“【资料依据】本站整理的校史材料”。当前并未检索南开大学官网，不得声称信息来自官网。`
     : ''
-  const agentMessage = (needsCurrentPosition || useCurrentPositionByDefault) && liveOrigin
-    ? `${prompt}\n【本次导航起点】当前位置（GCJ-02）：经度 ${liveOrigin[1].toFixed(6)}，纬度 ${liveOrigin[0].toFixed(6)}。用户未说明明确起点时，默认从当前位置出发。出行方式：${travelModeLabels[travelMode.value]}。${campusProtocol}${navigationProtocol}${landmarkNarrationProtocol}`
-    : `${prompt}${campusProtocol}${navigationProtocol}${landmarkNarrationProtocol}`
+  const agentMessage = (needsCurrentPosition || useCurrentPositionByDefault) && campusLiveOrigin
+    ? `${prompt}\n【本次导航起点】当前位置（GCJ-02）：经度 ${campusLiveOrigin[1].toFixed(6)}，纬度 ${campusLiveOrigin[0].toFixed(6)}。用户未说明明确起点时，默认从当前位置出发。${travelModeProtocol}${campusProtocol}${placeDisambiguationProtocol}${navigationProtocol}${landmarkNarrationProtocol}`
+    : `${prompt}${travelModeProtocol}${campusProtocol}${placeDisambiguationProtocol}${navigationProtocol}${landmarkNarrationProtocol}`
   loading.value = true
   error.value = ''
   result.value = null
@@ -218,12 +249,19 @@ async function submit() {
       }
     }
     const originLocation = findOrigin(prompt, destination)
+    let coordinateError = ''
     const [destinationPoint, resolvedOrigin] = await Promise.all([
-      resolveNavigationPoint(destination).catch(() => null),
-      resolveNavigationPoint(originLocation).catch(() => null),
+      resolveNavigationPoint(destination).catch((coordinateFailure) => {
+        coordinateError = coordinateFailure.message
+        return null
+      }),
+      resolveNavigationPoint(originLocation).catch((coordinateFailure) => {
+        coordinateError = coordinateFailure.message
+        return null
+      }),
     ])
-    const origin = resolvedOrigin || (!originLocation ? liveOrigin : null)
-    const originName = originLocation?.name || (!originLocation && liveOrigin ? '当前位置' : '')
+    const origin = resolvedOrigin || (!originLocation ? campusLiveOrigin : null)
+    const originName = originLocation?.name || (!originLocation && campusLiveOrigin ? '当前位置' : '')
 
     if (origin && destinationPoint) {
       await showRoute(origin, {
@@ -231,6 +269,8 @@ async function submit() {
         navigationPoint: destinationPoint,
         routeSource: destination.routeSource || (destination.navigationPoint ? '自建 MVP 坐标' : '高德地图地点兜底'),
       }, originName || '起点')
+    } else if (coordinateError) {
+      error.value = coordinateError
     } else if (!originLocation && destinationPoint) {
       error.value = '正在获取当前位置，请稍候再次开始规划。'
     } else if (!destination) {

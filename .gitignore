@@ -12,6 +12,8 @@ media/
 frontend/node_modules/
 frontend/dist/
 frontend/.wrangler/
+frontend/.env
+frontend/.dev.vars
 .pnpm-store/
 
 # Local tooling and operating-system files
