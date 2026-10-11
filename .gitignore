@@ -24,3 +24,15 @@ frontend/.dev.vars
 
 # Generated inspection data
 *.inspect.ndjson
+
+# Local project materials (not part of the deployed repository)
+/关于推荐2026级本科新生参加“担当在先+梦想启航”新生训练营的通知(1).docx
+/分组讨论备选主题与方向(3).docx
+/南开新训营网站项目汇报素材.md
+/学生骨干应急信息服务网站_第一版需求说明.md
+/学生骨干应急信息服务网站课题申报表.docx
+/新生训练营_突发事件学生骨干担当_初稿.pptx
+/新生训练营_突发事件学生骨干担当_讨论框架版.pptx
+/津南校区_POI_MVP.csv
+/课题申报表.docx
+/问1.pptx
