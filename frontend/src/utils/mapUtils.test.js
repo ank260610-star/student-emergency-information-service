@@ -1,5 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
+import { existsSync } from 'node:fs'
 import {
   clampPointToViewportEdge,
   distanceToPolylineMeters,
@@ -184,6 +185,23 @@ test('keeps the complete Jinnan J01–J76 internal index searchable without inve
   assert.equal(geocoded.length, 28)
   assert.equal(locations.filter((location) => location.geoSource?.includes('openstreetmap.org')).length, 15)
   assert.equal(locations.filter((location) => location.emergency).length, 1)
+})
+
+test('connects the submitted Jinnan place photos to searchable campus locations', () => {
+  const locations = getCampusLocations('jinnan')
+  const photos = locations.flatMap((location) => location.photos || [])
+  const searchableNames = new Set(locations.flatMap((location) => [location.name, ...(location.aliases || [])]))
+
+  assert.equal(locations.filter((location) => location.photos?.length).length, 35)
+  assert.equal(photos.length, 69)
+  assert.equal(new Set(photos.map((photo) => photo.src)).size, photos.length)
+  assert.ok(['国际教育学院', '社会学院', '人工智能学院', '西楼报告厅'].every((name) => searchableNames.has(name)))
+
+  for (const photo of photos) {
+    assert.ok(photo.src.startsWith('/images/jinnan-places/'))
+    assert.ok(photo.alt && photo.caption)
+    assert.ok(existsSync(new URL(`../../public${photo.src}`, import.meta.url)), `${photo.src} is missing`)
+  }
 })
 
 test('keeps all campus records unique, categorized and inside their guide-map bounds', () => {
