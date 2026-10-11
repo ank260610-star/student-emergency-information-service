@@ -32,27 +32,27 @@ test('unknown and inherited route modes fall back to walking and return valid me
   let upstreamUrl
   t.mock.method(globalThis, 'fetch', async (url) => {
     upstreamUrl = new URL(url)
-    return Response.json(route([{ polyline: '117,39;118,40' }], { distance: '-20', cost: { duration: 'Infinity' } }))
+    return Response.json(route([{ polyline: '117.340,38.990;117.341,38.991' }], { distance: '-20', cost: { duration: 'Infinity' } }))
   })
-  const result = await getRoute(request({ origin: ' 117, 39 ', destination: '118,40', mode: 'toString' }), env)
+  const result = await getRoute(request({ campus: 'jinnan', origin: '117.340,38.990', destination: '117.341,38.991', mode: 'toString' }), env)
   assert.equal(result.status, 200)
   assert.equal(upstreamUrl.pathname, '/v5/direction/walking')
-  assert.equal(upstreamUrl.searchParams.get('origin'), '117,39')
+  assert.equal(upstreamUrl.searchParams.get('origin'), '117.34,38.99')
   assert.deepEqual(await result.json(), {
-    routePoints: [[39, 117], [40, 118]], coordinateSystem: 'GCJ-02',
-    distanceMeters: 0, durationSeconds: 0, mode: 'walking',
+    routePoints: [[38.99, 117.34], [38.991, 117.341]], coordinateSystem: 'GCJ-02',
+    distanceMeters: 0, durationSeconds: 0, mode: 'walking', campusRestricted: true,
   })
 })
 
 test('routes do not silently join across missing or malformed upstream segments', async (t) => {
   const fetch = t.mock.method(globalThis, 'fetch')
   for (const steps of [
-    [{ polyline: '117,39;118,40' }, { polyline: 'bad' }],
-    [{ polyline: '117,39;181,40;118,40' }],
-    { polyline: '117,39;118,40' },
+    [{ polyline: '117.340,38.990;117.341,38.991' }, { polyline: 'bad' }],
+    [{ polyline: '117.340,38.990;181,40;117.341,38.991' }],
+    { polyline: '117.340,38.990;117.341,38.991' },
   ]) {
     fetch.mock.mockImplementation(async () => Response.json(route(steps)))
-    assert.equal((await getRoute(request({ origin: '117,39', destination: '118,40' }), env)).status, 502)
+    assert.equal((await getRoute(request({ campus: 'jinnan', origin: '117.340,38.990', destination: '117.341,38.991' }), env)).status, 502)
   }
 })
 

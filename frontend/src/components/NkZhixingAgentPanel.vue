@@ -1,6 +1,7 @@
 <script setup>
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { findLandmarkNarrative } from '../data/landmarkNarratives'
+import { findPlaceProfile } from '../data/placeProfiles'
 import { askNkZhixingAgent, getRoute, NK_ZHIXING_MESSAGE_LIMIT, resolveCampusPlace } from '../services/nkZhixingAgent'
 import {
   buildAgentInstructions,
@@ -45,7 +46,9 @@ const suggestions = computed(() => [
   `我在${props.campus.short}，想去校医院。`,
   '晚上一个人在学校里迷路了，该怎么办？',
 ])
-const selectedLandmarkNarrative = computed(() => props.selectedLocation?.landmarkNarrative || null)
+const selectedLandmarkNarrative = computed(() => (
+  props.selectedLocation?.placeProfile || props.selectedLocation?.landmarkNarrative || null
+))
 
 function cancelRequest() {
   requestVersion += 1
@@ -120,7 +123,7 @@ async function submit() {
   const selectedLocation = props.selectedLocation
   const narrative = landmarkNarrationMode.value
     ? selectedLandmarkNarrative.value
-    : (requestsLandmarkHistory(prompt) ? findLandmarkNarrative(prompt) : null)
+    : (requestsLandmarkHistory(prompt) ? (findPlaceProfile(prompt) || findLandmarkNarrative(prompt)) : null)
   const needsCurrentPosition = refersToCurrentPosition(prompt)
   const position = props.livePosition
     ? [Number(props.livePosition.latitude), Number(props.livePosition.longitude)] : null
@@ -216,6 +219,7 @@ async function submit() {
     const route = await getRoute({
       origin: `${origin[1]},${origin[0]}`,
       destination: `${destinationPoint[1]},${destinationPoint[0]}`,
+      campus: campus.id,
       mode,
     }, { signal })
     if (!isCurrent()) return
@@ -250,7 +254,7 @@ defineExpose({ chooseCandidate })
       <div>
         <span class="section-kicker"><i></i> NK-GENIOS AGENT</span>
         <h2 id="nk-agent-title">问问 NK 智行</h2>
-        <p>说出目的地、出发位置或你的困难；点选地标或直接询问其校史，也可获得对应讲解。</p>
+        <p>说出目的地、出发位置或你的困难；也可点选学院、建筑或校史地标获取介绍。</p>
       </div>
       <span class="nk-agent-badge">试运行</span>
     </div>
@@ -266,7 +270,7 @@ defineExpose({ chooseCandidate })
           :disabled="loading"
           @click="requestLandmarkNarration"
         >
-          {{ loading && landmarkNarrationMode ? '正在生成讲解…' : '讲解这个地标' }}
+          {{ loading && landmarkNarrationMode ? '正在生成介绍…' : '介绍这个地点' }}
         </button>
       </template>
     </div>
@@ -296,7 +300,7 @@ defineExpose({ chooseCandidate })
         </select>
       </label>
       <div>
-        <small>可直接问“思源堂的历史是什么？”；请勿输入身份证号、手机号、病历等敏感信息。</small>
+        <small>可直接问“金融学院是做什么的？”或“思源堂的历史是什么？”；请勿输入身份证号、手机号、病历等敏感信息。</small>
         <button type="submit" :disabled="!message.trim() || loading || composing">{{ loading ? '正在分析…' : '开始规划 →' }}</button>
       </div>
     </form>

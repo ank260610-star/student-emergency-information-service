@@ -33,6 +33,8 @@ const livePosition = ref(null)
 const activeNavigation = ref(null)
 const activeTourId = ref('')
 const tourPlanning = ref(false)
+const dismissedNearbyId = ref('')
+const selectedLocationCard = ref(null)
 let rerouteRequestId = 0
 let tourRequestId = 0
 let routeDrawVersion = 0
@@ -70,6 +72,23 @@ const forcedMarkerIds = computed(() => (
 const selectedLocation = computed(() => campusLocations.value.find((location) => location.id === selectedId.value))
 const searchResults = computed(() => normalizedQuery.value ? filteredLocations.value.slice(0, 8) : [])
 const geocodedCount = computed(() => campusLocations.value.filter((location) => location.geoPoint).length)
+const nearbyProfileLocation = computed(() => {
+  if (!livePosition.value) return null
+  const currentPoint = [Number(livePosition.value.latitude), Number(livePosition.value.longitude)]
+  if (!currentPoint.every(Number.isFinite)) return null
+
+  return campusLocations.value
+    .filter((location) => location.placeProfile && Array.isArray(location.geoPoint))
+    .map((location) => ({
+      location,
+      distance: straightLineMeters(currentPoint, location.geoPoint),
+    }))
+    .filter(({ location, distance }) => distance <= (location.placeProfile.nearbyRadiusMeters || 80))
+    .sort((left, right) => left.distance - right.distance)[0] || null
+})
+const visibleNearbyProfile = computed(() => (
+  nearbyProfileLocation.value?.location.id === dismissedNearbyId.value ? null : nearbyProfileLocation.value
+))
 
 function campusForPosition({ latitude, longitude }) {
   const pointLatitude = Number(latitude)
@@ -143,6 +162,15 @@ async function selectAndFocus(location, shouldScroll = false) {
   if (shouldScroll) requestAnimationFrame(scrollToMap)
 }
 
+async function openNearbyProfile() {
+  const location = visibleNearbyProfile.value?.location
+  if (!location) return
+  await selectAndFocus(location)
+  await nextTick()
+  const behavior = window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth'
+  selectedLocationCard.value?.scrollIntoView({ behavior, block: 'center' })
+}
+
 function handleCoordinateUnavailable(location) {
   mapStatus.value = location.geoPoint
     ? `${location.name}不在校园导览图的编号范围内，请切换到“在线地图”查看现场核验位置。`
@@ -154,13 +182,16 @@ function handleAgentFocus(locationId) {
   if (location) selectAndFocus(location, true)
 }
 
-function showAgentCandidates(locations) {
+async function showAgentCandidates(locations) {
   candidateLocationIds.value = locations.map((location) => location.id)
   const canUseOnlineMap = locations.every((location) => Array.isArray(location.geoPoint))
   if (canUseOnlineMap) baseMode.value = 'online'
   else baseMode.value = 'illustration'
   const mapLabel = canUseOnlineMap ? '在线地图' : '校园导览图'
   mapStatus.value = `已高亮 ${locations.map((location) => location.name).join('、')}，请在${mapLabel}中点击目标地点。`
+  await nextTick()
+  await nextTick()
+  interactiveMap.value?.focusLocations(candidateLocationIds.value)
   requestAnimationFrame(scrollToMap)
 }
 
@@ -241,6 +272,7 @@ async function showCampusTour(tour) {
       const segment = await getRoute({
         origin: `${origin[1]},${origin[0]}`,
         destination: `${destination[1]},${destination[0]}`,
+        campus: campus.value,
         mode: 'walking',
       }, { signal: controller.signal })
       if (disposed || requestId !== tourRequestId) return
@@ -301,6 +333,7 @@ async function rerouteFromCurrentPosition({ latitude, longitude, deviationMeters
     const routeResult = await getRoute({
       origin: `${origin[1]},${origin[0]}`,
       destination: `${destination[1]},${destination[0]}`,
+      campus: campus.value,
       mode: navigation.mode,
     }, { signal: controller.signal })
     if (disposed || requestId !== rerouteRequestId || activeNavigation.value !== navigation) return
@@ -373,7 +406,12 @@ watch(campus, () => {
   cancelTourRequest()
   cancelRerouteRequest()
   routeDrawVersion += 1
+  dismissedNearbyId.value = ''
   mapStatus.value = `${currentCampus.value.name} · ${campusLocations.value.length} 个地点`
+})
+
+watch(() => nearbyProfileLocation.value?.location.id, (locationId) => {
+  if (locationId !== dismissedNearbyId.value) dismissedNearbyId.value = ''
 })
 
 watch(category, () => {
@@ -489,6 +527,21 @@ onBeforeUnmount(() => {
         </p>
       </div>
 
+      <aside v-if="visibleNearbyProfile" class="nearby-place-notice" aria-live="polite">
+        <span class="nearby-place-distance">附近 · 约 {{ Math.max(1, Math.round(visibleNearbyProfile.distance)) }} 米</span>
+        <div>
+          <strong>你已靠近{{ visibleNearbyProfile.location.name }}</strong>
+          <p>{{ visibleNearbyProfile.location.placeProfile.brief }}</p>
+        </div>
+        <button type="button" @click="openNearbyProfile">查看介绍</button>
+        <button
+          type="button"
+          class="nearby-place-dismiss"
+          aria-label="关闭附近建筑提示"
+          @click="dismissedNearbyId = visibleNearbyProfile.location.id"
+        >×</button>
+      </aside>
+
       <NkZhixingAgentPanel
         ref="nkZhixingPanel"
         :campus="agentCampus"
@@ -530,7 +583,7 @@ onBeforeUnmount(() => {
       </section>
     </section>
 
-    <section v-if="selectedLocation" class="selected-location-card" aria-live="polite">
+    <section v-if="selectedLocation" ref="selectedLocationCard" class="selected-location-card" aria-live="polite">
       <div :class="`selected-location-number category-${selectedLocation.category}`">
         <small>{{ selectedLocation.number }}</small>
         <span aria-hidden="true">{{ categoryMeta[selectedLocation.category].symbol }}</span>
@@ -539,6 +592,21 @@ onBeforeUnmount(() => {
         <span>{{ categoryMeta[selectedLocation.category].label }} · {{ currentCampus.name }}</span>
         <h2>{{ selectedLocation.name }}</h2>
         <p>{{ selectedLocation.description }}</p>
+        <div v-if="selectedLocation.placeProfile" class="place-profile-detail">
+          <span>{{ selectedLocation.placeProfile.kind || '校园地点' }}</span>
+          <h3>{{ selectedLocation.placeProfile.title }}</h3>
+          <p>{{ selectedLocation.placeProfile.brief }}</p>
+          <p>{{ selectedLocation.placeProfile.facts }}</p>
+          <div v-if="selectedLocation.placeProfile.sources?.length" class="place-profile-sources">
+            <a
+              v-for="source in selectedLocation.placeProfile.sources"
+              :key="`${source.type}-${source.label}`"
+              :href="source.url"
+              :target="source.url.startsWith('http') ? '_blank' : undefined"
+              :rel="source.url.startsWith('http') ? 'noopener' : undefined"
+            >{{ source.type }} · {{ source.label }} →</a>
+          </div>
+        </div>
         <small v-if="baseMode === 'online' && !selectedLocation.geoPoint">该地点目前仅提供校园导览图坐标。</small>
       </div>
       <button type="button" @click="selectAndFocus(selectedLocation, true)">在地图中定位</button>

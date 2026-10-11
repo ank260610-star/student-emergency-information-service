@@ -86,8 +86,8 @@ export async function askNkZhixingAgent({ message, campus, selectedLocation }, {
   }
 }
 
-export async function getRoute({ origin, destination, mode = 'walking' }, { signal } = {}) {
-  const payload = await postJson(ROUTE_API_PATH, { origin, destination, mode }, {
+export async function getRoute({ origin, destination, campus, mode = 'walking' }, { signal } = {}) {
+  const payload = await postJson(ROUTE_API_PATH, { origin, destination, campus, mode }, {
     signal, timeoutMs: 20000, errorMessage: '路线轨迹暂时无法加载。',
   })
   if (!Array.isArray(payload.routePoints) || payload.routePoints.length < 2 || !payload.routePoints.every(isNavigationPoint)) {

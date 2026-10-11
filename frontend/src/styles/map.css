@@ -223,24 +223,10 @@
 
 .campus-number-icon.is-candidate {
   z-index: 12 !important;
-  transform: scale(1.4);
-  background: #a40e8d;
-  box-shadow: 0 0 0 4px white, 0 0 0 8px #f3a7e8, 0 8px 20px rgba(126,12,110,.55);
-}
-
-.campus-number-icon.is-candidate::after {
-  content: '候选';
-  position: absolute;
-  top: -23px;
-  left: 50%;
-  transform: translateX(-50%);
-  padding: 3px 6px;
-  border-radius: 999px;
-  color: white;
-  background: #7e0c6e;
-  font: 700 10px/1 'Noto Sans SC', sans-serif;
-  white-space: nowrap;
-  box-shadow: 0 2px 6px rgba(53,16,47,.28);
+  transform: scale(1.65);
+  background: #b46d00;
+  box-shadow: 0 0 0 4px white, 0 0 0 10px rgba(255,176,0,.78), 0 10px 24px rgba(126,76,0,.58);
+  animation: candidate-marker-pulse 1.35s ease-in-out infinite;
 }
 
 .campus-number-icon.is-tour-stop {
@@ -286,9 +272,25 @@
 
 .campus-dot-icon.is-candidate {
   z-index: 12 !important;
-  transform: scale(1.8);
-  background: #a40e8d;
-  box-shadow: 0 0 0 4px white, 0 0 0 8px #f3a7e8;
+  transform: scale(2.1);
+  background: #b46d00;
+  box-shadow: 0 0 0 4px white, 0 0 0 10px rgba(255,176,0,.78);
+  animation: candidate-marker-pulse 1.35s ease-in-out infinite;
+}
+
+.candidate-location-tooltip {
+  border: 2px solid #fff;
+  color: #fff;
+  background: #6c4200;
+  box-shadow: 0 5px 16px rgba(59,35,0,.4);
+  font-weight: 800;
+}
+
+.candidate-location-tooltip.leaflet-tooltip-top::before { border-top-color: #6c4200; }
+
+@keyframes candidate-marker-pulse {
+  0%, 100% { filter: brightness(1); }
+  50% { filter: brightness(1.22) drop-shadow(0 0 8px rgba(255,176,0,.9)); }
 }
 
 .campus-hospital-icon {
@@ -361,6 +363,16 @@
 .campus-hospital-icon:hover, .campus-hospital-icon.is-active {
   transform: scale(1.07);
   filter: drop-shadow(0 7px 14px rgba(73,0,10,.5));
+}
+
+.campus-hospital-icon.is-candidate {
+  transform: scale(1.12);
+  filter: drop-shadow(0 0 12px rgba(255,176,0,.95));
+}
+
+.campus-hospital-icon.is-candidate::after {
+  border-color: #ffb000;
+  animation-duration: 1.25s;
 }
 
 @keyframes hospital-beacon {
@@ -567,6 +579,42 @@
   color: #5f3658;
   background: rgba(255,249,254,.96);
 }
+
+.map-navigation-cue {
+  position: absolute;
+  z-index: 800;
+  left: 50%;
+  top: 14px;
+  min-width: 240px;
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  transform: translateX(-50%);
+  padding: 10px 18px 10px 11px;
+  border: 2px solid rgba(255,255,255,.94);
+  border-radius: 8px;
+  color: white;
+  background: rgba(53,16,47,.96);
+  box-shadow: 0 9px 28px rgba(36,5,32,.38);
+  backdrop-filter: blur(10px);
+}
+
+.map-navigation-arrow {
+  flex: 0 0 48px;
+  width: 48px;
+  height: 48px;
+  display: grid;
+  place-items: center;
+  border-radius: 7px;
+  color: var(--purple-dark);
+  background: white;
+  font: 900 35px/1 Arial, sans-serif;
+}
+
+.map-navigation-arrow.is-arrive { color: #08705b; }
+.map-navigation-copy { min-width: 0; display: grid; gap: 2px; }
+.map-navigation-copy small { color: #e6bfdc; font-size: 10px; font-weight: 700; }
+.map-navigation-copy strong { font-size: 17px; line-height: 1.2; }
 
 .map-controls {
   position: absolute;
@@ -970,6 +1018,34 @@
   font-weight: 700;
   cursor: pointer;
 }
+
+.nearby-place-notice {
+  position: relative;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  margin-top: 12px;
+  padding: 14px 48px 14px 16px;
+  border-left: 4px solid var(--purple);
+  color: var(--ink);
+  background: #fbf3f9;
+  box-shadow: 0 8px 22px rgba(53,16,47,.08);
+}
+
+.nearby-place-distance { color: var(--purple); font-size: 9px; font-weight: 800; white-space: nowrap; }
+.nearby-place-notice div { min-width: 0; }
+.nearby-place-notice strong { color: var(--purple-dark); font-size: 12px; }
+.nearby-place-notice p { margin: 4px 0 0; color: var(--muted); font-size: 10px; line-height: 1.55; }
+.nearby-place-notice > button { padding: 8px 11px; border: 1px solid var(--purple); color: white; background: var(--purple); font: inherit; font-size: 9px; font-weight: 700; cursor: pointer; }
+.nearby-place-notice .nearby-place-dismiss { position: absolute; right: 10px; top: 9px; width: 26px; height: 26px; padding: 0; border: 0; color: var(--muted); background: transparent; font-size: 19px; line-height: 1; }
+
+.place-profile-detail { margin-top: 13px; padding: 14px 16px; border-left: 3px solid var(--purple); background: var(--purple-soft); }
+.place-profile-detail > span { color: var(--purple); font-size: 9px; font-weight: 800; letter-spacing: .08em; }
+.place-profile-detail h3 { margin: 4px 0 7px; color: var(--purple-dark); font: 700 17px/1.4 "Songti SC", SimSun, serif; }
+.place-profile-detail p { margin: 4px 0; }
+.place-profile-sources { display: flex; flex-wrap: wrap; gap: 7px 16px; margin-top: 10px; }
+.place-profile-sources a { color: var(--purple); font-size: 9px; font-weight: 700; }
 
 .location-photo-gallery {
   grid-column: 1 / -1;
@@ -1593,6 +1669,17 @@
     font-size: 9px;
   }
 
+  .map-navigation-cue {
+    top: 10px;
+    min-width: min(230px, calc(100% - 86px));
+    padding: 8px 12px 8px 8px;
+  }
+
+  .map-navigation-arrow { flex-basis: 42px; width: 42px; height: 42px; font-size: 30px; }
+  .map-navigation-copy strong { font-size: 15px; }
+  .nearby-place-notice { grid-template-columns: 1fr; gap: 8px; padding: 14px 44px 14px 14px; }
+  .nearby-place-notice > button:not(.nearby-place-dismiss) { justify-self: start; }
+
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -1603,5 +1690,7 @@
   .campus-number-icon {
     transition: none;
   }
+
+  .campus-number-icon.is-candidate, .campus-dot-icon.is-candidate { animation: none; }
 
 }

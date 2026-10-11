@@ -1,5 +1,6 @@
 import { jinnanLocations } from './jinnanLocations.js'
 import { landmarkNarratives } from './landmarkNarratives.js'
+import { placeProfiles } from './placeProfiles.js'
 import { gcj02ToWgs84 } from '../utils/mapUtils.js'
 
 export const categoryMeta = {
@@ -351,6 +352,7 @@ const balitaiLocations = [
 export const campusLocations = [...balitaiLocations, ...jinnanLocations].map((location) => ({
   ...location,
   landmarkNarrative: landmarkNarratives[location.id] || null,
+  placeProfile: placeProfiles[location.id] || landmarkNarratives[location.id] || null,
 }))
 
 // A curated visit order, not a street-level walking geometry. NK 智行 can use

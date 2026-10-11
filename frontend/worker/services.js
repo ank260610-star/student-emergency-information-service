@@ -1,4 +1,5 @@
 import { jsonResponse, nonNegativeNumber, parseCoordinate, parsePolyline, requestJson } from './requestUtils.js'
+import { campusNavigationAreas, isPointInsideCampus, isRouteInsideCampus } from '../shared/campusNavigation.js'
 
 // Browser input is limited to 500 characters; this includes appended campus,
 // location and history context. Keep the adapter's limit in api/nk-zhixing.js aligned.
@@ -31,6 +32,16 @@ export async function getRoute(request, env) {
   if (!origin || !destination) {
     return jsonResponse({ error: '路线坐标格式无效。' }, 400)
   }
+  const campusId = typeof payload?.campus === 'string' ? payload.campus : ''
+  const campusArea = campusNavigationAreas[campusId]
+  if (!campusArea) {
+    return jsonResponse({ error: '当前校区无效，无法启用校内道路限制。' }, 400)
+  }
+  if (!isPointInsideCampus(campusId, origin) || !isPointInsideCampus(campusId, destination)) {
+    return jsonResponse({
+      error: `起点或终点不在${campusArea.name}校内，已停止规划以避免跨校区或校外路线。`,
+    }, 422)
+  }
   const modeName = typeof payload?.mode === 'string' && Object.hasOwn(ROUTE_MODES, payload.mode)
     ? payload.mode : 'walking'
   const mode = ROUTE_MODES[modeName]
@@ -52,12 +63,18 @@ export async function getRoute(request, env) {
     if (routePoints.length < 2 || segments.some((segment) => !segment.length)) {
       return jsonResponse({ error: '高德未返回完整、有效的路线轨迹点。' }, 502)
     }
+    if (!isRouteInsideCampus(campusId, routePoints)) {
+      return jsonResponse({
+        error: `高德返回的路线会经过${campusArea.name}校外，已停止绘制。请改用校内地点或在地图上点选校内位置。`,
+      }, 422)
+    }
     return jsonResponse({
       routePoints,
       coordinateSystem: 'GCJ-02',
       distanceMeters: nonNegativeNumber(path.distance),
       durationSeconds: nonNegativeNumber(path.cost?.duration ?? path.duration),
       mode: modeName,
+      campusRestricted: true,
     })
   } catch {
     // Fetch errors can contain the upstream URL and its service key.
@@ -80,7 +97,9 @@ export async function resolvePlace(request, env) {
   } catch {
     return jsonResponse({ error: '请求格式无效。' }, 400)
   }
-  const campus = payload?.campus === 'balitai' ? '八里台校区' : payload?.campus === 'jinnan' ? '津南校区' : ''
+  const campusId = typeof payload?.campus === 'string' ? payload.campus : ''
+  const campusArea = campusNavigationAreas[campusId]
+  const campus = campusArea?.name || ''
   const name = typeof payload?.name === 'string' ? payload.name.trim() : ''
   if (!campus || !name || name.length > 80) {
     return jsonResponse({ error: '地点名称或校区无效。' }, 400)
@@ -91,16 +110,23 @@ export async function resolvePlace(request, env) {
     keywords: `南开大学${campus}${name}`,
     region: '天津市',
     city_limit: 'true',
-    page_size: '1',
+    page_size: '10',
   })
   try {
     const { response, payload: placePayload } = await requestJson(`https://restapi.amap.com/v5/place/text?${parameters}`)
     if (!response.ok || placePayload?.status !== '1' || !Array.isArray(placePayload.pois)) {
       return jsonResponse({ error: '高德地点服务暂时无法响应，请稍后再试。' }, 502)
     }
-    const place = placePayload.pois[0]
+    if (placePayload.pois.length && placePayload.pois.every((candidate) => !parseCoordinate(candidate?.location))) {
+      return jsonResponse({ error: '高德暂未返回有效的地点坐标。' }, 502)
+    }
+    const place = placePayload.pois.find((candidate) => (
+      isPointInsideCampus(campusId, parseCoordinate(candidate?.location))
+    ))
     if (!place) {
-      return jsonResponse({ error: '高德暂未找到该地点的可用坐标。' }, 404)
+      return jsonResponse({
+        error: `高德暂未在${campus}校内找到该地点；已排除校外和另一校区的同名结果。`,
+      }, 404)
     }
     const coordinate = parseCoordinate(place.location)
     if (!coordinate) {

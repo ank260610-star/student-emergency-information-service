@@ -10,6 +10,7 @@ import {
   geoPointToImageLatLng,
   imagePointToSimpleLatLng,
   markerPresentationForLocation,
+  nextRouteManeuver,
   wgs84ToGcj02,
 } from '../utils/mapUtils'
 
@@ -33,6 +34,8 @@ const loading = ref(true)
 const mapError = ref('')
 const tileError = ref(false)
 const hospitalDirection = ref(null)
+const liveNavigationActive = ref(false)
+const navigationCue = ref(null)
 
 let map = null
 let baseLayer = null
@@ -59,6 +62,9 @@ const featureById = new Map()
 const geolocationSession = createGeolocationSession({
   onPosition: updateLivePosition,
   onLiveChange: (live) => {
+    liveNavigationActive.value = live
+    if (live) updateNavigationCue(null)
+    else navigationCue.value = null
     if (!live) removeLiveNavigationLayers()
     emit('live-navigation-change', live)
   },
@@ -234,7 +240,7 @@ function createFeature(location, latLng, presentation) {
       title: tourOrder ? `第 ${tourOrder} 站：${location.name}` : `${location.name}（医疗与应急）`,
       alt: `${location.number}，${location.name}，医疗与应急`,
       riseOnHover: true,
-      zIndexOffset: 1500,
+      zIndexOffset: candidate ? 3000 : 1500,
     })
   } else {
     feature = L.marker(latLng, {
@@ -243,10 +249,16 @@ function createFeature(location, latLng, presentation) {
       title: tourOrder ? `第 ${tourOrder} 站：${location.name}` : location.name,
       alt: `${location.number}，${location.name}`,
       riseOnHover: true,
+      zIndexOffset: candidate ? 3000 : 0,
     })
   }
 
-  feature.bindTooltip(location.name, { direction: 'top', offset: [0, -12] })
+  feature.bindTooltip(candidate ? `候选地点：${location.name}` : location.name, {
+    direction: 'top',
+    offset: [0, -12],
+    permanent: candidate,
+    className: candidate ? 'candidate-location-tooltip' : '',
+  })
   feature.bindPopup(popupElement(location), { minWidth: 210, maxWidth: 280 })
   feature.on('click', (event) => {
     if (event.originalEvent) L.DomEvent.stopPropagation(event.originalEvent)
@@ -516,6 +528,45 @@ function focusLocation(locationId, openPopup = true) {
   return true
 }
 
+function focusLocations(locationIds) {
+  if (!map || !Array.isArray(locationIds) || !locationIds.length) return false
+  const points = locationIds
+    .map((locationId) => props.locations.find((location) => location.id === locationId))
+    .map((location) => location && locationLatLng(location))
+    .filter(Boolean)
+  if (!points.length) return false
+  if (points.length === 1) {
+    map.setView(points[0], props.baseMode === 'online' ? Math.max(map.getZoom(), 17) : Math.max(map.getZoom(), initialZoom + 2), { animate: false })
+  } else {
+    map.fitBounds(L.latLngBounds(points), { padding: [90, 90], maxZoom: props.baseMode === 'online' ? 18 : initialZoom + 2.4, animate: false })
+  }
+  return true
+}
+
+function formatManeuverDistance(distanceMeters) {
+  if (!Number.isFinite(distanceMeters)) return ''
+  if (distanceMeters >= 1000) return `${(distanceMeters / 1000).toFixed(1)} 公里后`
+  if (distanceMeters <= 15) return '现在'
+  return `${Math.max(10, Math.round(distanceMeters / 10) * 10)} 米后`
+}
+
+function updateNavigationCue(navigationPoint) {
+  if (!liveNavigationActive.value) return
+  if (!plannedRoutePoints.length) {
+    navigationCue.value = { type: 'waiting', symbol: '⌖', distanceText: '等待路线', label: '请先规划校内路线' }
+    return
+  }
+  if (!navigationPoint) {
+    navigationCue.value = { type: 'waiting', symbol: '⌖', distanceText: '正在定位', label: '获取当前位置…' }
+    return
+  }
+  const maneuver = nextRouteManeuver(navigationPoint, plannedRoutePoints)
+  navigationCue.value = maneuver ? {
+    ...maneuver,
+    distanceText: maneuver.type === 'arrive' ? '即将' : formatManeuverDistance(maneuver.distanceMeters),
+  } : { type: 'waiting', symbol: '⌖', distanceText: '路线计算中', label: '请稍候' }
+}
+
 function showRoute(routePoints, coordinateSystem = 'GCJ-02') {
   if (!map || props.baseMode !== 'online' || !Array.isArray(routePoints)) return false
   const points = routePoints
@@ -541,6 +592,10 @@ function showRoute(routePoints, coordinateSystem = 'GCJ-02') {
     className: 'campus-route-line',
   }).addTo(map)
   map.fitBounds(routeLayer.getBounds(), { padding: [36, 36], animate: false })
+  const currentPositionPoint = props.currentPosition
+    ? locationMapPoint(Number(props.currentPosition.latitude), Number(props.currentPosition.longitude))
+    : null
+  updateNavigationCue(currentPositionPoint)
   return true
 }
 
@@ -548,6 +603,7 @@ function clearRoute() {
   if (routeLayer && map) map.removeLayer(routeLayer)
   routeLayer = null
   plannedRoutePoints = []
+  updateNavigationCue(null)
   consecutiveDeviationSamples = 0
   lastDeviationNoticeAt = 0
 }
@@ -643,6 +699,7 @@ function updateLivePosition({ coords }) {
     ? wgs84ToGcj02([latitude, longitude])
     : [latitude, longitude]
   const deviationMeters = distanceToPolylineMeters(navigationPoint, plannedRoutePoints)
+  updateNavigationCue(navigationPoint)
   if (Number.isFinite(deviationMeters) && deviationMeters > 30 && accuracy > 0 && accuracy <= 30) {
     consecutiveDeviationSamples += 1
   } else {
@@ -771,6 +828,7 @@ onBeforeUnmount(() => {
 
 defineExpose({
   focusLocation,
+  focusLocations,
   locateUser,
   resetView,
   showRoute,
@@ -802,6 +860,14 @@ defineExpose({
     <div v-if="baseMode === 'online' && geocodedCount === 0 && !tileError" class="map-data-warning" role="status">
       {{ campus.geoDataStatus }}
     </div>
+
+    <aside v-if="liveNavigationActive && navigationCue" class="map-navigation-cue" aria-live="polite">
+      <span class="map-navigation-arrow" :class="`is-${navigationCue.type}`" aria-hidden="true">{{ navigationCue.symbol }}</span>
+      <span class="map-navigation-copy">
+        <small>{{ navigationCue.distanceText }}</small>
+        <strong>{{ navigationCue.label }}</strong>
+      </span>
+    </aside>
 
     <button
       v-if="hospitalDirection"
