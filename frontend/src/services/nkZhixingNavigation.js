@@ -4,11 +4,29 @@ export const travelModeLabels = {
   driving: '驾车',
 }
 
+const travelModePatterns = {
+  walking: /(?:步行|走路|徒步)/g,
+  bicycling: /(?:骑行|骑车|自行车|单车|电动车)/g,
+  driving: /(?:驾车|开车|自驾)/g,
+}
+
 const campusAliases = { jinnan: { 'jinnan-public-teaching': ['公教'] } }
 const normalize = (value) => String(value || '').toLowerCase().replace(/\s/g, '')
 
 export function isNavigationRequest(value) {
   return /(?:前往|抵达|到|去|怎么走|怎么去|如何去|导航|路线)/.test(String(value || ''))
+}
+
+export function findRequestedTravelMode(value) {
+  const text = normalize(value)
+  let selected = null
+  for (const [mode, pattern] of Object.entries(travelModePatterns)) {
+    pattern.lastIndex = 0
+    for (const match of text.matchAll(pattern)) {
+      if (!selected || match.index > selected.index) selected = { mode, index: match.index }
+    }
+  }
+  return selected?.mode || ''
 }
 
 export function extractNavigationDestination(value) {

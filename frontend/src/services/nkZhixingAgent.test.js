@@ -111,10 +111,15 @@ test('place lookup rejects empty, malformed, and out-of-range coordinates', asyn
 test('route lookup rejects unusable polylines and keeps walking compatibility', async (t) => {
   t.mock.method(globalThis, 'fetch', async (_, { body }) => {
     assert.equal(JSON.parse(body).mode, 'walking')
-    return { ok: true, json: async () => ({ routePoints: [[39, 117], [39.1, 117.1]], coordinateSystem: 'GCJ-02' }) }
+    return { ok: true, json: async () => ({
+      routePoints: [[39, 117], [39.1, 117.1]], coordinateSystem: 'GCJ-02',
+      instructions: [' 向北直行 ', null, '', 42],
+    }) }
   })
   const request = { origin: '117,39', destination: '117.1,39.1' }
-  assert.equal((await getWalkingRoute({ ...request, mode: 'driving' })).routePoints.length, 2)
+  const route = await getWalkingRoute({ ...request, mode: 'driving' })
+  assert.equal(route.routePoints.length, 2)
+  assert.deepEqual(route.instructions, ['向北直行'])
   for (const routePoints of [null, [], [[39, 117]], [[39, 117], [NaN, 117]]]) {
     globalThis.fetch = async () => ({ ok: true, json: async () => ({ routePoints }) })
     await assert.rejects(getRoute(request), /路线轨迹格式无效/)

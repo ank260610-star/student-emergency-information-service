@@ -9,10 +9,25 @@ import {
   imagePointToSimpleLatLng,
   markerPresentationForLocation,
   nextRouteManeuver,
+  routeInstructionsFromGeometry,
   semanticZoomLevel,
   shouldShowPriority,
   wgs84ToGcj02,
 } from './mapUtils.js'
+
+test('derives conservative text directions from route geometry', () => {
+  const route = [
+    [39, 117],
+    [39.0003, 117],
+    [39.0003, 116.9996],
+    [39.0006, 116.9996],
+  ]
+  const instructions = routeInstructionsFromGeometry(route)
+  assert.match(instructions[0], /向北方向出发/)
+  assert.equal(instructions.some((step) => step.includes('左转')), true)
+  assert.match(instructions.at(-1), /到达目的地/)
+  assert.deepEqual(routeInstructionsFromGeometry([[39, 117]]), [])
+})
 import { campusTours, categoryMeta, getCampusLocations } from '../data/campusLocations.js'
 import { findLandmarkNarrative } from '../data/landmarkNarratives.js'
 import { findPlaceProfile } from '../data/placeProfiles.js'
@@ -148,6 +163,27 @@ test('keeps the Balitai history tour ordered from east gate to west gate', () =>
   )))
 })
 
+test('keeps the three Jinnan exploration routes ordered and routable', () => {
+  const locations = new Map(getCampusLocations('jinnan').map((location) => [location.id, location]))
+  const [history, relax, study] = campusTours.jinnan
+
+  assert.equal(campusTours.jinnan.length, 3)
+  assert.deepEqual(history.stopIds, [
+    'jinnan-west-gate',
+    'jinnan-location-j42',
+    'jinnan-muzhai-library',
+    'jinnan-tour-t01',
+    'jinnan-tour-t02',
+    'jinnan-student-center',
+  ])
+  assert.deepEqual(relax.stopIds, ['jinnan-location-j74', 'jinnan-gymnasium', 'jinnan-student-center'])
+  assert.deepEqual(study.stopIds, ['jinnan-library', 'jinnan-tour-t03', 'jinnan-location-j72'])
+  assert.ok(campusTours.jinnan.every((tour) => (
+    tour.stopIds.length >= 2
+      && tour.stopIds.every((id) => locations.get(id)?.geoPoint && locations.get(id)?.navigationPoint)
+  )))
+})
+
 test('retrieves one matching landmark narrative for a campus-history question', () => {
   const narrative = findLandmarkNarrative('我想了解宁园的校史和陈省身故居的故事')
   assert.equal(narrative?.title, '陈省身故居')
@@ -175,14 +211,14 @@ test('keeps the complete Jinnan J01–J76 internal index searchable without inve
   const geocoded = locations.filter((location) => location.geoPoint)
   const fieldLocations = locations.filter((location) => location.numberKind === 'field')
 
-  assert.equal(locations.length, 85)
+  assert.equal(locations.length, 88)
   assert.equal(internalLocations.length, 76)
   assert.equal(numbers.size, 76)
   assert.ok(expected.every((number) => numbers.has(number)))
   assert.ok(internalLocations.every((location) => location.imagePoint && location.name && location.category))
   assert.equal(fieldLocations.length, 9)
   assert.ok(fieldLocations.every((location) => location.geoPoint && location.navigationPoint))
-  assert.equal(geocoded.length, 28)
+  assert.equal(geocoded.length, 34)
   assert.equal(locations.filter((location) => location.geoSource?.includes('openstreetmap.org')).length, 15)
   assert.equal(locations.filter((location) => location.emergency).length, 1)
 })

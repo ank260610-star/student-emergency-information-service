@@ -90,7 +90,7 @@ input:focus-visible, textarea:focus-visible, select:focus-visible {
 
   .map-controls button, .map-controls select, .campus-tour-grid button,
   .campus-tour-actions button, .nk-agent-form button, .nk-agent-mode select,
-  .nk-agent-suggestions button, .nk-agent-narrate, .expand-button,
+  .nk-agent-suggestions button, .nk-agent-narrate, .nk-agent-voice-button, .expand-button,
   .wechat-account-card button, .college-account-card button {
     min-height: 44px;
   }

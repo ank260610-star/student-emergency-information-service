@@ -429,6 +429,41 @@ export const campusTours = {
       ],
     },
   ],
+  jinnan: [
+    {
+      id: 'jinnan-history-tour',
+      name: '校史考察路线',
+      summary: '从西门进入，经思源堂、木斋图书馆、西南联大纪念园和周总理雕像，最后到达大通学生活动中心。',
+      stopIds: [
+        'jinnan-west-gate',
+        'jinnan-location-j42',
+        'jinnan-muzhai-library',
+        'jinnan-tour-t01',
+        'jinnan-tour-t02',
+        'jinnan-student-center',
+      ],
+    },
+    {
+      id: 'jinnan-relax-tour',
+      name: '放松小憩路线',
+      summary: '从马蹄湖文科小花园出发，经体育馆到大通学生活动中心，适合课间散步与短途休憩。',
+      stopIds: [
+        'jinnan-location-j74',
+        'jinnan-gymnasium',
+        'jinnan-student-center',
+      ],
+    },
+    {
+      id: 'jinnan-study-tour',
+      name: '学习科研路线',
+      summary: '从中心图书馆出发，前往金融学院二层宁一弘道书斋，最后到达前沿交叉学科中心。',
+      stopIds: [
+        'jinnan-library',
+        'jinnan-tour-t03',
+        'jinnan-location-j72',
+      ],
+    },
+  ],
 }
 
 export function getCampusLocations(campusId) {

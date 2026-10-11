@@ -132,6 +132,71 @@ function routePointDistance(start, end) {
   return Math.hypot(endX - startX, endY - startY)
 }
 
+function roundedInstructionDistance(distanceMeters) {
+  if (distanceMeters < 100) return Math.max(10, Math.round(distanceMeters / 10) * 10)
+  return Math.max(100, Math.round(distanceMeters / 50) * 50)
+}
+
+function routeDirectionLabel(start, end) {
+  const referenceLatitude = (start[0] + end[0]) / 2
+  const [startX, startY] = projectedMeters(start, referenceLatitude)
+  const [endX, endY] = projectedMeters(end, referenceLatitude)
+  const degrees = (Math.atan2(endX - startX, endY - startY) * 180 / Math.PI + 360) % 360
+  return ['北', '东北', '东', '东南', '南', '西南', '西', '西北'][Math.round(degrees / 45) % 8]
+}
+
+// Keeps navigation usable while an older route proxy returns geometry without
+// AMap's road-name instructions. These cues are deliberately limited to broad
+// direction and clear turns; they never invent road or building names.
+export function routeInstructionsFromGeometry(polyline) {
+  if (!Array.isArray(polyline) || polyline.length < 2) return []
+  if (!polyline.every((point) => Array.isArray(point) && point.length === 2 && point.every(Number.isFinite))) return []
+
+  const points = polyline.filter((point, index) => index === 0 || routePointDistance(polyline[index - 1], point) >= 1)
+  if (points.length < 2) return []
+  const cumulativeDistances = [0]
+  for (let index = 1; index < points.length; index += 1) {
+    cumulativeDistances.push(cumulativeDistances[index - 1] + routePointDistance(points[index - 1], points[index]))
+  }
+  const totalDistance = cumulativeDistances.at(-1)
+  if (!Number.isFinite(totalDistance) || totalDistance < 1) return []
+
+  let headingIndex = 1
+  while (headingIndex < points.length - 1 && cumulativeDistances[headingIndex] < 12) headingIndex += 1
+  const instructions = [`沿地图路线向${routeDirectionLabel(points[0], points[headingIndex])}方向出发`]
+  let lastInstructionDistance = 0
+  const samplingMeters = 12
+
+  for (let index = 1; index < points.length - 1 && instructions.length < 6; index += 1) {
+    let beforeIndex = index - 1
+    while (beforeIndex > 0 && cumulativeDistances[index] - cumulativeDistances[beforeIndex] < samplingMeters) beforeIndex -= 1
+    let afterIndex = index + 1
+    while (afterIndex < points.length - 1 && cumulativeDistances[afterIndex] - cumulativeDistances[index] < samplingMeters) afterIndex += 1
+
+    const referenceLatitude = points[index][0]
+    const [beforeX, beforeY] = projectedMeters(points[beforeIndex], referenceLatitude)
+    const [turnX, turnY] = projectedMeters(points[index], referenceLatitude)
+    const [afterX, afterY] = projectedMeters(points[afterIndex], referenceLatitude)
+    const incoming = [turnX - beforeX, turnY - beforeY]
+    const outgoing = [afterX - turnX, afterY - turnY]
+    const incomingLength = Math.hypot(...incoming)
+    const outgoingLength = Math.hypot(...outgoing)
+    if (incomingLength < 4 || outgoingLength < 4) continue
+
+    const cross = incoming[0] * outgoing[1] - incoming[1] * outgoing[0]
+    const dot = incoming[0] * outgoing[0] + incoming[1] * outgoing[1]
+    const angle = Math.atan2(cross, dot) * 180 / Math.PI
+    const distanceSinceLastInstruction = cumulativeDistances[index] - lastInstructionDistance
+    if (Math.abs(angle) < 40 || distanceSinceLastInstruction < 20) continue
+    instructions.push(`前行约 ${roundedInstructionDistance(distanceSinceLastInstruction)} 米后${angle > 0 ? '左转' : '右转'}`)
+    lastInstructionDistance = cumulativeDistances[index]
+  }
+
+  const remainingDistance = totalDistance - lastInstructionDistance
+  instructions.push(`继续沿地图路线前行约 ${roundedInstructionDistance(remainingDistance)} 米，到达目的地`)
+  return instructions
+}
+
 function nearestRouteProgress(point, polyline, cumulativeDistances) {
   const referenceLatitude = point[0]
   const [px, py] = projectedMeters(point, referenceLatitude)
@@ -203,14 +268,15 @@ export function nextRouteManeuver(point, polyline) {
       label: angle > 0 ? '左转' : '右转',
       symbol: angle > 0 ? '↰' : '↱',
       distanceMeters: Math.max(0, Math.round(distanceToTurn)),
+      maneuverId: `turn-${index}`,
     }
   }
 
   const remainingMeters = Math.max(0, cumulativeDistances.at(-1) - progress.progressMeters)
   if (remainingMeters <= 15) {
-    return { type: 'arrive', label: '到达目的地', symbol: '●', distanceMeters: Math.round(remainingMeters) }
+    return { type: 'arrive', label: '到达目的地', symbol: '●', distanceMeters: Math.round(remainingMeters), maneuverId: 'finish' }
   }
-  return { type: 'straight', label: '继续直行', symbol: '↑', distanceMeters: Math.round(remainingMeters) }
+  return { type: 'straight', label: '继续直行', symbol: '↑', distanceMeters: Math.round(remainingMeters), maneuverId: 'finish' }
 }
 
 export function semanticZoomLevel(zoom, baselineZoom) {

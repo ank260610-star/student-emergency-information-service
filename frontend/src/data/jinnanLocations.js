@@ -123,6 +123,8 @@ const verifiedGeo = {
 // GCJ-02 coordinates used only for AMap walking-route requests. Online-map
 // markers retain their independently verified WGS-84 coordinates above.
 const navigationPoints = {
+  J06: [38.9910781, 117.3346015],
+  J39: [38.991919, 117.347626],
   J66: [38.987655, 117.345517],
   J67: [38.987489, 117.348741],
   J68: [38.9865, 117.347034],
@@ -140,6 +142,18 @@ const mvpNavigationPoints = {
   },
   J17: { point: [38.992014, 117.343256], aliases: ['学生宿舍学1-D', '1D'], note: '正门入口。' },
   J37: { point: [38.990209, 117.343732], aliases: ['南开大学金融学院', '金院'], note: '门口。' },
+  J41: {
+    point: [38.990034, 117.339236],
+    aliases: ['津南木斋图书馆'],
+    note: '参考校园导览图与思源堂已核对坐标校准，入口仍待实地复核。',
+    source: '校园导览图校准坐标（待实地复核）',
+  },
+  J42: {
+    point: [38.990203, 117.340346],
+    aliases: ['津南思源堂'],
+    note: '高德地图校内地点检索坐标，入口待实地复核。',
+    source: '高德地图地点检索（待实地复核）',
+  },
   J40: { point: [38.991416, 117.349817], aliases: ['南开大学主体育场', '文科操场', '文科田径场', '主田径场', '主操场'], note: '入口需刷脸，使用前请按场馆要求完成注册。' },
   J53: { point: [38.985796, 117.340036], aliases: ['南开大学理科体育场', '理科操场', '理科田径场'], note: '入口需刷脸，使用前请按场馆要求完成注册。' },
   J66: {
@@ -156,6 +170,18 @@ const mvpNavigationPoints = {
   },
   J68: { point: [38.9865, 117.347034], aliases: ['津南校区中心图书馆', '图书馆', '津南图书馆'], note: '正门靠近超市一侧楼梯最下层。' },
   J71: { point: [38.987807, 117.349894], aliases: ['大通', '学生活动中心', '学活中心'], note: '正门 10 米处。' },
+  J72: {
+    point: [38.989728, 117.348171],
+    aliases: ['交叉学科楼A座'],
+    note: '高德地图“交叉学科楼 A 座”校内坐标，入口待实地复核。',
+    source: '高德地图地点检索（待实地复核）',
+  },
+  J74: {
+    point: [38.9879, 117.3398],
+    aliases: ['津南马蹄湖', '文科小花园', '马蹄湖文科小花园'],
+    note: '按校园导览图湖区与附近已核对楼宇校准，休憩入口待实地复核。',
+    source: '校园导览图校准坐标（待实地复核）',
+  },
 }
 
 const additionalAliases = {
@@ -182,6 +208,15 @@ const jinnanOnlineOnlyLocations = [
   ['P07', '清真餐厅', 'service', [38.993018, 117.342183], ['清真食堂'], '清真餐厅门口；现场采集坐标。'],
   ['P08', '麦当劳', 'service', [38.993281, 117.341802], [], '麦当劳门口；现场采集坐标。'],
   ['P09', '快递站', 'service', [38.99442, 117.342483], ['快递柜', '文科快递柜'], '快递站门口；现场采集坐标。'],
+]
+
+// These route landmarks are absent from the J01–J76 guide index. Their
+// coordinates come from campus-restricted AMap place results and should be
+// replaced with entrance coordinates after the next field survey.
+const jinnanTourLocations = [
+  ['T01', '西南联大纪念园', 'landscape', [38.988368, 117.344793], ['西南联大纪念碑', '联大纪念园'], '津南校区校史纪念地标；当前使用高德校内地点坐标，入口待实地复核。'],
+  ['T02', '周总理雕像', 'landscape', [38.985185, 117.346854], ['周恩来雕像', '周恩来总理像', '周总理像'], '津南校区校史纪念地标；当前使用高德校内地点坐标，入口待实地复核。'],
+  ['T03', '宁一弘道书斋', 'teaching', [38.990175, 117.343525], ['金融学院阅览室', '宁一书斋'], '位于金融学院二层；导航终点为金融学院楼宇附近，入楼后请以现场标识为准。'],
 ]
 
 const priorityOne = new Set(['J01', 'J02', 'J03', 'J04', 'J05', 'J06', 'J39', 'J66', 'J67', 'J68', 'J71', 'J75'])
@@ -373,7 +408,7 @@ export const jinnanLocations = jinnanRows.map(([number, name, category, x, y]) =
     category,
     imagePoint: { x, y },
     geoPoint: geo?.[0] || (mvp?.point ? gcj02ToWgs84(mvp.point) : null),
-    geoSource: geo?.[1] || (mvp ? '现场采集 GCJ-02 入口坐标' : null),
+    geoSource: geo?.[1] || mvp?.source || (mvp ? '现场采集 GCJ-02 入口坐标' : null),
     navigationPoint: mvp?.point || navigationPoints[number] || null,
     entryPoints: mvp?.entryPoints || (mvp?.point ? [mvp.point] : []),
     aliases: [...new Set([...(mvp?.aliases || []), ...(additionalAliases[number] || [])])],
@@ -402,4 +437,22 @@ export const jinnanLocations = jinnanRows.map(([number, name, category, x, y]) =
     emergency: false,
     description,
     photos: photosFor(number),
+  })))
+  .concat(jinnanTourLocations.map(([number, name, category, navigationPoint, aliases, description]) => ({
+    id: `jinnan-tour-${number.toLowerCase()}`,
+    campus: 'jinnan',
+    number,
+    numberKind: 'tour',
+    name,
+    category,
+    imagePoint: null,
+    geoPoint: gcj02ToWgs84(navigationPoint),
+    geoSource: '高德地图地点检索（待实地复核）',
+    navigationPoint,
+    entryPoints: [navigationPoint],
+    aliases,
+    priority: 2,
+    emergency: false,
+    description,
+    photos: [],
   })))
