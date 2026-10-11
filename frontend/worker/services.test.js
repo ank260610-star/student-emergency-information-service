@@ -32,7 +32,7 @@ test('unknown and inherited route modes fall back to walking and return valid me
   let upstreamUrl
   t.mock.method(globalThis, 'fetch', async (url) => {
     upstreamUrl = new URL(url)
-    return Response.json(route([{ polyline: '117.340,38.990;117.341,38.991' }], { distance: '-20', cost: { duration: 'Infinity' } }))
+    return Response.json(route([{ polyline: '117.340,38.990;117.341,38.991', instruction: '  向北  直行  ' }], { distance: '-20', cost: { duration: 'Infinity' } }))
   })
   const result = await getRoute(request({ campus: 'jinnan', origin: '117.340,38.990', destination: '117.341,38.991', mode: 'toString' }), env)
   assert.equal(result.status, 200)
@@ -40,7 +40,7 @@ test('unknown and inherited route modes fall back to walking and return valid me
   assert.equal(upstreamUrl.searchParams.get('origin'), '117.34,38.99')
   assert.deepEqual(await result.json(), {
     routePoints: [[38.99, 117.34], [38.991, 117.341]], coordinateSystem: 'GCJ-02',
-    distanceMeters: 0, durationSeconds: 0, mode: 'walking', campusRestricted: true,
+    distanceMeters: 0, durationSeconds: 0, instructions: ['向北 直行'], mode: 'walking', campusRestricted: true,
   })
 })
 

@@ -13,6 +13,15 @@ const ROUTE_MODES = {
   driving: { endpoint: 'driving', label: '驾车' },
 }
 
+function routeInstructions(steps) {
+  if (!Array.isArray(steps)) return []
+  return steps
+    .map((step) => (typeof step?.instruction === 'string' ? step.instruction.replace(/\s+/g, ' ').trim() : ''))
+    .filter(Boolean)
+    .map((instruction) => instruction.slice(0, 160))
+    .slice(0, 12)
+}
+
 export async function getRoute(request, env) {
   if (request.method !== 'POST') {
     return jsonResponse({ error: 'Method not allowed' }, 405, { Allow: 'POST' })
@@ -58,7 +67,8 @@ export async function getRoute(request, env) {
     if (!response.ok || routePayload?.status !== '1' || !path) {
       return jsonResponse({ error: `高德暂未返回可绘制的${mode.label}路线。` }, 502)
     }
-    const segments = Array.isArray(path.steps) ? path.steps.map((step) => parsePolyline(step?.polyline)) : []
+    const steps = Array.isArray(path.steps) ? path.steps : []
+    const segments = steps.map((step) => parsePolyline(step?.polyline))
     const routePoints = segments.flat()
     if (routePoints.length < 2 || segments.some((segment) => !segment.length)) {
       return jsonResponse({ error: '高德未返回完整、有效的路线轨迹点。' }, 502)
@@ -73,6 +83,7 @@ export async function getRoute(request, env) {
       coordinateSystem: 'GCJ-02',
       distanceMeters: nonNegativeNumber(path.distance),
       durationSeconds: nonNegativeNumber(path.cost?.duration ?? path.duration),
+      instructions: routeInstructions(steps),
       mode: modeName,
       campusRestricted: true,
     })

@@ -27,7 +27,7 @@ const props = defineProps({
   requestInitialLocation: { type: Boolean, default: false },
 })
 
-const emit = defineEmits(['select', 'clear-selection', 'status', 'coordinate-unavailable', 'live-navigation-change', 'live-position', 'location-found', 'route-deviation', 'online-map-unavailable'])
+const emit = defineEmits(['select', 'clear-selection', 'status', 'coordinate-unavailable', 'live-navigation-change', 'live-position', 'location-found', 'navigation-cue', 'route-deviation', 'online-map-unavailable'])
 
 const mapElement = ref(null)
 const loading = ref(true)
@@ -565,6 +565,7 @@ function updateNavigationCue(navigationPoint) {
     ...maneuver,
     distanceText: maneuver.type === 'arrive' ? '即将' : formatManeuverDistance(maneuver.distanceMeters),
   } : { type: 'waiting', symbol: '⌖', distanceText: '路线计算中', label: '请稍候' }
+  if (maneuver) emit('navigation-cue', maneuver)
 }
 
 function showRoute(routePoints, coordinateSystem = 'GCJ-02') {

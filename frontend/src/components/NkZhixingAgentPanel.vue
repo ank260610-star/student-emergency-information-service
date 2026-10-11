@@ -6,6 +6,7 @@ import { askNkZhixingAgent, getRoute, NK_ZHIXING_MESSAGE_LIMIT, resolveCampusPla
 import {
   buildAgentInstructions,
   extractNavigationDestination,
+  findRequestedTravelMode,
   findDestination,
   findDestinationCandidates,
   findOrigin,
@@ -16,8 +17,15 @@ import {
   requestsLandmarkHistory,
   travelModeLabels,
 } from '../services/nkZhixingNavigation'
-import { wgs84ToGcj02 } from '../utils/mapUtils'
+import { routeInstructionsFromGeometry, wgs84ToGcj02 } from '../utils/mapUtils'
 import { isAbortError } from '../utils/request'
+import {
+  createSpeechRecognition,
+  speakNkZhixingResult,
+  stopNkZhixingSpeech,
+  supportsSpeechRecognition,
+  supportsSpeechSynthesis,
+} from '../services/nkZhixingSpeech'
 
 const props = defineProps({
   campus: { type: Object, required: true },
@@ -28,7 +36,7 @@ const props = defineProps({
   livePosition: { type: Object, default: null },
 })
 
-const emit = defineEmits(['focus-location', 'show-route', 'route-status', 'show-candidates', 'clear-candidates'])
+const emit = defineEmits(['focus-location', 'show-route', 'route-status', 'show-candidates', 'clear-candidates', 'voice-output-change'])
 const message = ref('')
 const loading = ref(false)
 const composing = ref(false)
@@ -37,9 +45,15 @@ const result = ref(null)
 const travelMode = ref('walking')
 const selectedDestinationId = ref('')
 const landmarkNarrationMode = ref(false)
+const listening = ref(false)
+const voiceInputSupported = ref(false)
+const voiceOutputSupported = ref(false)
+const voiceOutputEnabled = ref(false)
+const voiceStatus = ref('')
 let pendingCandidates = null
 let requestVersion = 0
 let requestController = null
+let speechRecognition = null
 
 const suggestions = computed(() => [
   `从${props.campus.short}西南门去中心图书馆怎么走？`,
@@ -71,10 +85,102 @@ function resetQuestion() {
   landmarkNarrationMode.value = false
 }
 
+function speechErrorMessage(code) {
+  if (code === 'not-allowed' || code === 'service-not-allowed') return '没有获得麦克风权限，请在浏览器设置中允许本网站使用麦克风。'
+  if (code === 'no-speech') return '没有听清，请靠近麦克风后再说一次。'
+  if (code === 'audio-capture') return '没有检测到可用麦克风。'
+  if (code === 'network') return '语音识别服务暂时不可用，请改用文字输入。'
+  return '语音识别未完成，请再试一次或改用文字输入。'
+}
+
+function toggleVoiceInput() {
+  if (!voiceInputSupported.value || loading.value) return
+  voiceStatus.value = ''
+  if (listening.value) {
+    speechRecognition?.stop()
+    return
+  }
+
+  speechRecognition?.abort()
+  speechRecognition = createSpeechRecognition({
+    onStart: () => {
+      listening.value = true
+      voiceStatus.value = '正在聆听，请说出目的地或导航需求…'
+    },
+    onResult: (transcript, isFinal) => {
+      message.value = transcript.slice(0, NK_ZHIXING_MESSAGE_LIMIT)
+      voiceStatus.value = isFinal ? '已识别，请检查文字后点击“开始规划”。' : `正在识别：${transcript}`
+    },
+    onError: (code) => {
+      listening.value = false
+      voiceStatus.value = speechErrorMessage(code)
+    },
+    onEnd: () => {
+      listening.value = false
+      if (!message.value.trim() && !voiceStatus.value.includes('权限')) voiceStatus.value = '语音输入已结束，请重试或改用文字输入。'
+    },
+  })
+  try {
+    speechRecognition?.start()
+  } catch {
+    listening.value = false
+    voiceStatus.value = '麦克风正在占用，请稍后再试。'
+  }
+}
+
+function toggleVoiceOutput() {
+  if (!voiceOutputSupported.value) return
+  voiceOutputEnabled.value = !voiceOutputEnabled.value
+  emit('voice-output-change', voiceOutputEnabled.value)
+  if (!voiceOutputEnabled.value) {
+    stopNkZhixingSpeech()
+    voiceStatus.value = '语音播报已关闭。'
+    return
+  }
+  voiceStatus.value = '语音播报已开启。'
+  if (result.value) speakNkZhixingResult(result.value)
+}
+
+function speakResult(value) {
+  if (value && voiceOutputEnabled.value) speakNkZhixingResult(value)
+}
+
+function formatRouteDistance(value) {
+  const meters = Number(value)
+  if (!Number.isFinite(meters) || meters < 0) return ''
+  if (meters < 1000) return `${Math.round(meters)} 米`
+  return `${(meters / 1000).toFixed(meters < 10_000 ? 1 : 0)} 公里`
+}
+
+function formatRouteDuration(value) {
+  const seconds = Number(value)
+  if (!Number.isFinite(seconds) || seconds < 0) return ''
+  const minutes = Math.max(1, Math.ceil(seconds / 60))
+  if (minutes < 60) return `${minutes} 分钟`
+  const hours = Math.floor(minutes / 60)
+  const remainingMinutes = minutes % 60
+  return remainingMinutes ? `${hours} 小时 ${remainingMinutes} 分钟` : `${hours} 小时`
+}
+
+function routeSummary(route, originName, destinationName, mode) {
+  const distance = formatRouteDistance(route.distanceMeters)
+  const duration = formatRouteDuration(route.durationSeconds)
+  const estimate = `${distance ? `，全程约 ${distance}` : ''}${duration ? `，预计 ${duration}` : ''}`
+  return `已生成从${originName}到${destinationName}的${travelModeLabels[mode]}路线${estimate}。`
+}
+
 // Synchronous invalidation prevents an already-resolving request from writing
 // results for a previous campus, question, or travel mode in the same tick.
+watch(message, (value) => {
+  const requestedMode = findRequestedTravelMode(value)
+  if (requestedMode && requestedMode !== travelMode.value) travelMode.value = requestedMode
+}, { flush: 'sync' })
 watch([message, travelMode, () => props.campus.id], resetQuestion, { flush: 'sync' })
-onBeforeUnmount(cancelRequest)
+onBeforeUnmount(() => {
+  cancelRequest()
+  speechRecognition?.abort()
+  stopNkZhixingSpeech()
+})
 
 function useSuggestion(value) {
   message.value = value
@@ -174,9 +280,13 @@ async function submit() {
     }, { signal })
     if (!isCurrent()) return
     result.value = answer
-    if (narrative) return
+    if (narrative) {
+      speakResult(answer)
+      return
+    }
     if (!navigationIntent) {
       if (answer.locationId) emit('focus-location', answer.locationId)
+      speakResult(answer)
       return
     }
 
@@ -224,8 +334,18 @@ async function submit() {
     }, { signal })
     if (!isCurrent()) return
     const routeSource = destination.routeSource || (isNavigationPoint(destination.navigationPoint) ? destination.geoSource || '本站收录坐标' : '高德地图地点兜底')
+    const originName = originLocation?.name || '当前位置'
+    const routeSteps = route.instructions.length
+      ? route.instructions
+      : routeInstructionsFromGeometry(route.routePoints)
+    result.value = {
+      ...answer,
+      routeSummary: routeSummary(route, originName, destination.name, mode),
+      steps: routeSteps,
+    }
     emit('show-route', { ...route, destination: { ...destination, navigationPoint: destinationPoint, routeSource }, mode })
-    emit('route-status', `已显示：${originLocation?.name || '当前位置'} → ${destination.name} 的${travelModeLabels[mode]}轨迹（高德地图路线；目的地：${routeSource}）。`)
+    emit('route-status', `已显示：${originName} → ${destination.name} 的${travelModeLabels[mode]}路线（高德地图路线；目的地：${routeSource}）。`)
+    speakResult(result.value)
   } catch (requestError) {
     if (isCurrent() && !isAbortError(requestError)) error.value = requestError.message || '请求失败，请稍后再试。'
   } finally {
@@ -239,6 +359,8 @@ async function submit() {
 }
 
 onMounted(() => {
+  voiceInputSupported.value = supportsSpeechRecognition()
+  voiceOutputSupported.value = supportsSpeechSynthesis()
   const initialMessage = props.initialMessage.trim().slice(0, NK_ZHIXING_MESSAGE_LIMIT)
   if (!initialMessage) return
   message.value = initialMessage
@@ -291,6 +413,34 @@ defineExpose({ chooseCandidate })
         @compositionend="composing = false"
         placeholder="例如：我在西南门，带着行李去中心图书馆，想少走一点。"
       ></textarea>
+      <div class="nk-agent-voice-tools" aria-label="语音助手控制">
+        <button
+          type="button"
+          class="nk-agent-voice-button"
+          :class="{ 'is-listening': listening }"
+          :disabled="!voiceInputSupported || loading"
+          :aria-pressed="listening"
+          @click="toggleVoiceInput"
+        >
+          <span aria-hidden="true">{{ listening ? '■' : '●' }}</span>
+          {{ listening ? '停止识别' : '语音输入' }}
+        </button>
+        <button
+          type="button"
+          class="nk-agent-voice-button"
+          :class="{ 'is-active': voiceOutputEnabled }"
+          :disabled="!voiceOutputSupported"
+          :aria-pressed="voiceOutputEnabled"
+          @click="toggleVoiceOutput"
+        >
+          <span aria-hidden="true">◖</span>
+          {{ voiceOutputEnabled ? '关闭播报' : '开启播报' }}
+        </button>
+        <small v-if="!voiceInputSupported">当前浏览器不支持语音识别，可继续使用文字输入。</small>
+      </div>
+      <p v-if="voiceStatus" class="nk-agent-voice-status" :class="{ 'is-listening': listening }" aria-live="polite">
+        {{ voiceStatus }}
+      </p>
       <label class="nk-agent-mode" for="nk-agent-mode">
         <span>出行方式</span>
         <select id="nk-agent-mode" v-model="travelMode">
@@ -309,9 +459,10 @@ defineExpose({ chooseCandidate })
 
     <article v-if="result" class="nk-agent-result" aria-live="polite">
       <span>NK 智行建议</span>
-      <p>{{ result.answer }}</p>
+      <p v-if="result.routeSummary" class="nk-agent-route-summary">{{ result.routeSummary }}</p>
+      <p v-else>{{ result.answer }}</p>
       <ol v-if="result.steps?.length">
-        <li v-for="step in result.steps" :key="step">{{ step }}</li>
+        <li v-for="(step, index) in result.steps" :key="`${index}-${step}`">{{ step }}</li>
       </ol>
       <p v-if="result.warning" class="nk-agent-warning">{{ result.warning }}</p>
       <a v-if="result.mapUrl" :href="result.mapUrl" target="_blank" rel="noopener noreferrer">在地图中继续查看 →</a>

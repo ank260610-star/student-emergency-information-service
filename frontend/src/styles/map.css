@@ -1309,6 +1309,58 @@
   box-shadow: 0 0 0 3px rgba(126,12,110,.1);
 }
 
+.nk-agent-voice-tools {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: flex-start !important;
+  flex-wrap: wrap;
+  gap: 8px !important;
+}
+
+.nk-agent-form .nk-agent-voice-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 8px 11px;
+  border-color: #c9a8c3;
+  color: var(--purple-dark);
+  background: #fff;
+}
+
+.nk-agent-form .nk-agent-voice-button:hover:not(:disabled),
+.nk-agent-form .nk-agent-voice-button.is-active {
+  border-color: var(--purple);
+  color: var(--purple);
+  background: var(--purple-soft);
+}
+
+.nk-agent-form .nk-agent-voice-button.is-listening {
+  border-color: #a61d2a;
+  color: #8e1723;
+  background: #fff0f1;
+  box-shadow: 0 0 0 3px rgba(166,29,42,.08);
+}
+
+.nk-agent-voice-button > span {
+  color: currentColor;
+  font-size: 10px;
+}
+
+.nk-agent-voice-status {
+  margin: 0;
+  padding: 8px 10px;
+  border-left: 2px solid #c9a8c3;
+  color: #715b6d;
+  background: #fbf7fa;
+  font-size: 10px;
+  line-height: 1.55;
+}
+
+.nk-agent-voice-status.is-listening {
+  border-left-color: #a61d2a;
+  color: #7d1622;
+}
+
 .nk-agent-form > div {
   display: flex;
   align-items: center;
@@ -1382,6 +1434,11 @@
   color: #483d47;
   font-size: 12px;
   line-height: 1.7;
+}
+
+.nk-agent-result .nk-agent-route-summary {
+  color: #342532;
+  font-weight: 700;
 }
 
 .nk-agent-result ol {
@@ -1654,6 +1711,16 @@
     align-items: flex-start;
     flex-direction: column;
     gap: 8px;
+  }
+
+  .nk-agent-form .nk-agent-voice-tools {
+    align-items: stretch !important;
+  }
+
+  .nk-agent-form .nk-agent-voice-button {
+    width: 100%;
+    flex: 0 0 auto;
+    justify-content: center;
   }
 
   .nk-agent-form button {

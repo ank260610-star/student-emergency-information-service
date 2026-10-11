@@ -2,6 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import {
   buildAgentInstructions,
+  findRequestedTravelMode,
   extractNavigationDestination,
   findDestinationCandidates,
   findLocationMatches,
@@ -9,6 +10,14 @@ import {
   isNavigationPoint,
   isPointNearCampus,
 } from './nkZhixingNavigation.js'
+
+test('detects the latest explicit travel mode in a navigation request', () => {
+  assert.equal(findRequestedTravelMode('骑车去图书馆'), 'bicycling')
+  assert.equal(findRequestedTravelMode('我要开车去校医院'), 'driving')
+  assert.equal(findRequestedTravelMode('从西南门走路去食堂'), 'walking')
+  assert.equal(findRequestedTravelMode('先骑车，之后改为步行'), 'walking')
+  assert.equal(findRequestedTravelMode('去中心图书馆'), '')
+})
 
 const campus = {
   id: 'jinnan', name: '津南校区',

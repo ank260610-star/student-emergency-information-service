@@ -5,7 +5,8 @@ import CampusInteractiveMap from '../components/CampusInteractiveMap.vue'
 import CampusMapControls from '../components/CampusMapControls.vue'
 import NkZhixingAgentPanel from '../components/NkZhixingAgentPanel.vue'
 import { consumeNkZhixingHandoff, getRoute } from '../services/nkZhixingAgent'
-import { wgs84ToGcj02 } from '../utils/mapUtils'
+import { createNavigationSpeechTracker, speakNkZhixingResult } from '../services/nkZhixingSpeech'
+import { routeInstructionsFromGeometry, wgs84ToGcj02 } from '../utils/mapUtils'
 import { usePhotoDialog } from '../composables/usePhotoDialog'
 import {
   campusTours,
@@ -29,6 +30,7 @@ const nkZhixingPanel = ref(null)
 const mapWorkspace = ref(null)
 const { photoDialog, activePhoto, photoFallback, openPhoto, closePhoto } = usePhotoDialog()
 const liveNavigation = ref(false)
+const voiceOutputEnabled = ref(false)
 const livePosition = ref(null)
 const activeNavigation = ref(null)
 const activeTourId = ref('')
@@ -41,6 +43,16 @@ let routeDrawVersion = 0
 let tourController = null
 let rerouteController = null
 let disposed = false
+const navigationSpeech = createNavigationSpeechTracker()
+
+function announceNavigation(message) {
+  if (voiceOutputEnabled.value && message) speakNkZhixingResult({ answer: message })
+}
+
+function handleNavigationCue(cue) {
+  if (!liveNavigation.value || !activeNavigation.value) return
+  announceNavigation(navigationSpeech.messageForCue(cue, activeNavigation.value.mode))
+}
 
 const currentCampus = computed(() => campusConfigs[campus.value])
 const campusLocations = computed(() => getCampusLocations(campus.value))
@@ -225,14 +237,15 @@ async function handleAgentRoute(route) {
   const version = ++routeDrawVersion
   activeTourId.value = ''
   if (!await ensureOnlineMap() || version !== routeDrawVersion) return
-  const routeDrawn = interactiveMap.value?.showRoute(route.routePoints, route.coordinateSystem)
-  if (!routeDrawn) {
-    mapStatus.value = '已获得导航建议，但当前无法绘制路线，请在在线地图可用后重新规划。'
-  }
   activeNavigation.value = route.destination ? {
     destination: route.destination,
     mode: route.mode || 'walking',
   } : null
+  navigationSpeech.reset()
+  const routeDrawn = interactiveMap.value?.showRoute(route.routePoints, route.coordinateSystem)
+  if (!routeDrawn) {
+    mapStatus.value = '已获得导航建议，但当前无法绘制路线，请在在线地图可用后重新规划。'
+  }
 }
 
 async function showCampusTour(tour) {
@@ -329,6 +342,7 @@ async function rerouteFromCurrentPosition({ latitude, longitude, deviationMeters
   const controller = new AbortController()
   rerouteController = controller
   mapStatus.value = `检测到偏离路线约 ${deviationMeters} 米，正在重新规划…`
+  announceNavigation(`检测到已偏离原路线约 ${deviationMeters} 米，正在重新规划，请注意周边环境。`)
   try {
     const routeResult = await getRoute({
       origin: `${origin[1]},${origin[0]}`,
@@ -337,13 +351,21 @@ async function rerouteFromCurrentPosition({ latitude, longitude, deviationMeters
       mode: navigation.mode,
     }, { signal: controller.signal })
     if (disposed || requestId !== rerouteRequestId || activeNavigation.value !== navigation) return
+    navigationSpeech.reset()
     if (!interactiveMap.value?.showRoute(routeResult.routePoints, routeResult.coordinateSystem)) return
+    const routeSteps = routeResult.instructions.length
+      ? routeResult.instructions
+      : routeInstructionsFromGeometry(routeResult.routePoints)
     const source = navigation.destination.routeSource
     mapStatus.value = source
       ? `已根据当前位置重新规划路线（高德地图路线；目的地：${source}）。`
       : '已根据当前位置重新规划路线。'
+    announceNavigation(`路线已重新规划。${routeSteps[0] || '请沿地图中的新路线继续前行。'}`)
   } catch (error) {
-    if (!disposed && requestId === rerouteRequestId && !controller.signal.aborted) mapStatus.value = error.message
+    if (!disposed && requestId === rerouteRequestId && !controller.signal.aborted) {
+      mapStatus.value = error.message
+      announceNavigation('路线重新规划失败，请停留在安全位置，查看地图后重试。')
+    }
   } finally {
     if (requestId === rerouteRequestId) rerouteController = null
   }
@@ -387,6 +409,12 @@ function stopLiveNavigation() {
 function handleLiveNavigationChange(isLive) {
   const wasLive = liveNavigation.value
   liveNavigation.value = isLive
+  navigationSpeech.reset()
+  if (isLive && !wasLive) {
+    announceNavigation(activeNavigation.value
+      ? '实时导航已开启，将在转向和偏离路线时提醒你。'
+      : '实时导航已开启，请先规划一条路线。')
+  }
   if (!isLive && wasLive) {
     livePosition.value = null
     activeNavigation.value = null
@@ -499,6 +527,7 @@ onBeforeUnmount(() => {
           @live-navigation-change="handleLiveNavigationChange"
           @live-position="livePosition = $event"
           @location-found="handleLocationFound"
+          @navigation-cue="handleNavigationCue"
           @route-deviation="rerouteFromCurrentPosition"
           @coordinate-unavailable="handleCoordinateUnavailable"
           @online-map-unavailable="handleOnlineMapUnavailable"
@@ -555,12 +584,13 @@ onBeforeUnmount(() => {
         @route-status="mapStatus = $event"
         @show-candidates="showAgentCandidates"
         @clear-candidates="clearAgentCandidates"
+        @voice-output-change="voiceOutputEnabled = $event"
       />
 
       <section v-if="campusToursForCurrentCampus.length" class="campus-tour-panel" aria-label="校园游览路线">
         <div class="campus-tour-heading">
           <span class="section-kicker"><i></i> CAMPUS TOUR</span>
-          <h3>八里台主题游览路线</h3>
+          <h3>{{ currentCampus.name }}主题探索路线</h3>
           <p>选择一条主题路线后，系统会逐段规划真实步行道路并在地图上绘制；站点编号仅表示建议游览顺序。</p>
         </div>
         <div class="campus-tour-grid">

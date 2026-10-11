@@ -93,7 +93,15 @@ export async function getRoute({ origin, destination, campus, mode = 'walking' }
   if (!Array.isArray(payload.routePoints) || payload.routePoints.length < 2 || !payload.routePoints.every(isNavigationPoint)) {
     throw new Error('路线轨迹格式无效，请稍后重试。')
   }
-  return payload
+  return {
+    ...payload,
+    instructions: Array.isArray(payload.instructions)
+      ? payload.instructions
+        .filter((instruction) => typeof instruction === 'string' && instruction.trim())
+        .map((instruction) => instruction.trim().slice(0, 160))
+        .slice(0, 12)
+      : [],
+  }
 }
 
 export async function resolveCampusPlace({ campus, name, locationId = '' }, { signal } = {}) {
