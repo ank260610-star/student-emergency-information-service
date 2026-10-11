@@ -4,10 +4,12 @@ import {
   buildAgentInstructions,
   findRequestedTravelMode,
   extractNavigationDestination,
+  extractNavigationOrigin,
   findDestinationCandidates,
   findLocationMatches,
   findOrigin,
   isNavigationPoint,
+  isNamedFacilityGate,
   isPointNearCampus,
 } from './nkZhixingNavigation.js'
 
@@ -30,6 +32,15 @@ const campus = {
   ],
 }
 
+const balitaiCampus = {
+  id: 'balitai', name: '八里台校区',
+  locations: [
+    { id: 'east', name: '东门' },
+    { id: 'south', name: '南门' },
+    { id: 'business', name: '商学院大楼', aliases: ['商学院'] },
+  ],
+}
+
 test('question suffixes keep a destination instead of splitting it away', () => {
   assert.equal(extractNavigationDestination('图书馆怎么去？'), '图书馆')
   assert.equal(extractNavigationDestination('从西南门到 中心图书馆 怎么走？'), '中心图书馆')
@@ -37,10 +48,26 @@ test('question suffixes keep a destination instead of splitting it away', () => 
   assert.equal(extractNavigationDestination('思源堂的历史是什么？'), '')
 })
 
+test('extracts an explicit named-facility gate as an external origin', () => {
+  assert.equal(extractNavigationOrigin('从商学院东门去图书馆'), '商学院东门')
+  assert.equal(extractNavigationOrigin('去图书馆'), '')
+  assert.equal(isNamedFacilityGate('商学院的东门'), true)
+  assert.equal(isNamedFacilityGate('学校东门'), false)
+})
+
 test('overlapping gate names do not create a false origin', () => {
   assert.deepEqual(findLocationMatches('去西南门', campus).map(({ location }) => location.id), ['sw'])
   assert.equal(findOrigin('去西南门', campus.locations[0], campus), null)
   assert.equal(findOrigin('从西南门去中心图书馆', campus.locations[2], campus).id, 'sw')
+})
+
+test('unqualified Balitai gates mean campus gates, while named facility gates do not', () => {
+  assert.deepEqual(findDestinationCandidates('去东门', balitaiCampus).map((item) => item.id), ['east'])
+  assert.deepEqual(findDestinationCandidates('去学校东门', balitaiCampus).map((item) => item.id), ['east'])
+  assert.deepEqual(findDestinationCandidates('去南开大学八里台校区南门', balitaiCampus).map((item) => item.id), ['south'])
+  assert.deepEqual(findDestinationCandidates('去商学院东门', balitaiCampus), [])
+  assert.deepEqual(findDestinationCandidates('从商学院的东门去南门', balitaiCampus).map((item) => item.id), ['south'])
+  assert.equal(findOrigin('从商学院东门去南门', balitaiCampus.locations[1], balitaiCampus), null)
 })
 
 test('keeps an explicit known origin when the destination needs an external lookup', () => {
@@ -65,6 +92,7 @@ test('request instructions include the confirmed destination and selected mode',
   const narration = buildAgentInstructions({ campus, mode: 'walking', narrative: { title: '思源堂', brief: '简介', facts: '事实' } })
   assert.match(narration, /本站审核的地点资料/)
   assert.doesNotMatch(narration, /网页导航协同/)
+  assert.match(buildAgentInstructions({ campus: balitaiCampus, mode: 'walking', navigationIntent: true }), /八里台校门规则/)
 })
 
 test('navigation coordinates must be finite latitude/longitude pairs', () => {

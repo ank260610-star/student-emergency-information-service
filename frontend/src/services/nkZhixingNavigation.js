@@ -12,6 +12,18 @@ const travelModePatterns = {
 
 const campusAliases = { jinnan: { 'jinnan-public-teaching': ['公教'] } }
 const normalize = (value) => String(value || '').toLowerCase().replace(/\s/g, '')
+const genericGatePattern = /(?:东北门|东南门|西北门|西南门|东门|西门|南门|北门)$/
+const facilityGateOwnerPattern = /(?:学院|书院|图书馆|体育馆|医院|食堂|宿舍|教学楼|实验楼|办公楼|主楼|中心|大楼|楼|馆|园|场|室)(?:的)?$/
+const namedFacilityGatePattern = /(?:学院|书院|图书馆|体育馆|医院|食堂|宿舍|教学楼|实验楼|办公楼|主楼|中心|大楼|楼|馆|园|场|室)(?:的)?(?:东北门|东南门|西北门|西南门|东门|西门|南门|北门)$/
+
+function isGenericGateInsideNamedFacility(text, index, alias) {
+  if (!genericGatePattern.test(alias)) return false
+  return facilityGateOwnerPattern.test(text.slice(0, index))
+}
+
+export function isNamedFacilityGate(value) {
+  return namedFacilityGatePattern.test(normalize(value))
+}
 
 export function isNavigationRequest(value) {
   return /(?:前往|抵达|到|去|怎么走|怎么去|如何去|导航|路线)/.test(String(value || ''))
@@ -41,6 +53,16 @@ export function extractNavigationDestination(value) {
     .trim().slice(0, 80)
 }
 
+export function extractNavigationOrigin(value) {
+  const text = String(value || '').replace(/\s/g, '')
+  const separator = text.match(/(?:前往|抵达|到|去)/)
+  if (!separator || separator.index === 0) return ''
+  return text.slice(0, separator.index)
+    .replace(/^(?:从|由|我在|起点是?)/, '')
+    .replace(/[，,。！!？?].*/, '')
+    .trim().slice(0, 80)
+}
+
 export function findLocationMatches(text, campus) {
   const normalizedText = normalize(text)
   const matches = (campus.locations || []).flatMap((location) => {
@@ -48,7 +70,9 @@ export function findLocationMatches(text, campus) {
     const found = aliases.map(normalize).filter(Boolean).map((alias) => ({
       index: normalizedText.lastIndexOf(alias),
       aliasLength: alias.length,
-    })).filter((match) => match.index >= 0)
+      alias,
+    })).filter((match) => match.index >= 0
+      && !isGenericGateInsideNamedFacility(normalizedText, match.index, match.alias))
       .sort((left, right) => right.aliasLength - left.aliasLength || right.index - left.index)[0]
     return found ? [{ location, ...found }] : []
   })
@@ -67,6 +91,8 @@ export function findDestination(text, campus) {
 export function findDestinationCandidates(text, campus) {
   const destinationText = extractNavigationDestination(text) || text
   const matches = findLocationMatches(destinationText, campus)
+    .filter((match) => !isNamedFacilityGate(destinationText)
+      || genericGatePattern.test(match.alias))
   const longest = Math.max(0, ...matches.map((match) => match.aliasLength))
   const locations = matches.filter((match) => match.aliasLength === longest).map((match) => match.location)
   if (locations.length) return [...new Map(locations.map((location) => [location.id, location])).values()]
@@ -80,8 +106,9 @@ export function findOrigin(text, destination, campus) {
   const originText = String(text || '').split(/(?:前往|抵达|到|去)/)[0]
   if (originText !== text) {
     const explicitOrigin = findLocationMatches(originText, campus)
+      .filter((match) => !isNamedFacilityGate(originText) || genericGatePattern.test(match.alias))
       .find(({ location }) => location.id !== destination?.id)?.location
-    if (explicitOrigin) return explicitOrigin
+    return explicitOrigin || null
   }
   const matches = findLocationMatches(text, campus)
   const origin = matches.find(({ location }) => location.id !== destination?.id)?.location || null
@@ -114,6 +141,9 @@ export function isPointNearCampus(point, geoCenter, maximumDistanceMeters = 8000
 
 export function buildAgentInstructions({ campus, narrative, navigationIntent, liveOrigin, mode, destination, prompt = '' }) {
   const instructions = [`【当前校区已确定】用户正在查看${campus.name}地图。未明确提出跨校区时，用户提到的所有校门、建筑、教学楼、图书馆、食堂、宿舍、场馆和地标均只允许在${campus.name}地点库内解析；不得使用另一校区的同名或相似地点，也不要再次询问用户所在校区。`]
+  if (campus.id === 'balitai') {
+    instructions.push('【八里台校门规则】用户只说“东门”“西门”“南门”“北门”或带方向的“××门”，且未明确说明属于某学院、场馆或建筑时，一律按南开大学八里台校区的学校大门理解；只有用户明说“某学院/某建筑××门”时，才按该单位入口理解。')
+  }
   if (navigationIntent) {
     const matchedLocations = [...new Map(findLocationMatches(prompt, campus)
       .map(({ location }) => [location.id, location])).values()]

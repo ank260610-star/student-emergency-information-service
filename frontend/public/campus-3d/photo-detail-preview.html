@@ -1,0 +1,42 @@
+<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>南开 · 实拍建筑细节</title>
+<style>*{box-sizing:border-box;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;-webkit-tap-highlight-color:transparent}body{margin:0;background:#b9ccd1;font:14px system-ui;color:#203833}canvas{width:100vw;height:100dvh;display:block;touch-action:none}header{position:absolute;top:18px;left:18px;right:18px;display:flex;align-items:center;gap:12px;flex-wrap:wrap}header b{font-size:20px}select,a{font:inherit;padding:10px 14px;background:#183c35;color:#f5f1e3;border:0;border-radius:8px}a{text-decoration:none}footer{position:absolute;bottom:18px;left:18px;right:18px;max-width:720px;padding:14px 18px;background:#17392be8;color:#eee6d9;border-radius:10px;line-height:1.7}#note{font-size:12px;color:#d2cfbc}#error{color:#ffd06b}</style>
+<script type="importmap">{"imports":{"three":"./vendor/three/build/three.module.js"}}</script></head><body><canvas></canvas><header><b>实拍建筑细节</b><select aria-label="选择建筑"></select><a href="/">进入校园游戏</a><a href="./statue-preview.html">周恩来铜像</a></header><footer><b id="name"></b> · <span id="sources"></span><div>拖动画面旋转，滚轮缩放。</div><div id="note">依据实拍改善外观，尺寸与未定位细节仍为近似。参考照片不替代三维模型。</div><div id="error"></div></footer>
+<script type="module">
+import * as T from 'three';
+import {surveyedBuilding,teachingCourt,optimizePhotoDetails,preparePhotoMaterials,libraryStudy,gymStudy,cultureStudy,activityStudy,commerceModel,academicStudy,publicStudy,roadStudy} from './campus-photo-details.js';
+import {libraryModel} from './landmarks.js';
+import {gymModel,activityModel} from './additional-landmarks.js';
+import {cultureModel} from './photo-landmarks.js';
+preparePhotoMaterials();const data=await fetch('./work/campus-osm.json').then(r=>r.json()),survey=await fetch('./work/campus-photo-survey.json').then(r=>r.json());
+const scene=new T.Scene();scene.background=new T.Color(0xb9ccd1);scene.add(new T.HemisphereLight(0xecf4ff,0x928776,2.0));const sun=new T.DirectionalLight(0xfff0de,2.6);sun.position.set(-60,130,100);scene.add(sun);
+const renderer=new T.WebGLRenderer({canvas:document.querySelector('canvas'),antialias:true});renderer.setPixelRatio(Math.min(devicePixelRatio,1.5));renderer.toneMapping=T.ACESFilmicToneMapping;const camera=new T.PerspectiveCamera(42,1,.1,3000);const ground=new T.Mesh(new T.PlaneGeometry(700,700),new T.MeshStandardMaterial({color:0x899b74,roughness:1}));ground.rotation.x=-Math.PI/2;ground.position.y=-.1;scene.add(ground);
+const entries=['法学院','金融学院','马克思主义学院','历史学院','信息东楼','木斋图书馆','学一食堂','学二食堂','中心图书馆','体育馆','汉语言文化学院','大通学生活动中心','商业街与快递区','学院共有细部','道路共有细部','题字石细部','低层门房细部','后勤用房细部','广场铺装参考','实验楼停车标线','C区教学楼连廊','B/C区双翼庭院'];
+const selector=document.querySelector('select');for(const name of entries){const option=document.createElement('option');option.value=option.textContent=name;selector.append(option);}
+const world=p=>new T.Vector3((p.lon-117.3394)*87000,0,-(p.lat-38.988)*111000);let model,angle=.1,elevation=.2,distance,target=new T.Vector3();
+const dummy=[new T.Vector3(-30,0,-15),new T.Vector3(30,0,-15),new T.Vector3(30,0,15),new T.Vector3(-30,0,15)];
+function choose(name){
+ if(model){scene.remove(model);model.traverse(o=>o.geometry?.dispose());}
+ let e=name==='C区教学楼连廊'?data.elements.find(e=>e.id===1433084261):data.elements.find(e=>e.tags?.name===name),points=e?.geometry.map(world);let yaw=0;
+ if(name==='中心图书馆'){model=libraryModel();libraryStudy(model);}
+ else if(name==='体育馆'){model=surveyedBuilding(points,e.tags.name,e.id);yaw=model.rotation.y;}
+ else if(name==='汉语言文化学院'){model=new T.Group();model.add(cultureModel(points),cultureStudy(points));}
+ else if(name==='大通学生活动中心'){model=new T.Group();model.add(activityModel(points),activityStudy(points));}
+ else if(name==='商业街与快递区'){model=commerceModel(new T.Vector3());}
+ else if(name==='B/C区双翼庭院'){
+  model=new T.Group();const c=data.elements.find(e=>e.id===1433084261),b=data.elements.find(e=>e.id===1430904059);for(const e of [c,b,data.elements.find(e=>e.id===1433084264)])model.add(surveyedBuilding(e.geometry.map(world),e.tags.name,e.id));model.add(teachingCourt(c.geometry.map(world),b.geometry.map(world)));
+ }
+ else if(name==='学院共有细部'){model=academicStudy(dummy,'学院细部');const context=new T.Mesh(new T.BoxGeometry(60,17,30),new T.MeshStandardMaterial({color:0x946452,roughness:1}));context.position.y=8.5;model.add(context);}
+ else if(name==='道路共有细部')model=roadStudy([{a:new T.Vector3(0,0,-50),b:new T.Vector3(0,0,50),width:10}]);
+ else if(name==='题字石细部')model=publicStudy(dummy,'stone');
+ else if(name==='低层门房细部')model=publicStudy(dummy,'gate');
+ else if(name==='后勤用房细部')model=publicStudy(dummy,'service');
+ else if(name==='广场铺装参考')model=publicStudy(dummy,'planet');
+ else if(name==='实验楼停车标线')model=publicStudy(dummy,'labs');
+ else{model=surveyedBuilding(points,e.tags.name,e.id);yaw=model.rotation.y;}
+ optimizePhotoDetails(model);scene.add(model);const bounds=new T.Box3().setFromObject(model);bounds.getCenter(target);const size=bounds.getSize(new T.Vector3());ground.position.x=target.x;ground.position.z=target.z;distance=size.length()*1.23;angle=yaw+.2;elevation=.2;if(name==='商业街与快递区'){angle=-.18;elevation=.12;distance=62;target.set(3.6,5,-19.7);}if(name==='B/C区双翼庭院'){angle=-Math.PI/2+.12;elevation=.50;distance*=.85;}
+ const ids=new Set();model.traverse(o=>{for(const id of o.userData.photoIds||[])ids.add(id);});document.querySelector('#name').textContent=name;document.querySelector('#sources').textContent='参考照片 '+[...ids].sort((a,b)=>a-b).map(n=>String(n).padStart(3,'0')).join('、');selector.value=name;
+ window.__photoPreview={model,scene,camera,renderer,target,ids:[...ids],name};
+}
+selector.onchange=()=>choose(selector.value);const canvas=renderer.domElement;let pointer=null,lastX,lastY;canvas.onpointerdown=e=>{pointer=e.pointerId;lastX=e.clientX;lastY=e.clientY;canvas.setPointerCapture(e.pointerId)};const release=()=>pointer=null;canvas.onpointerup=release;canvas.onpointercancel=release;canvas.onlostpointercapture=release;canvas.onpointermove=e=>{if(pointer===e.pointerId){angle-=(e.clientX-lastX)*.007;elevation=T.MathUtils.clamp(elevation+(e.clientY-lastY)*.004,.03,1.35);lastX=e.clientX;lastY=e.clientY}};canvas.onwheel=e=>{e.preventDefault();distance=T.MathUtils.clamp(distance*Math.exp(e.deltaY*.001),10,700)};document.addEventListener('contextmenu',e=>e.preventDefault());
+function resize(){renderer.setSize(innerWidth,innerHeight,false);camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix()}addEventListener('resize',resize);resize();choose(new URLSearchParams(location.search).get('name')||'法学院');function draw(){camera.position.set(target.x+Math.sin(angle)*distance*Math.cos(elevation),target.y+Math.sin(elevation)*distance,target.z+Math.cos(angle)*distance*Math.cos(elevation));camera.lookAt(target);renderer.render(scene,camera);requestAnimationFrame(draw)}draw();
+</script></body></html>

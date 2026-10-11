@@ -1,0 +1,718 @@
+{
+  "date": "2026-10-11",
+  "scope": "67 on-site photographs; positions without GPS are not surveyed",
+  "groups": {
+    "commerce": [
+      1,
+      3,
+      21,
+      24,
+      30,
+      44,
+      51,
+      55,
+      59,
+      63,
+      65
+    ],
+    "computer": [
+      2,
+      9,
+      25,
+      27,
+      33
+    ],
+    "gym": [
+      6
+    ],
+    "academic": [
+      13,
+      18,
+      19,
+      22,
+      31,
+      38,
+      42,
+      47,
+      49,
+      52,
+      58,
+      67,
+      10
+    ],
+    "roads": [
+      8,
+      11,
+      12,
+      16,
+      17,
+      34,
+      41,
+      56,
+      64,
+      66
+    ],
+    "activity": [
+      14
+    ],
+    "gate": [
+      15
+    ],
+    "library": [
+      20,
+      26,
+      28,
+      48,
+      60
+    ],
+    "historic": [
+      29
+    ],
+    "stone": [
+      23,
+      36
+    ],
+    "culture": [
+      35,
+      39
+    ],
+    "canteens": [
+      4,
+      5,
+      40
+    ],
+    "service": [
+      43
+    ],
+    "law": [
+      45
+    ],
+    "planet": [
+      46
+    ],
+    "marx": [
+      53
+    ],
+    "history": [
+      61
+    ],
+    "finance": [
+      62
+    ],
+    "labs": [
+      32,
+      57
+    ],
+    "teaching": [
+      7,
+      37,
+      50,
+      54
+    ]
+  },
+  "photos": [
+    {
+      "id": 1,
+      "source": "001_南开津南_商业街_兰州牛肉拉面与洗衣店.jpg",
+      "sourceSha256": "11de8fbb972bb826f8799e8a110ef4be82c50c85f9ae7a83755c26386c4304fc",
+      "reference": "references/campus-20261011/001.jpg",
+      "group": "commerce",
+      "observations": "对向商业街：拉面店低层砖体、洗衣店五层砖楼、浅色石柱、绿牌与黑牌",
+      "placement": "named-building-reference"
+    },
+    {
+      "id": 2,
+      "source": "002_南开津南_计算机与软件学院_门前庭院_推测.jpg",
+      "sourceSha256": "ec5cacb79760ec08e5d2841bc2dd0928287faef90546c5b2bed85c39e70a5485",
+      "reference": "references/campus-20261011/002.jpg",
+      "group": "computer",
+      "observations": "计算机庭院浅色石材门廊、方柱与灰色矩形铺装",
+      "placement": "shared-detail-only"
+    },
+    {
+      "id": 3,
+      "source": "003_南开津南_商业街_中国联通营业厅旁.jpg",
+      "sourceSha256": "1d7532a03f5274f9cb894cf3966daafbd8dd79be5758fe5e0ce82afd479d2416",
+      "reference": "references/campus-20261011/003.jpg",
+      "group": "commerce",
+      "observations": "联通红白招牌、低层店面砖墙、玻璃店门和前方台阶",
+      "placement": "named-building-reference"
+    },
+    {
+      "id": 4,
+      "source": "004_南开津南_食堂入口与停车区_推测.jpg",
+      "sourceSha256": "1544d5e85feb4c769f9c47e2ceb936ea1772f5a425f9ca4479d7c68c665866a5",
+      "reference": "references/campus-20261011/004.jpg",
+      "group": "canteens",
+      "observations": "食堂浅色门廊、开放通道、白色自行车栏杆",
+      "placement": "shared-detail-only"
+    },
+    {
+      "id": 5,
+      "source": "005_南开津南_食堂入口近景_推测.jpg",
+      "sourceSha256": "b508f49a7e31506cd8f163d0014f7f0c980dcd11b7a5c6abed25aff02b4bcdb1",
+      "reference": "references/campus-20261011/005.jpg",
+      "group": "canteens",
+      "observations": "食堂入口四方柱、宽缓台阶、玻璃门和无障碍侧栏",
+      "placement": "shared-detail-only"
+    },
+    {
+      "id": 6,
+      "source": "006_南开津南_体育馆_正面广场.jpg",
+      "sourceSha256": "5ef5767237a161d8f88f6ed4a5c4cfadea9b0e38a43f3ed14560b153ac642498",
+      "reference": "references/campus-20261011/006.jpg",
+      "group": "gym",
+      "observations": "体育馆对称砖翼、三段玻璃入口、水平浅色腰线、圆弧端头与旗杆",
+      "placement": "named-building-reference"
+    },
+    {
+      "id": 7,
+      "source": "007_南开津南_学院楼前_石雕与绿地_具体学院待确认.jpg",
+      "sourceSha256": "cdb0c0ac0b5558e05b9a314b51d8b46ad19b9044f8fe8693e81a10c2468b1734",
+      "reference": "references/campus-20261011/007.jpg",
+      "group": "teaching",
+      "observations": "学院悬空连廊、方形穿廊、石质矮桩与低绿篱",
+      "placement": "C-zone sign visible in 037; exact cluster and facade orientation inferred"
+    },
+    {
+      "id": 8,
+      "source": "008_南开津南_学院区路口_斑马线_推测.jpg",
+      "sourceSha256": "4b1946f68bbd08941034639a69f478e0c1826aab8a41a91b6d77aee0310b1ad7",
+      "reference": "references/campus-20261011/008.jpg",
+      "group": "roads",
+      "observations": "学院路口宽斑马线、砖红人行道、连续行道树",
+      "placement": "shared-detail-only"
+    },
+    {
+      "id": 9,
+      "source": "009_南开津南_计算机与软件学院_庭院另一侧_推测.jpg",
+      "sourceSha256": "f547ed2927772bcf6d4333b80f33fc62f96b594c4c5c4b57e9dba97e2a648e8e",
+      "reference": "references/campus-20261011/009.jpg",
+      "group": "computer",
+      "observations": "计算机庭院退台砖翼、下层柱廊、成排自行车和矩形树池",
+      "placement": "shared-detail-only"
+    },
+    {
+      "id": 10,
+      "source": "010_南开津南_红砖公共建筑_侧面_具体楼名待确认.jpg",
+      "sourceSha256": "0d7d3ec192fba62aa97b62988a954df026f05a1db9f8dfeb3deabb156e72ae94",
+      "reference": "references/campus-20261011/010.jpg",
+      "group": "academic",
+      "observations": "高窄竖窗公共建筑、入口玻璃带、矮墙和停车边界",
+      "placement": "shared-detail-only"
+    },
+    {
+      "id": 11,
+      "source": "011_南开津南_校园出入口方向_自行车停车区_推测.jpg",
+      "sourceSha256": "30916c418724eb69ff5903d8c96206c614729ab0f9c3c3b2b3644e4afc2d34a2",
+      "reference": "references/campus-20261011/011.jpg",
+      "group": "roads",
+      "observations": "入口红砖岗亭、弯臂路灯、两车道箭头和自行车停车带",
+      "placement": "shared-detail-only"
+    },
+    {
+      "id": 12,
+      "source": "012_南开津南_学院区林荫路_红砖楼旁_推测.jpg",
+      "sourceSha256": "a3ff83f5365e79f75e9770fbbd90f653f59c26809683ca0c88c0efa4c874f5aa",
+      "reference": "references/campus-20261011/012.jpg",
+      "group": "roads",
+      "observations": "红砖楼侧面四层窗列、白色树干底部、路侧绿篱",
+      "placement": "shared-detail-only"
+    },
+    {
+      "id": 13,
+      "source": "013_南开津南_红砖学院楼_路口侧面_具体学院待确认.jpg",
+      "sourceSha256": "4f09bb1f55f84aebc8649f3f2026635a7c6dc7ef9164d94ffd8956efbc0dd00b",
+      "reference": "references/campus-20261011/013.jpg",
+      "group": "academic",
+      "observations": "学院楼白色竖向顶层屏、台阶式砖翼、门厅石框",
+      "placement": "shared-detail-only"
+    },
+    {
+      "id": 14,
+      "source": "014_南开津南_白色镂空建筑_门前停车区_具体楼名待确认.jpg",
+      "sourceSha256": "48017b38a03d410442d0a17b4a8004ad3450b2c71b1e14f91f5fb46c4faf5bc9",
+      "reference": "references/campus-20261011/014.jpg",
+      "group": "activity",
+      "observations": "白色镂空面板、玻璃底层、浅色题字石与红色铺装",
+      "placement": "shared-detail-only"
+    },
+    {
+      "id": 15,
+      "source": "015_南开津南_低层服务建筑_路口_具体用途待确认.jpg",
+      "sourceSha256": "3231be18d1f5f3b7a504bf08c883eab5e3e60627c8d77d82ce848698f24ec4e5",
+      "reference": "references/campus-20261011/015.jpg",
+      "group": "gate",
+      "observations": "低层红砖门房、黑色金属门栅、入口斑马线",
+      "placement": "shared-detail-only"
+    },
+    {
+      "id": 16,
+      "source": "016_南开津南_学院区林荫路_红色雕塑旁_推测.jpg",
+      "sourceSha256": "8ff3b2034ff63a6708b6cc4484023c5b758f497935095f0093cafa8d89e7817e",
+      "reference": "references/campus-20261011/016.jpg",
+      "group": "roads",
+      "observations": "学院道路红色景观字、修剪绿篱、双黄线与树阵",
+      "placement": "shared-detail-only"
+    },
+    {
+      "id": 17,
+      "source": "017_南开津南_学院区十字路口_共享单车_推测.jpg",
+      "sourceSha256": "415333e33e63bdac590fe0e67369b18134e4285a4ff8810c206df7f2d3308e5d",
+      "reference": "references/campus-20261011/017.jpg",
+      "group": "roads",
+      "observations": "路口斑马线、黄色/蓝色单车列、边缘灯杆与树池",
+      "placement": "shared-detail-only"
+    },
+    {
+      "id": 18,
+      "source": "018_南开津南_学院楼群_楼间路口_具体学院待确认.jpg",
+      "sourceSha256": "8674d26107fc87eda82f7b2f5263b77d2938e0a139685e60f1b88b7fef65fd72",
+      "reference": "references/campus-20261011/018.jpg",
+      "group": "academic",
+      "observations": "五层砖翼、底层浅色柱廊、转角玻璃和减速带",
+      "placement": "shared-detail-only"
+    },
+    {
+      "id": 19,
+      "source": "019_南开津南_学院楼_树荫庭院_具体学院待确认.jpg",
+      "sourceSha256": "18a4ac7fa8e1c9f3311d43b80ca7b762c825d51045971aab02a931ca3c1ddac3",
+      "reference": "references/campus-20261011/019.jpg",
+      "group": "academic",
+      "observations": "庭院竖向窄窗与深砖墙、下层玻璃底座、树荫坐凳",
+      "placement": "shared-detail-only"
+    },
+    {
+      "id": 20,
+      "source": "020_南开津南_津南图书馆_侧前方停车区_推测.jpg",
+      "sourceSha256": "7ef12241b35f04a674c8565814058fce6166db8ff40dd009cd061929e8f626a5",
+      "reference": "references/campus-20261011/020.jpg",
+      "group": "library",
+      "observations": "图书馆下层空廊、中央实墙、玻璃上框和广场停车带",
+      "placement": "shared-detail-only"
+    },
+    {
+      "id": 21,
+      "source": "021_南开津南_麦当劳_侧面.jpg",
+      "sourceSha256": "47e0ad1e9b6def07d16c07e4506305788eee4f4c0e77e191d5365d828c7fe129",
+      "reference": "references/campus-20261011/021.jpg",
+      "group": "commerce",
+      "observations": "麦当劳双层砖体、浅色门框、玻璃角窗、独立金拱标志",
+      "placement": "named-building-reference"
+    },
+    {
+      "id": 22,
+      "source": "022_南开津南_学院楼_侧门与自行车区_具体学院待确认.jpg",
+      "sourceSha256": "f07d9fc1a7ddb3f0fad4693c23ca4a4272bc27682d3ff2c973923586d4c5a198",
+      "reference": "references/campus-20261011/022.jpg",
+      "group": "academic",
+      "observations": "侧门浅色柱廊、玻璃门、檐口横窗与停车带",
+      "placement": "shared-detail-only"
+    },
+    {
+      "id": 23,
+      "source": "023_南开津南_学府北辰题字石_学院路口.jpg",
+      "sourceSha256": "07ef6100d34c4af3b84445118c186a2b88a4de9fc8a88de28e64bc95818616ab",
+      "reference": "references/campus-20261011/023.jpg",
+      "group": "stone",
+      "observations": "学府北辰不规则浅色石、低草地与转角红色铺装",
+      "placement": "shared-detail-only"
+    },
+    {
+      "id": 24,
+      "source": "024_南开津南_商业街入口_限速牌路口_推测.jpg",
+      "sourceSha256": "b49c606f0141b6d7808862dfc251dce07141690422c8739074d50e37c0fd260f",
+      "reference": "references/campus-20261011/024.jpg",
+      "group": "commerce",
+      "observations": "商业街30限速牌、黑黄减速带、黄色隔离锥和路口划线",
+      "placement": "shared-detail-only"
+    },
+    {
+      "id": 25,
+      "source": "025_南开津南_计算机学院与软件学院_入口.jpg",
+      "sourceSha256": "9bfcb253dc1ac59431f619b2d170bad4b460c238d0c79fbbb72f286fe6ceffb5",
+      "reference": "references/campus-20261011/025.jpg",
+      "group": "computer",
+      "observations": "计算机学院与软件学院双语招牌、倾斜石框、三段玻璃门和台阶",
+      "placement": "named-building-reference"
+    },
+    {
+      "id": 26,
+      "source": "026_南开津南_津南图书馆_侧面广场_推测.jpg",
+      "sourceSha256": "0624add8f7849cedd3c78be5a635161141b450ac97da35038c058cecc1bcb64d",
+      "reference": "references/campus-20261011/026.jpg",
+      "group": "library",
+      "observations": "图书馆侧墙挑檐、上层连续窗、广场树列与矩形石砖",
+      "placement": "shared-detail-only"
+    },
+    {
+      "id": 27,
+      "source": "027_南开津南_计算机与软件学院_楼间庭院_推测.jpg",
+      "sourceSha256": "c15d7b03f0e9ce89368e2f0c1ccf59bcf75d4edf8320d47548ff9b4c5e970d08",
+      "reference": "references/campus-20261011/027.jpg",
+      "group": "computer",
+      "observations": "计算机庭院双侧柱廊、规则砖翼、树池和电动车列",
+      "placement": "shared-detail-only"
+    },
+    {
+      "id": 28,
+      "source": "028_南开津南_津南图书馆_正面台阶_推测.jpg",
+      "sourceSha256": "8a0ee34ecb7d2ce963e8f7ccc5cd211bef6a4484cb838da491135aaf2d05a0e6",
+      "reference": "references/campus-20261011/028.jpg",
+      "group": "library",
+      "observations": "图书馆两组宽台阶、左右绿台、中央校徽墙和低层门厅",
+      "placement": "shared-detail-only"
+    },
+    {
+      "id": 29,
+      "source": "029_南开津南_秀山堂_正面广场_推测.jpg",
+      "sourceSha256": "33c292c0b3a9fe78b573886322445dca86e15edd9cd2fea1de9c7b1824ed3460",
+      "reference": "references/campus-20261011/029.jpg",
+      "group": "historic",
+      "observations": "木斋馆（原文件名误推测秀山堂）中央山花、半圆穹顶、白色檐线与对称窄窗",
+      "placement": "shared-detail-only"
+    },
+    {
+      "id": 30,
+      "source": "030_南开津南_校园商铺与取件柜_推测.jpg",
+      "sourceSha256": "3bab422fc6d319521e4656b41471655a7ae8087d2bfa9790ce445e49a3bd2335",
+      "reference": "references/campus-20261011/030.jpg",
+      "group": "commerce",
+      "observations": "红色快递店面、开放钢构雨棚、灰黄取件柜",
+      "placement": "shared-detail-only"
+    },
+    {
+      "id": 31,
+      "source": "031_南开津南_学院区道路_楼前绿地_推测.jpg",
+      "sourceSha256": "ffb12b6cf69414d23c63fb214125c5d8de402e1ddaa93e87014a502bfca0904d",
+      "reference": "references/campus-20261011/031.jpg",
+      "group": "academic",
+      "observations": "学院浅色底层门廊、顶层窗列、修剪绿地和人行砖道",
+      "placement": "shared-detail-only"
+    },
+    {
+      "id": 32,
+      "source": "032_南开津南_学院楼群_楼间广场与停车区_具体学院待确认.jpg",
+      "sourceSha256": "68fd780f8b198bf5d4e69f1b3dda61f6920b7b48395a234e37e684d1d746e536",
+      "reference": "references/campus-20261011/032.jpg",
+      "group": "labs",
+      "observations": "实验楼A样式深灰挑檐、纵向玻璃、楼间广场和黄色停车框",
+      "placement": "shared-detail-only"
+    },
+    {
+      "id": 33,
+      "source": "033_南开津南_计算机与软件学院_庭院反向视角_推测.jpg",
+      "sourceSha256": "545ea928a4e9de9567f52db493ce4582bff22b8c1b5ad6c5d3467c80f3e67b50",
+      "reference": "references/campus-20261011/033.jpg",
+      "group": "computer",
+      "observations": "多学院共享庭院反向视角：人工智能学院分翼标牌、浅色柱廊、树阵与自行车列",
+      "placement": "shared-detail-only"
+    },
+    {
+      "id": 34,
+      "source": "034_南开津南_学院区笔直林荫大道_推测.jpg",
+      "sourceSha256": "a76740aa7b506e821fa3b4ac3389f3854110bcf47b71db7e0041aa048c45413b",
+      "reference": "references/campus-20261011/034.jpg",
+      "group": "roads",
+      "observations": "笔直道路双侧细高树阵、斑马线、白色灯杆",
+      "placement": "shared-detail-only"
+    },
+    {
+      "id": 35,
+      "source": "035_南开津南_国际教育与汉语言文化学院_树荫侧面_推测.jpg",
+      "sourceSha256": "903aa3235231322f42af1a920fcecaed653b0f5f3b1aa37133ad1e83eec59e99",
+      "reference": "references/campus-20261011/035.jpg",
+      "group": "culture",
+      "observations": "汉语言文化学院砖塔水平凹槽、底层玻璃、转角侧窗",
+      "placement": "shared-detail-only"
+    },
+    {
+      "id": 36,
+      "source": "036_南开津南_学府北辰题字石_路口另一侧.jpg",
+      "sourceSha256": "0421a41c5d119b2e643c1ae4c4d6e685f9b6eef6d054ddf93e628799368e55d9",
+      "reference": "references/campus-20261011/036.jpg",
+      "group": "stone",
+      "observations": "学府北辰题字石背向布局、红砖人行道、白色路灯",
+      "placement": "shared-detail-only"
+    },
+    {
+      "id": 37,
+      "source": "037_南开津南_学院楼前_红色雕塑与石雕_具体学院待确认.jpg",
+      "sourceSha256": "1666cf5816106b3b1cd1bac31adba029a8a0bad3b4778801c745c938c0adf2bc",
+      "reference": "references/campus-20261011/037.jpg",
+      "group": "teaching",
+      "observations": "学院穿廊、红色景观板、石桩、树池和修剪绿篱",
+      "placement": "C-zone sign visible in 037; exact cluster and facade orientation inferred"
+    },
+    {
+      "id": 38,
+      "source": "038_南开津南_学院楼_玻璃窗转角_具体学院待确认.jpg",
+      "sourceSha256": "4f1369ea9c205a1fc93bb0bbb89bcc23ad9ca1639656ab7f6697c46fa51e20e2",
+      "reference": "references/campus-20261011/038.jpg",
+      "group": "academic",
+      "observations": "学院大面积转角玻璃、二层竖窗、浅色金属雨棚",
+      "placement": "shared-detail-only"
+    },
+    {
+      "id": 39,
+      "source": "039_南开津南_国际教育学院与汉语言文化学院_正门.jpg",
+      "sourceSha256": "795a7559b165ab44a74367b2c79c5c107bd419ec9bc344795d57e36e0a55b4df",
+      "reference": "references/campus-20261011/039.jpg",
+      "group": "culture",
+      "observations": "国际教育/汉语言文化学院双语标牌、横向砖带、玻璃入口与红铺装",
+      "placement": "named-building-reference"
+    },
+    {
+      "id": 40,
+      "source": "040_南开津南_红砖食堂_门前停车区_推测.jpg",
+      "sourceSha256": "c5bd6b55e0dc2bf3607ef3e80d2ddf7789bfca67fa6e07fa3da752b4d1398fdd",
+      "reference": "references/campus-20261011/040.jpg",
+      "group": "canteens",
+      "observations": "食堂大斜玻璃门厅、水平大挑檐、双层砖体和前广场",
+      "placement": "shared-detail-only"
+    },
+    {
+      "id": 41,
+      "source": "041_南开津南_学院区道路_两侧电动车区_推测.jpg",
+      "sourceSha256": "1845ca327e5767d5cbf8871fab422b390d612b11493b0cadfb31ca478a5b447c",
+      "reference": "references/campus-20261011/041.jpg",
+      "group": "roads",
+      "observations": "学院道路两侧电动车带、白色路灯、细高树列和双黄线",
+      "placement": "shared-detail-only"
+    },
+    {
+      "id": 42,
+      "source": "042_南开津南_学院楼_正面与连廊_具体学院待确认.jpg",
+      "sourceSha256": "cccfd90444f8c2b70665d71e1ec1de51de7116d2692877ed78315ca5217d7cd9",
+      "reference": "references/campus-20261011/042.jpg",
+      "group": "academic",
+      "observations": "学院高层横跨连廊、四层竖窗、玻璃角窗、红色入口铺装",
+      "placement": "shared-detail-only"
+    },
+    {
+      "id": 43,
+      "source": "043_南开津南_后勤服务用房_停车区_推测.jpg",
+      "sourceSha256": "5b2b7dbf849421d97b3be422199b56b658c9811ba445cd8e04a7c685c3ef1b0b",
+      "reference": "references/campus-20261011/043.jpg",
+      "group": "service",
+      "observations": "后勤砖房玻璃门、浅色侧墙、灰色临时箱式房",
+      "placement": "shared-detail-only"
+    },
+    {
+      "id": 44,
+      "source": "044_南开津南_电动车棚与校园商铺_推测.jpg",
+      "sourceSha256": "4af0e1b55033d337fa7916237d828272ccb08ce30d3bb87062d724c652ee04e7",
+      "reference": "references/campus-20261011/044.jpg",
+      "group": "commerce",
+      "observations": "电动车棚浅色弧顶、细钢柱、停车地面和后方树带",
+      "placement": "shared-detail-only"
+    },
+    {
+      "id": 45,
+      "source": "045_南开津南_法学院_正门仰视.jpg",
+      "sourceSha256": "a66aa83d075198da6a8c5f837cd90269659e2dd06c15dd56e9f81cf6c3de577f",
+      "reference": "references/campus-20261011/045.jpg",
+      "group": "law",
+      "observations": "法学院高挑四柱门廊、两翼玻璃墙、三层入口玻璃和宽台阶",
+      "placement": "named-building-reference"
+    },
+    {
+      "id": 46,
+      "source": "046_南开津南_校园小行星全景_位置待确认.jpg",
+      "sourceSha256": "5d7b226d9441bac3d9fce04f5c0b98e2b2246b3fdb4fac705529a04de411b80b",
+      "reference": "references/campus-20261011/046.jpg",
+      "group": "planet",
+      "observations": "小行星视角核对铺装广场尺度、周边环状绿篱与树阵；不用作建筑尺寸/坐标依据",
+      "placement": "shared-detail-only"
+    },
+    {
+      "id": 47,
+      "source": "047_南开津南_学院楼_路旁入口与玻璃连廊_具体学院待确认.jpg",
+      "sourceSha256": "ad0ccdc0879c31525d6340ca2e12028b28fd5bddc7850fe9dfdd514e52b200d7",
+      "reference": "references/campus-20261011/047.jpg",
+      "group": "academic",
+      "observations": "学院顶层浅色竖向屏、贯通玻璃连廊、砖柱底座",
+      "placement": "shared-detail-only"
+    },
+    {
+      "id": 48,
+      "source": "048_南开津南_津南图书馆_正面广场全景_推测.jpg",
+      "sourceSha256": "983e0bf01a23d38fc21275d267e957f66970b954028becb436e5f5fbd93a010c",
+      "reference": "references/campus-20261011/048.jpg",
+      "group": "library",
+      "observations": "图书馆左右双宽台阶、浅色平台、低矮绿台和前广场铺装",
+      "placement": "shared-detail-only"
+    },
+    {
+      "id": 49,
+      "source": "049_南开津南_学院区路口_红砖楼与绿地_推测.jpg",
+      "sourceSha256": "61521b57213d7863c0c2339cd4cccc11df13faf4df87f89257200df374a835d3",
+      "reference": "references/campus-20261011/049.jpg",
+      "group": "academic",
+      "observations": "学院五层砖翼、底层浅色门廊、转角浅色线条",
+      "placement": "shared-detail-only"
+    },
+    {
+      "id": 50,
+      "source": "050_南开津南_学院楼群_中轴步行广场_具体学院待确认.jpg",
+      "sourceSha256": "b5d4c0245d74074833843a4e1a2fcb0b72bef0379013ec40b3b1a8fb3a312008",
+      "reference": "references/campus-20261011/050.jpg",
+      "group": "teaching",
+      "observations": "双砖翼中轴庭院、底层连廊、石桩与中心花台",
+      "placement": "C-zone sign visible in 054; 050 courtyard detail reused, exact camera position unconfirmed"
+    },
+    {
+      "id": 51,
+      "source": "051_南开津南_商业街_蜜雪冰城门前.jpg",
+      "sourceSha256": "c3ca57a4ee44da5ef85a2ff58fb0f46cd95118c34032fea2fd8a3717ccb09aed",
+      "reference": "references/campus-20261011/051.jpg",
+      "group": "commerce",
+      "observations": "蜜雪冰城红白店牌、砖墙、玻璃店门与外侧石台阶",
+      "placement": "named-building-reference"
+    },
+    {
+      "id": 52,
+      "source": "052_南开津南_学院区林荫路_红砖楼侧面_推测.jpg",
+      "sourceSha256": "29fc4fb5bc15023476aa5f50914a79630edb8f5257b1230d207d3b65c5079899",
+      "reference": "references/campus-20261011/052.jpg",
+      "group": "academic",
+      "observations": "学院侧墙密集砖色竖向遮阳片、侧门台阶和金属栏杆",
+      "placement": "shared-detail-only"
+    },
+    {
+      "id": 53,
+      "source": "053_南开津南_马克思主义学院_入口.jpg",
+      "sourceSha256": "c464372fda3a3c7e53bfd40402086338584b611ff39ff57008305f08ee36590f",
+      "reference": "references/campus-20261011/053.jpg",
+      "group": "marx",
+      "observations": "马克思主义学院两层大玻璃方窗、悬挑雨棚、斜撑与透明底层",
+      "placement": "named-building-reference"
+    },
+    {
+      "id": 54,
+      "source": "054_南开津南_学院楼群_秋色步行广场_具体学院待确认.jpg",
+      "sourceSha256": "c75ce16a051a6c85662896d780b35154147625dca8df64f0a096d169fc0ecbd5",
+      "reference": "references/campus-20261011/054.jpg",
+      "group": "teaching",
+      "observations": "双翼楼间红色地砖、树池与秋色层次",
+      "placement": "C-zone sign visible in 054; 050 courtyard detail reused, exact camera position unconfirmed"
+    },
+    {
+      "id": 55,
+      "source": "055_南开津南_南开大学快递服务站_门口.jpg",
+      "sourceSha256": "6f302d73907e49ec98a29cda6456a45d0c24ece029cd3f6e91743fa71b76f737",
+      "reference": "references/campus-20261011/055.jpg",
+      "group": "commerce",
+      "observations": "快递服务站浅黄入口门框、低层砖房、玻璃门和竖牌",
+      "placement": "named-building-reference"
+    },
+    {
+      "id": 56,
+      "source": "056_南开津南_学院区林荫大道_背光_推测.jpg",
+      "sourceSha256": "dd6a877856de0f360ebe42f01e7c3e75bfa57d819994dbcbd79b510d83074dc0",
+      "reference": "references/campus-20261011/056.jpg",
+      "group": "roads",
+      "observations": "背光道路核对行道树间距、楼侧绿篱与禁止停车牌",
+      "placement": "shared-detail-only"
+    },
+    {
+      "id": 57,
+      "source": "057_南开津南_学院楼群_宽阔楼间广场_具体学院待确认.jpg",
+      "sourceSha256": "581eedf376682917192120d1ea642c2b4b0fe5143c9f49b363013fbe5d5068c5",
+      "reference": "references/campus-20261011/057.jpg",
+      "group": "labs",
+      "observations": "楼间广场黄色停车网格、石桩、坡道和红色景观字",
+      "placement": "shared-detail-only"
+    },
+    {
+      "id": 58,
+      "source": "058_南开津南_学院楼_沿街停车区_具体学院待确认.jpg",
+      "sourceSha256": "919a977f3d4467cafe90104c8ed1ba03be4d0d6f560054969209db7902285682",
+      "reference": "references/campus-20261011/058.jpg",
+      "group": "academic",
+      "observations": "学院底层白色柱廊、连续玻璃窗带、转角车位",
+      "placement": "shared-detail-only"
+    },
+    {
+      "id": 59,
+      "source": "059_南开津南_校园快递柜与取件区_推测.jpg",
+      "sourceSha256": "076f8c8fee7a337b37d07436ada1e470c1d7bf0778f98305fb8e8034ad659b4d",
+      "reference": "references/campus-20261011/059.jpg",
+      "group": "commerce",
+      "observations": "灰黄蜂巢取件柜格门、取件终端、钢构棚和前方停车带",
+      "placement": "shared-detail-only"
+    },
+    {
+      "id": 60,
+      "source": "060_南开津南_津南图书馆_贴近侧墙视角_推测.jpg",
+      "sourceSha256": "093f6e36b80901241ee125b6c007f8cd75f7bef119ed3d3e68eb093173d252bb",
+      "reference": "references/campus-20261011/060.jpg",
+      "group": "library",
+      "observations": "图书馆近侧墙透孔砖屏、水平浅色石带、下部玻璃和挑檐",
+      "placement": "shared-detail-only"
+    },
+    {
+      "id": 61,
+      "source": "061_南开津南_历史学院_路旁侧面.jpg",
+      "sourceSha256": "baa1b72b29e84b01b4720307eb550df22f388fc70ffc4a117c800eaa2081ffcf",
+      "reference": "references/campus-20261011/061.jpg",
+      "group": "history",
+      "observations": "历史学院窄深竖窗、玻璃连接段、底层玻璃和浅色柱廊",
+      "placement": "named-building-reference"
+    },
+    {
+      "id": 62,
+      "source": "062_南开津南_金融学院_正门广场.jpg",
+      "sourceSha256": "aae4a8e6919df749943ae441589230db073206b24096628a8fdddaee513e90fc",
+      "reference": "references/campus-20261011/062.jpg",
+      "group": "finance",
+      "observations": "金融学院圆弧砖塔、竖向玻璃缝、中央玻璃连桥、浅色纪念石和红平台",
+      "placement": "named-building-reference"
+    },
+    {
+      "id": 63,
+      "source": "063_南开津南_商业街_兰州牛肉拉面与洗衣店近景.jpg",
+      "sourceSha256": "5e7b94ba0e1a71a133c8556e89af90971d23db505f71ceece822abaf456db99f",
+      "reference": "references/campus-20261011/063.jpg",
+      "group": "commerce",
+      "observations": "拉面店金字黑牌、洗衣店绿牌、阶梯、双侧单车与石柱",
+      "placement": "named-building-reference"
+    },
+    {
+      "id": 64,
+      "source": "064_南开津南_学院区道路_轿车与单车区_推测.jpg",
+      "sourceSha256": "f264916cc0e9df14626075902160953e0a32a9272c1b3e7bd362f2bf554b570d",
+      "reference": "references/campus-20261011/064.jpg",
+      "group": "roads",
+      "observations": "道路圆盘灯、车位边线、步道绿篱和细高树阵",
+      "placement": "shared-detail-only"
+    },
+    {
+      "id": 65,
+      "source": "065_南开津南_麦当劳_路口全景.jpg",
+      "sourceSha256": "e05e04fadd4fc96fb709c22bb97d1ef3e3e4d068bd31010316d4287e079cc779",
+      "reference": "references/campus-20261011/065.jpg",
+      "group": "commerce",
+      "observations": "麦当劳金拱门、双层体量、玻璃转角、砖/浅石材分界和路口减速带",
+      "placement": "named-building-reference"
+    },
+    {
+      "id": 66,
+      "source": "066_南开津南_学院区道路_树荫与停车区_推测.jpg",
+      "sourceSha256": "5f8c4e9e27ea667aacd5595ffc68d3944262404b5641d9694b843be79d17644d",
+      "reference": "references/campus-20261011/066.jpg",
+      "group": "roads",
+      "observations": "道路禁停双图标、侧门树荫、电动车与两车道标线",
+      "placement": "shared-detail-only"
+    },
+    {
+      "id": 67,
+      "source": "067_南开津南_学院区路口_绿篱与红砖楼_推测.jpg",
+      "sourceSha256": "80774356073c4fc54af50ef1c8f56291059a428f54110029d9b31d0da5cc47a6",
+      "reference": "references/campus-20261011/067.jpg",
+      "group": "academic",
+      "observations": "学院转角砖翼、绿篱转角、浅色路缘与人行道衔接",
+      "placement": "shared-detail-only"
+    }
+  ]
+}
