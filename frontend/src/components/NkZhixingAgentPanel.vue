@@ -6,11 +6,13 @@ import { askNkZhixingAgent, getRoute, NK_ZHIXING_MESSAGE_LIMIT, resolveCampusPla
 import {
   buildAgentInstructions,
   extractNavigationDestination,
+  extractNavigationOrigin,
   findRequestedTravelMode,
   findDestination,
   findDestinationCandidates,
   findOrigin,
   isNavigationPoint,
+  isNamedFacilityGate,
   isPointNearCampus,
   isNavigationRequest,
   refersToCurrentPosition,
@@ -315,9 +317,16 @@ async function submit() {
     if (campus.locations?.some((location) => location.id === destination.id)) emit('focus-location', destination.id)
 
     const originLocation = needsCurrentPosition ? null : findOrigin(prompt, destination, campus)
+    const externalOriginName = !needsCurrentPosition && !originLocation
+      ? extractNavigationOrigin(prompt) : ''
+    const externalOrigin = campus.id === 'balitai' && isNamedFacilityGate(externalOriginName)
+      ? { id: `amap-${externalOriginName}`, name: externalOriginName }
+      : null
     const [destinationPoint, resolvedOrigin] = await Promise.all([
       resolveNavigationPoint(destination, campus, signal),
-      resolveNavigationPoint(originLocation, campus, signal),
+      externalOrigin
+        ? resolveCampusPlace({ campus: campus.id, name: externalOrigin.name }, { signal })
+        : resolveNavigationPoint(originLocation, campus, signal),
     ])
     if (!isCurrent()) return
     const origin = resolvedOrigin || (!originLocation ? campusLiveOrigin : null)
@@ -334,7 +343,7 @@ async function submit() {
     }, { signal })
     if (!isCurrent()) return
     const routeSource = destination.routeSource || (isNavigationPoint(destination.navigationPoint) ? destination.geoSource || '本站收录坐标' : '高德地图地点兜底')
-    const originName = originLocation?.name || '当前位置'
+    const originName = originLocation?.name || externalOrigin?.name || '当前位置'
     const routeSteps = route.instructions.length
       ? route.instructions
       : routeInstructionsFromGeometry(route.routePoints)

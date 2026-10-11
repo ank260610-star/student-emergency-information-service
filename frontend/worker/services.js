@@ -12,6 +12,29 @@ const ROUTE_MODES = {
   bicycling: { endpoint: 'bicycling', label: '骑行' },
   driving: { endpoint: 'driving', label: '驾车' },
 }
+const DIRECTIONAL_GATE_PATTERN = /(东北门|东南门|西北门|西南门|东门|西门|南门|北门)$/
+
+function normalizedPlaceName(value) {
+  return String(value || '').replace(/[\s()（）\-_·]/g, '')
+}
+
+function unqualifiedBalitaiGate(value) {
+  const name = normalizedPlaceName(value)
+  const match = name.match(DIRECTIONAL_GATE_PATTERN)
+  if (!match) return ''
+  const owner = name.slice(0, match.index)
+    .replace(/^(?:南开大学)?(?:八里台校区|八里台)?(?:学校|校园|校)?/, '')
+  return owner ? '' : match[1]
+}
+
+function isBalitaiCampusGate(candidate, gate) {
+  const name = normalizedPlaceName(candidate?.name)
+  return [
+    `南开大学八里台校区${gate}`,
+    `南开大学八里台${gate}`,
+    `南开大学${gate}`,
+  ].includes(name)
+}
 
 function routeInstructions(steps) {
   if (!Array.isArray(steps)) return []
@@ -116,9 +139,10 @@ export async function resolvePlace(request, env) {
     return jsonResponse({ error: '地点名称或校区无效。' }, 400)
   }
 
+  const campusGate = campusId === 'balitai' ? unqualifiedBalitaiGate(name) : ''
   const parameters = new URLSearchParams({
     key: env.AMAP_WEB_SERVICE_KEY,
-    keywords: `南开大学${campus}${name}`,
+    keywords: campusGate ? `南开大学八里台校区${campusGate}` : `南开大学${campus}${name}`,
     region: '天津市',
     city_limit: 'true',
     page_size: '10',
@@ -131,9 +155,12 @@ export async function resolvePlace(request, env) {
     if (placePayload.pois.length && placePayload.pois.every((candidate) => !parseCoordinate(candidate?.location))) {
       return jsonResponse({ error: '高德暂未返回有效的地点坐标。' }, 502)
     }
-    const place = placePayload.pois.find((candidate) => (
+    const campusCandidates = placePayload.pois.filter((candidate) => (
       isPointInsideCampus(campusId, parseCoordinate(candidate?.location))
     ))
+    const place = campusGate
+      ? campusCandidates.find((candidate) => isBalitaiCampusGate(candidate, campusGate))
+      : campusCandidates[0]
     if (!place) {
       return jsonResponse({
         error: `高德暂未在${campus}校内找到该地点；已排除校外和另一校区的同名结果。`,

@@ -65,6 +65,39 @@ test('place lookup distinguishes upstream failures from an empty search result',
   assert.equal((await resolvePlace(request({ campus: 'jinnan', name: '图书馆' }), env)).status, 502)
 })
 
+test('unqualified Balitai gate lookup selects the campus gate instead of a college entrance', async (t) => {
+  let upstreamUrl
+  t.mock.method(globalThis, 'fetch', async (url) => {
+    upstreamUrl = new URL(url)
+    return Response.json({
+      status: '1',
+      pois: [
+        { name: '南开大学-商学院东门', location: '117.160,39.104' },
+        { name: '南开大学(八里台校区)-东门', location: '117.178667,39.1034' },
+      ],
+    })
+  })
+  const result = await resolvePlace(request({ campus: 'balitai', name: '东门' }), env)
+  assert.equal(result.status, 200)
+  assert.equal(upstreamUrl.searchParams.get('keywords'), '南开大学八里台校区东门')
+  assert.deepEqual(await result.json(), {
+    coordinate: '117.178667,39.1034', coordinateSystem: 'GCJ-02',
+    name: '南开大学(八里台校区)-东门', source: 'amap-fallback',
+  })
+})
+
+test('a named college gate is not rewritten to the Balitai campus gate', async (t) => {
+  let upstreamUrl
+  t.mock.method(globalThis, 'fetch', async (url) => {
+    upstreamUrl = new URL(url)
+    return Response.json({ status: '1', pois: [{ name: '南开大学-商学院东门', location: '117.160,39.104' }] })
+  })
+  const result = await resolvePlace(request({ campus: 'balitai', name: '商学院东门' }), env)
+  assert.equal(result.status, 200)
+  assert.equal(upstreamUrl.searchParams.get('keywords'), '南开大学八里台校区商学院东门')
+  assert.equal((await result.json()).name, '南开大学-商学院东门')
+})
+
 test('agent accepts a full-length input with appended context and validates response fields', async (t) => {
   const message = '问'.repeat(500) + '\n【当前校区已确定】津南校区'
   t.mock.method(globalThis, 'fetch', async (url, options) => {
