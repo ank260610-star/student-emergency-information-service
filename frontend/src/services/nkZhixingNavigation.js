@@ -99,14 +99,15 @@ export function buildAgentInstructions({ campus, narrative, navigationIntent, li
   if (navigationIntent) {
     const matchedLocations = [...new Map(findLocationMatches(prompt, campus)
       .map(({ location }) => [location.id, location])).values()]
-    instructions.push(`【网页导航协同】用户已选择出行方式：${travelModeLabels[mode]}；不得回答“未选择出行方式”。${destination ? `用户已确认目的地：${destination.name}。` : ''}请说明建议的起点和终点；不要自行估算距离、时长或给出分步路线，由网站依据已确认地点生成路线图。`)
+    instructions.push(`【网页导航协同】用户已选择出行方式：${travelModeLabels[mode]}；不得回答“未选择出行方式”。${destination ? `用户已确认目的地：${destination.name}。` : ''}请说明建议的起点和终点；不要自行估算距离、时长或给出分步路线，由网站依据已确认地点生成路线图。路线只允许使用${campus.name}校内道路，不得建议出校绕行；若校内道路不可达，应明确说明无法提供校内路线。`)
     if (matchedLocations.length) {
       instructions.push(`【当前校区地点消歧】本次识别到：${matchedLocations.map((location) => `${location.name}（${campus.name}）`).join('、')}。这些地点均已由网页按当前校区限定，禁止替换为另一校区同名 POI。`)
     }
     if (liveOrigin) instructions.push(`【本次导航起点】当前位置（GCJ-02）：经度 ${liveOrigin[1].toFixed(6)}，纬度 ${liveOrigin[0].toFixed(6)}。`)
   }
   if (narrative) {
-    instructions.push(`【校史检索资料】命中地点：${narrative.title}。简介：${narrative.brief}。事实资料：${narrative.facts}\n【答复要求】仅依据上述资料，用自然、克制的校园讲解口吻回答用户问题；不要新增具体年份、尺寸、人物经历、建筑功能、开放安排或无法核验的细节。不要规划路线，也不要询问校区。末尾另起一行标注“【资料依据】本站整理的校史材料”。当前并未检索南开大学官网，不得声称信息来自官网。`)
+    const sources = narrative.sources?.map((source) => `${source.type}：${source.label}`).join('；')
+    instructions.push(`【地点检索资料】命中地点：${narrative.title}。类型：${narrative.kind || '校史地标'}。简介：${narrative.brief}。事实资料：${narrative.facts}${sources ? `。可参考入口：${sources}` : ''}\n【答复要求】仅依据上述资料，用自然、克制的校园讲解口吻回答用户问题；不要新增具体年份、尺寸、人物经历、建筑功能、开放安排或无法核验的细节。不要规划路线，也不要询问校区。末尾另起一行标注“【资料依据】本站审核的地点资料”。不得声称已经实时读取官网或公众号正文。`)
   }
   return instructions.join('\n')
 }

@@ -7,12 +7,14 @@ import {
   geoPointToImageLatLng,
   imagePointToSimpleLatLng,
   markerPresentationForLocation,
+  nextRouteManeuver,
   semanticZoomLevel,
   shouldShowPriority,
   wgs84ToGcj02,
 } from './mapUtils.js'
 import { campusTours, categoryMeta, getCampusLocations } from '../data/campusLocations.js'
 import { findLandmarkNarrative } from '../data/landmarkNarratives.js'
+import { findPlaceProfile } from '../data/placeProfiles.js'
 
 test('converts top-left percentage coordinates to Leaflet simple coordinates', () => {
   assert.deepEqual(
@@ -49,6 +51,28 @@ test('measures campus-scale deviation from a planned route', () => {
   const route = [[39.1, 117.16], [39.1, 117.17]]
   assert.ok(distanceToPolylineMeters([39.1, 117.165], route) < 1)
   assert.ok(distanceToPolylineMeters([39.1004, 117.165], route) > 30)
+})
+
+test('derives the next clear turn and remaining distance from route geometry', () => {
+  const leftRoute = [
+    [39.1, 117.16],
+    [39.1, 117.1605],
+    [39.1005, 117.1605],
+  ]
+  const rightRoute = [
+    [39.1, 117.16],
+    [39.1, 117.1605],
+    [39.0995, 117.1605],
+  ]
+
+  const left = nextRouteManeuver([39.1, 117.1601], leftRoute)
+  const right = nextRouteManeuver([39.1, 117.1601], rightRoute)
+  assert.equal(left.type, 'left')
+  assert.equal(left.label, '左转')
+  assert.ok(left.distanceMeters > 20 && left.distanceMeters < 50)
+  assert.equal(right.type, 'right')
+  assert.equal(right.label, '右转')
+  assert.equal(nextRouteManeuver([39.10049, 117.1605], leftRoute).type, 'arrive')
 })
 
 test('progressively reveals lower-priority locations as the map zooms in', () => {
@@ -127,6 +151,19 @@ test('retrieves one matching landmark narrative for a campus-history question', 
   const narrative = findLandmarkNarrative('我想了解宁园的校史和陈省身故居的故事')
   assert.equal(narrative?.title, '陈省身故居')
   assert.equal(findLandmarkNarrative('从西门去校医院怎么走'), null)
+})
+
+test('retrieves reviewed college and building profiles for campus introductions', () => {
+  assert.equal(findPlaceProfile('金融学院是做什么的？')?.title, '金融学院')
+  assert.equal(findPlaceProfile('介绍一下津南公教楼')?.title, '公共教学楼')
+  assert.equal(findPlaceProfile('从西门去食堂怎么走'), null)
+
+  const jinnanLocations = getCampusLocations('jinnan')
+  const financeCollege = jinnanLocations.find((location) => location.number === 'J37')
+  assert.equal(financeCollege?.placeProfile?.kind, '学院建筑')
+  assert.ok(financeCollege?.geoPoint)
+  assert.ok(financeCollege?.placeProfile?.sources.some((source) => source.type === '官网'))
+  assert.ok(financeCollege?.placeProfile?.sources.some((source) => source.type === '公众号'))
 })
 
 test('keeps the complete Jinnan J01–J76 internal index searchable without inventing online coordinates', () => {

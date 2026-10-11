@@ -54,7 +54,7 @@ test('request instructions include the confirmed destination and selected mode',
   assert.match(instructions, /禁止替换为另一校区同名 POI/)
   assert.match(instructions, /经度 117\.000000，纬度 39\.000000/)
   const narration = buildAgentInstructions({ campus, mode: 'walking', narrative: { title: '思源堂', brief: '简介', facts: '事实' } })
-  assert.match(narration, /本站整理的校史材料/)
+  assert.match(narration, /本站审核的地点资料/)
   assert.doesNotMatch(narration, /网页导航协同/)
 })
 

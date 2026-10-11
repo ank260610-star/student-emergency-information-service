@@ -124,6 +124,95 @@ export function distanceToPolylineMeters(point, polyline) {
   return nearest
 }
 
+function routePointDistance(start, end) {
+  if (!Array.isArray(start) || !Array.isArray(end)) return 0
+  const referenceLatitude = (start[0] + end[0]) / 2
+  const [startX, startY] = projectedMeters(start, referenceLatitude)
+  const [endX, endY] = projectedMeters(end, referenceLatitude)
+  return Math.hypot(endX - startX, endY - startY)
+}
+
+function nearestRouteProgress(point, polyline, cumulativeDistances) {
+  const referenceLatitude = point[0]
+  const [px, py] = projectedMeters(point, referenceLatitude)
+  let nearest = null
+  for (let index = 1; index < polyline.length; index += 1) {
+    const [ax, ay] = projectedMeters(polyline[index - 1], referenceLatitude)
+    const [bx, by] = projectedMeters(polyline[index], referenceLatitude)
+    const dx = bx - ax
+    const dy = by - ay
+    const segmentLengthSquared = dx * dx + dy * dy
+    const ratio = segmentLengthSquared === 0
+      ? 0
+      : Math.max(0, Math.min(1, ((px - ax) * dx + (py - ay) * dy) / segmentLengthSquared))
+    const distance = Math.hypot(px - (ax + ratio * dx), py - (ay + ratio * dy))
+    if (!nearest || distance < nearest.distance) {
+      const segmentLength = cumulativeDistances[index] - cumulativeDistances[index - 1]
+      nearest = {
+        distance,
+        segmentIndex: index - 1,
+        progressMeters: cumulativeDistances[index - 1] + segmentLength * ratio,
+      }
+    }
+  }
+  return nearest
+}
+
+// Derives a concise live-navigation cue from route geometry. A wider sampling
+// window suppresses tiny bends in AMap polylines so they are not announced as turns.
+export function nextRouteManeuver(point, polyline) {
+  if (!Array.isArray(point) || point.length !== 2 || ![...point].every(Number.isFinite)) return null
+  if (!Array.isArray(polyline) || polyline.length < 2) return null
+  if (!polyline.every((routePoint) => (
+    Array.isArray(routePoint) && routePoint.length === 2 && routePoint.every(Number.isFinite)
+  ))) return null
+
+  const cumulativeDistances = [0]
+  for (let index = 1; index < polyline.length; index += 1) {
+    cumulativeDistances.push(cumulativeDistances[index - 1] + routePointDistance(polyline[index - 1], polyline[index]))
+  }
+  const progress = nearestRouteProgress(point, polyline, cumulativeDistances)
+  if (!progress) return null
+
+  const samplingMeters = 12
+  for (let index = progress.segmentIndex + 1; index < polyline.length - 1; index += 1) {
+    const distanceToTurn = cumulativeDistances[index] - progress.progressMeters
+    if (distanceToTurn < -3) continue
+
+    let beforeIndex = index - 1
+    while (beforeIndex > 0 && cumulativeDistances[index] - cumulativeDistances[beforeIndex] < samplingMeters) beforeIndex -= 1
+    let afterIndex = index + 1
+    while (afterIndex < polyline.length - 1 && cumulativeDistances[afterIndex] - cumulativeDistances[index] < samplingMeters) afterIndex += 1
+
+    const referenceLatitude = polyline[index][0]
+    const [beforeX, beforeY] = projectedMeters(polyline[beforeIndex], referenceLatitude)
+    const [turnX, turnY] = projectedMeters(polyline[index], referenceLatitude)
+    const [afterX, afterY] = projectedMeters(polyline[afterIndex], referenceLatitude)
+    const incoming = [turnX - beforeX, turnY - beforeY]
+    const outgoing = [afterX - turnX, afterY - turnY]
+    const incomingLength = Math.hypot(...incoming)
+    const outgoingLength = Math.hypot(...outgoing)
+    if (incomingLength < 4 || outgoingLength < 4) continue
+
+    const cross = incoming[0] * outgoing[1] - incoming[1] * outgoing[0]
+    const dot = incoming[0] * outgoing[0] + incoming[1] * outgoing[1]
+    const angle = Math.atan2(cross, dot) * 180 / Math.PI
+    if (Math.abs(angle) < 35) continue
+    return {
+      type: angle > 0 ? 'left' : 'right',
+      label: angle > 0 ? '左转' : '右转',
+      symbol: angle > 0 ? '↰' : '↱',
+      distanceMeters: Math.max(0, Math.round(distanceToTurn)),
+    }
+  }
+
+  const remainingMeters = Math.max(0, cumulativeDistances.at(-1) - progress.progressMeters)
+  if (remainingMeters <= 15) {
+    return { type: 'arrive', label: '到达目的地', symbol: '●', distanceMeters: Math.round(remainingMeters) }
+  }
+  return { type: 'straight', label: '继续直行', symbol: '↑', distanceMeters: Math.round(remainingMeters) }
+}
+
 export function semanticZoomLevel(zoom, baselineZoom) {
   const delta = zoom - baselineZoom
   if (delta < 0.5) return 0
