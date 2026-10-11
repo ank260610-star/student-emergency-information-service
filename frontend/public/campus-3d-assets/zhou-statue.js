@@ -1,5 +1,5 @@
-import * as THREE from 'three';
-import {GLTFLoader} from 'three/addons/loaders/GLTFLoader.js';
+import * as THREE from './vendor/three/build/three.module.js';
+import {GLTFLoader} from './vendor/three/examples/jsm/loaders/GLTFLoader.js';
 let asset;
 const loadAsset=()=>asset??=new GLTFLoader().loadAsync('./work/zhou-statue-realistic.glb');
 // The head is reconstructed separately to preserve brows, eyelids, lips and hair

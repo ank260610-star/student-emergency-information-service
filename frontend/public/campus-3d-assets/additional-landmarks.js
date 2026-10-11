@@ -1,4 +1,4 @@
-import * as T from 'three';
+import * as T from './vendor/three/build/three.module.js';
 
 function brickMaterial(){
  const c=document.createElement('canvas');c.width=512;c.height=256;const x=c.getContext('2d');x.fillStyle='#706251';x.fillRect(0,0,512,256);

@@ -1,5 +1,5 @@
-import * as THREE from 'three';
-import {GLTFLoader} from 'three/addons/loaders/GLTFLoader.js';
+import * as THREE from './vendor/three/build/three.module.js';
+import {GLTFLoader} from './vendor/three/examples/jsm/loaders/GLTFLoader.js';
 import {createZhouStatue} from './zhou-statue.js';
 
 const standard = (color, extra={}) => new THREE.MeshStandardMaterial({color, roughness:.7, metalness:.08, ...extra});

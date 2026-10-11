@@ -1,4 +1,4 @@
-import * as T from 'three';
+import * as T from './vendor/three/build/three.module.js';
 import {mergeGeometries} from './vendor/three/examples/jsm/utils/BufferGeometryUtils.js';
 
 // Photograph numbers refer to work/campus-photo-survey.json. These are modeled

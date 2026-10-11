@@ -1,5 +1,5 @@
 import {surveyedBuilding,addSurveyDetails,optimizePhotoDetails} from './campus-photo-details.js?v=photos-1';
-import * as T from 'three';
+import * as T from './vendor/three/build/three.module.js';
 import {libraryModel} from './landmarks.js?v=landmarks-3';
 import {officeModel,activityModel,gymModel} from './additional-landmarks.js?v=buildings-3';
 import {hospitalModel,cultureModel} from './photo-landmarks.js?v=photo-1';
