@@ -1,4 +1,4 @@
-import * as T from 'three';
+import * as T from './vendor/three/build/three.module.js';
 // Front elevation reference: Nankai Library official photograph by Wu Junhui.
 // Height: official 2015 opening report, 43.20 m. Depth/back details remain approximate.
 export function libraryModel(){

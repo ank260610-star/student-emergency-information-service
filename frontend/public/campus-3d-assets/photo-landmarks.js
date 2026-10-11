@@ -1,4 +1,4 @@
-import * as T from 'three';
+import * as T from './vendor/three/build/three.module.js';
 
 function brick(){const c=document.createElement('canvas');c.width=c.height=256;const x=c.getContext('2d');x.fillStyle='#9a5540';x.fillRect(0,0,256,256);for(let y=0;y<32;y++)for(let col=-1;col<18;col++){const shade=118+(col*17+y*11)%28;x.fillStyle=`rgb(${shade+35},${Math.max(55,shade-4)},${Math.max(40,shade-18)})`;x.fillRect(col*18+(y%2)*9,y*8,17,7)}const map=new T.CanvasTexture(c);map.wrapS=map.wrapT=T.RepeatWrapping;map.repeat.set(7,5);map.colorSpace=T.SRGBColorSpace;return new T.MeshStandardMaterial({map,roughness:.91})}
 const stone=new T.MeshStandardMaterial({color:0xbab8ae,roughness:.86}),glass=new T.MeshStandardMaterial({color:0x31515b,metalness:.42,roughness:.2}),metal=new T.MeshStandardMaterial({color:0x303739,roughness:.43,metalness:.5});

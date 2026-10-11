@@ -1,4 +1,4 @@
-import * as T from 'three';
+import * as T from './vendor/three/build/three.module.js';
 export function sculptCar(spec,index){
  const g=new T.Group(); const paint=new T.MeshPhysicalMaterial({color:spec.color,metalness:.72,roughness:.16,clearcoat:1,clearcoatRoughness:.08,iridescence:.08}); const black=new T.MeshStandardMaterial({color:0x090b0e,roughness:.28,metalness:.2}); const glass=new T.MeshPhysicalMaterial({color:0x173340,metalness:.82,roughness:.035,transmission:.12,transparent:true,opacity:.88});
  const w=spec.make==='mercedes'?1.13:index===1?1.0:1.07,l=spec.make==='mercedes'?5.35:spec.make==='ferrari'?4.85:index===1?4.52:index===6?4.87:4.94;
