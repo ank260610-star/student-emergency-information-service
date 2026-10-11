@@ -11,6 +11,7 @@ const router = createRouter({
     { path: '/service-guide', name: 'service-guide', component: () => import('./views/ServiceGuideView.vue'), meta: { title: `办事指南 | ${siteTitle}` } },
     { path: '/contacts', name: 'contacts', component: () => import('./views/ContactsView.vue'), meta: { title: `紧急联络人 | ${siteTitle}` } },
     { path: '/campus-map', name: 'campus-map', component: () => import('./views/CampusMapView.vue'), meta: { title: `校园地图 | ${siteTitle}` } },
+    { path: '/campus-3d', name: 'campus-3d', component: () => import('./views/Campus3DView.vue'), meta: { title: `3D 校园地图 | ${siteTitle}` } },
     { path: '/nearby', name: 'nearby', component: () => import('./views/NearbyInfoView.vue'), meta: { title: `周边信息 | ${siteTitle}` } },
     { path: '/links', name: 'links', component: () => import('./views/CommonLinksView.vue'), meta: { title: `常用链接 | ${siteTitle}` } },
     { path: '/wechat', name: 'wechat', component: () => import('./views/WechatAccountsView.vue'), meta: { title: `常用公众号 | ${siteTitle}` } },

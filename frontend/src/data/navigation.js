@@ -16,6 +16,14 @@ export const navigationItems = [
     ]
   },
   {
+    "to": "/campus-3d",
+    "title": "3D 校园地图",
+    "subtitle": "津南校区三维漫游",
+    "paths": [
+      "m12 2 9 5v10l-9 5-9-5V7l9-5Zm0 10 9-5M12 12 3 7m9 5v10"
+    ]
+  },
+  {
     "to": "/service-guide",
     "title": "办事指南",
     "subtitle": "窗口、报修与缴费信息",

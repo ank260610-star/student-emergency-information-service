@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <title>NKU: 津南极速校园</title>
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "./vendor/three/build/three.module.js",
+          "three/addons/": "./vendor/three/examples/jsm/"
+        }
+      }
+    </script>
+    <link rel="stylesheet" href="style.css?v=mobile-2" />
+  </head>
+  <body>
+    <main class="game-shell" unselectable="on">
+      <canvas id="game" aria-label="南开大学津南校区三维开放世界"></canvas>
+      <section class="hud" aria-live="polite">
+        <div class="brand"><span>NKU</span><small>津南极速校园</small></div>
+        <div class="mission"><b id="mission-title">自由漫游</b><span id="mission-text">去图书馆、食堂或教学楼探索校园</span></div>
+        <div class="stats"><span id="vehicle">Aventador</span><span id="speed">0 km/h</span><span id="credits">校园币 0</span><span id="clock">10:20</span></div>
+      </section>
+      <section id="mobile-controls" class="mobile-controls" aria-label="触屏操控" hidden>
+        <div class="mobile-actions">
+          <button data-action="person">下车 / 步行</button><button data-action="interact">互动 / 骑车</button>
+          <button data-action="plane">飞行</button><button data-action="garage" aria-expanded="false">换车</button>
+          <button data-action="night">日 / 夜</button><button data-action="reset">回南门</button>
+          <button data-action="orbit">环视</button><button data-action="mute" aria-pressed="false">静音</button>
+        </div>
+        <div class="mobile-zoom" hidden><button data-action="zoom-in" aria-label="拉近视角">＋</button><button data-action="zoom-out" aria-label="拉远视角">－</button></div>
+        <div id="joystick" class="joystick" aria-label="方向摇杆：上下前进后退，左右转向"><span id="joystick-knob"></span></div>
+        <p id="touch-hint" class="touch-hint">摇杆控制方向 · 右侧油门与刹车</p>
+        <div class="mobile-pedals">
+          <button data-hold="shift" class="flight-control">上升</button>
+          <button data-hold=" " id="touch-special">手刹</button>
+          <button data-hold="s" id="touch-brake">刹车 / 倒车</button>
+          <button data-hold="w" id="touch-throttle">油门</button>
+        </div>
+      </section>
+      <section class="garage" aria-label="超级跑车车库">
+        <b>超级跑车车库</b>
+        <button class="selected" data-car="0"><span>Aventador</span><small>V12 · 320 km/h</small></button>
+        <button data-car="1"><span>Huracán Tecnica</span><small>V10 · 320 km/h</small></button>
+        <button data-car="2"><span>Revuelto</span><small>V12 HPEV · 320 km/h</small></button>
+        <em>数字键 1 / 2 / 3 快速换车</em>
+      </section>
+      <section class="legend">
+        <b>操控</b>
+        <span>WASD 驾驶 / 步行 / 骑车</span><span>1–9 换车</span><span>跑车极速 320 km/h</span><span>F 模拟飞行 · Shift 上升</span><span>C 人物 · E 骑自行车</span><span>N 切换夜景</span><span>B 碰撞边界</span><span>人物：拖动鼠标环视 · 滚轮缩放</span>
+      </section>
+      <div class="map-credit">地图坐标：© OpenStreetMap contributors · 校园范围与功能分区参考南开大学公开资料</div>
+      <div id="toast" class="toast">欢迎来到南开大学津南校区</div>
+      <section id="start" class="start-card">
+        <p class="eyebrow">OPEN CAMPUS</p>
+        <h1>津南极速校园</h1>
+        <p>自由探索模式：遵循道路、限速、开放时段与建筑碰撞规则的三维校园。</p>
+        <p id="runtime-status" role="status" data-state="loading">正在加载校园地图…</p>
+        <button id="start-btn" disabled>正在加载</button>
+        <small>WebGL 三维原型 · 非官方作品；<a href="./ATTRIBUTION.md" target="_blank" rel="noopener">模型与地图来源</a></small>
+      </section>
+    </main>
+    <script src="bootstrap.js?v=mobile-2"></script>
+    <script type="module" src="game3d.js?v=mobile-2"></script>
+  </body>
+</html>
