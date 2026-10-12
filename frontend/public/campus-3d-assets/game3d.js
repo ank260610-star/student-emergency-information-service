@@ -197,11 +197,24 @@ function makeCar(spec,index){
  return next;
 }
 let car=makeCar(carSpecs[0],0);scene.add(car);
-let orbit=false,damage=0,audio,engine,gain,engineHarmonic,harmonicGain,muted=false;
+let orbit=false,damage=0,audio,engine,gain,engineHarmonic,harmonicGain,jetCore,jetWhine,jetGain,jetWhineGain,muted=false;
 addEventListener('blur',()=>keys.clear());
 addEventListener('keydown',e=>{if(e.repeat||!state.started)return;if(/^[4-9]$/.test(e.key))selectCar(+e.key-1);if(e.key.toLowerCase()==='v')orbit=!orbit;if(e.key.toLowerCase()==='m')muted=!muted;if(e.key.toLowerCase()==='n')toggleNight();if(e.key.toLowerCase()==='b'){collisionDebug.visible=!collisionDebug.visible;toast(collisionDebug.visible?'碰撞调试已开启：红=实体，蓝=水域，黄=台阶':'碰撞调试已关闭')}enableAudio();});
-function enableAudio(){try{if(!audio){audio=new AudioContext();engine=audio.createOscillator();engineHarmonic=audio.createOscillator();gain=audio.createGain();harmonicGain=audio.createGain();engine.type='sawtooth';engineHarmonic.type='square';gain.gain.value=0;harmonicGain.gain.value=0;engine.connect(gain).connect(audio.destination);engineHarmonic.connect(harmonicGain).connect(audio.destination);engine.start();engineHarmonic.start()}audio.resume();}catch(error){console.warn('Audio unavailable',error);}}
-const plane=new THREE.Group();const fus=new THREE.Mesh(new THREE.CylinderGeometry(3.3,5,48,12),boxMat(0xe5e1cd));fus.rotation.x=Math.PI/2;fus.castShadow=true;plane.add(fus);const wing=new THREE.Mesh(new THREE.BoxGeometry(58,2,13),boxMat(0xd7d2bf));wing.position.z=1;plane.add(wing);const tail=new THREE.Mesh(new THREE.BoxGeometry(22,1.5,8),boxMat(0xc95a45));tail.position.z=18;plane.add(tail);plane.visible=false;scene.add(plane);
+function enableAudio(){try{if(!audio){audio=new AudioContext();engine=audio.createOscillator();engineHarmonic=audio.createOscillator();jetCore=audio.createOscillator();jetWhine=audio.createOscillator();gain=audio.createGain();harmonicGain=audio.createGain();jetGain=audio.createGain();jetWhineGain=audio.createGain();engine.type='sawtooth';engineHarmonic.type='square';jetCore.type='sawtooth';jetWhine.type='sine';gain.gain.value=0;harmonicGain.gain.value=0;jetGain.gain.value=0;jetWhineGain.gain.value=0;engine.connect(gain).connect(audio.destination);engineHarmonic.connect(harmonicGain).connect(audio.destination);jetCore.connect(jetGain).connect(audio.destination);jetWhine.connect(jetWhineGain).connect(audio.destination);engine.start();engineHarmonic.start();jetCore.start();jetWhine.start()}audio.resume();}catch(error){console.warn('Audio unavailable',error);}}
+function makeWidebodyFallback(){
+ const model=new THREE.Group(),white=boxMat(0xe4e7e2),dark=boxMat(0x17252d),metal=boxMat(0x607078),blue=boxMat(0x184667),light=new THREE.MeshStandardMaterial({color:0xff4228,emissive:0xff1108,emissiveIntensity:2});
+ const fuselage=new THREE.Mesh(new THREE.CylinderGeometry(3.5,4.8,52,24),white);fuselage.rotation.x=Math.PI/2;model.add(fuselage);
+ const upperDeck=new THREE.Mesh(new THREE.CapsuleGeometry(2.35,10,8,16),white);upperDeck.rotation.x=Math.PI/2;upperDeck.position.set(0,2.3,-7);model.add(upperDeck);
+ const wing=new THREE.Mesh(new THREE.BoxGeometry(66,.75,6.2),white);wing.position.z=-1;model.add(wing);
+ const tailplane=new THREE.Mesh(new THREE.BoxGeometry(23,.45,3),white);tailplane.position.set(0,1.4,20);model.add(tailplane);
+ const fin=new THREE.Mesh(new THREE.BoxGeometry(.55,10,5),blue);fin.position.set(0,6.5,20);fin.rotation.x=-.18;model.add(fin);
+ for(const side of [-1,1])for(const x of [12,24]){const engine=new THREE.Group(),nacelle=new THREE.Mesh(new THREE.CylinderGeometry(1.8,1.45,7.5,18),metal),intake=new THREE.Mesh(new THREE.CylinderGeometry(1.4,1.4,.15,18),dark),pylon=new THREE.Mesh(new THREE.BoxGeometry(.7,2.4,2.1),white);nacelle.rotation.x=Math.PI/2;intake.rotation.x=Math.PI/2;intake.position.z=-3.82;pylon.position.y=1.5;engine.add(nacelle,intake,pylon);engine.position.set(side*x,-1.7,-1);engine.name=`四发宽体引擎 ${side<0?'左':'右'} ${x===12?'内':'外'}`;model.add(engine)}
+ for(const x of [-2.05,-1.35,-.65,.65,1.35,2.05])for(let z=-18;z<12;z+=3.2){const window=new THREE.Mesh(new THREE.SphereGeometry(.22,8,6),dark);window.position.set(x,1.42,z);window.scale.set(1,.55,.55);model.add(window)}
+ for(const side of [-1,1]){const nav=new THREE.Mesh(new THREE.SphereGeometry(.3,8,6),light);nav.position.set(side*33,.4,-1);model.add(nav)}
+ model.name='四发宽体飞机 · 程序化后备模型';model.scale.setScalar(.72);model.traverse(o=>{if(o.isMesh){o.castShadow=true;o.receiveShadow=true}});return model;
+}
+const plane=new THREE.Group();plane.add(makeWidebodyFallback());plane.visible=false;scene.add(plane);
+new GLTFLoader().load('./work/campus-widebody-747.glb',gltf=>{const imported=gltf.scene;imported.traverse(o=>{if(o.isMesh){o.castShadow=true;o.receiveShadow=true;}});plane.clear();plane.add(imported);plane.userData.assetStatus='editable-widebody-glb-ready';},undefined,error=>{plane.userData.assetStatus='procedural-widebody-fallback';console.info('Editable widebody GLB is not available yet; using the built-in four-engine model.',error)});
 
 const state={mode:'car',carIndex:0,x:world(38.9812,117.3397).x,z:world(38.9812,117.3397).z,y:0,heading:Math.PI,speed:0,started:false,credits:0,mission:0};
 let cameraPointer=null;
@@ -255,11 +268,12 @@ function applyMode(mode){
  car.visible=mode==='car';plane.visible=mode==='plane';campusLife.player.visible=mode==='person';
  campusLife.player.userData.tag.visible=false;
  cameraDistance=4.8;cameraPitch=.2;
- $('#vehicle').textContent=mode==='car'?carSpecs[state.carIndex].name:mode==='plane'?'校园模拟飞行器':'Winslow · 本科新生';
+ $('#vehicle').textContent=mode==='car'?carSpecs[state.carIndex].name:mode==='plane'?'四发宽体飞行器':'Winslow · 本科新生';
 }
 function switchVehicle(){
  applyMode(state.mode==='plane'?'car':'plane');
- toast(state.mode==='plane'?(touchDevice?'模拟飞行：限高 120 米，油门加速，按钮升降':'模拟飞行模式：限高 120 米，W 加速，Shift 上升'):`${carSpecs[state.carIndex].name}：极速 320 km/h`);
+ enableAudio();
+ toast(state.mode==='plane'?(touchDevice?'四发宽体飞行：限高 120 米，油门加速，按钮升降':'四发宽体飞行：W 加速，Shift 上升，四台引擎声随速度变化'):`${carSpecs[state.carIndex].name}：极速 320 km/h`);
 }
 function togglePerson(){
  applyMode(state.mode==='person'?'car':'person');
@@ -357,7 +371,7 @@ function update(dt){if(!state.started)return;
   if(steer)wheel.quaternion.multiply(steer);
   wheel.quaternion.multiply(spin);
  }
- if(engine){const rpm=(state.carIndex===1?48:38)+Math.abs(state.speed)*2.25+(throttle?42:0);engine.frequency.setTargetAtTime(rpm,audio.currentTime,.06);engineHarmonic.frequency.setTargetAtTime(rpm*2.03,audio.currentTime,.06);gain.gain.setTargetAtTime(muted||!isCar?0:throttle?.022:.008,audio.currentTime,.06);harmonicGain.gain.setTargetAtTime(muted||!isCar?0:throttle?.006:.0015,audio.currentTime,.06)}
+ if(engine){const rpm=(state.carIndex===1?48:38)+Math.abs(state.speed)*2.25+(throttle?42:0);engine.frequency.setTargetAtTime(rpm,audio.currentTime,.06);engineHarmonic.frequency.setTargetAtTime(rpm*2.03,audio.currentTime,.06);gain.gain.setTargetAtTime(muted||!isCar?0:throttle?.022:.008,audio.currentTime,.06);harmonicGain.gain.setTargetAtTime(muted||!isCar?0:throttle?.006:.0015,audio.currentTime,.06);const thrust=Math.max(0,state.speed)/30,jetRpm=54+thrust*138+(throttle?24:0);jetCore.frequency.setTargetAtTime(jetRpm,audio.currentTime,.08);jetWhine.frequency.setTargetAtTime(jetRpm*6.3,audio.currentTime,.08);jetGain.gain.setTargetAtTime(muted||state.mode!=='plane'?0:.018+thrust*.042,audio.currentTime,.08);jetWhineGain.gain.setTargetAtTime(muted||state.mode!=='plane'?0:.002+thrust*.009,audio.currentTime,.08)}
 
   if(state.mode!=='plane')state.y=stairHeight(state.x,state.z);
   const avatar=campusLife.player,walking=isPerson&&Math.abs(state.speed)>.12,riding=isBike,pose=avatar.userData;if(walking||riding)walkCycle+=dt*(riding?5+Math.abs(state.speed)*1.5:7+Math.abs(state.speed)*1.8);const swing=walking?Math.sin(walkCycle)*.72:0,pedal=riding?Math.sin(walkCycle)*.64:0,headNod=walking?Math.sin(walkCycle*2)*.075:0,blend=1-Math.exp(-dt*15),idle=Math.sin(performance.now()*.0016)*.012;
