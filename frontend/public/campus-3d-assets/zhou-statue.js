@@ -6,7 +6,8 @@ const loadAsset=()=>asset??=new GLTFLoader().loadAsync('./work/zhou-statue-reali
 // at close range. The source is the actual Jinnan bronze statue, not a portrait.
 export function createZhouStatue(){
  const g=new THREE.Group();g.name='周恩来总理铜像';g.userData.statueStatus='loading';
- const stone=new THREE.MeshStandardMaterial({color:0x999c95,roughness:.96});
+ const stoneCanvas=document.createElement('canvas');stoneCanvas.width=stoneCanvas.height=128;const stoneCtx=stoneCanvas.getContext('2d');stoneCtx.fillStyle='#999c95';stoneCtx.fillRect(0,0,128,128);for(let i=0;i<700;i++){const v=125+Math.random()*38;stoneCtx.fillStyle=`rgba(${v},${v+2},${v-1},${.08+Math.random()*.14})`;stoneCtx.fillRect(Math.random()*128,Math.random()*128,1+Math.random()*3,1+Math.random()*2)}const stoneTexture=new THREE.CanvasTexture(stoneCanvas);stoneTexture.wrapS=stoneTexture.wrapT=THREE.RepeatWrapping;stoneTexture.repeat.set(2,2);stoneTexture.colorSpace=THREE.SRGBColorSpace;
+ const stone=new THREE.MeshStandardMaterial({map:stoneTexture,color:0xffffff,roughness:.9,metalness:.02});
  const slab=new THREE.Mesh(new THREE.BoxGeometry(18.7,.8,11.2),stone);slab.position.y=.4;g.add(slab);
  const pedestal=new THREE.Mesh(new THREE.BoxGeometry(17.5,12,10.5),stone);pedestal.position.y=6.8;g.add(pedestal);
  const plaqueGeometry=new THREE.PlaneGeometry(12.5,2.05);
