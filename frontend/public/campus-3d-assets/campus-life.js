@@ -1,6 +1,6 @@
 import * as THREE from './vendor/three/build/three.module.js';
 import {GLTFLoader} from './vendor/three/examples/jsm/loaders/GLTFLoader.js';
-import {createZhouStatue} from './zhou-statue.js?v=visual-fix-2';
+import {createZhouStatue} from './zhou-statue.js';
 
 const standard = (color, extra={}) => new THREE.MeshStandardMaterial({color, roughness:.7, metalness:.08, ...extra});
 
@@ -64,7 +64,7 @@ function mountSharedBikeModel(bike, template){
       wheels.push(node);
       if(node.name==='wheel-bike-front')frontWheels.push(node);
     }
-    if(node.isMesh){node.castShadow=true;node.receiveShadow=true;if(node.name==='wheel-bike-front'||node.name==='wheel-bike-rear'){node.material=node.material?.clone?.()||node.material;if(node.material){node.material.metalness=.82;node.material.roughness=.24;}}}
+    if(node.isMesh){node.castShadow=true;node.receiveShadow=true;}
   });
   // Yellow, blue and red are original campus-fleet colourways. Brand marks are
   // intentionally not copied from Meituan, ByteDance or Ele.me assets.
@@ -127,8 +127,9 @@ function winslowAvatar(){
   const arms=[limb(-1.32,4.95,coat),limb(1.32,4.95,coat)];arms[0].rotation.z=.12;arms[1].rotation.z=-.12;
   const headPivot=new THREE.Group();headPivot.position.y=5.78;g.add(headPivot);const neck=new THREE.Mesh(new THREE.CylinderGeometry(.46,.52,.52,12),skin);neck.position.y=.15;headPivot.add(neck);
   const head=new THREE.Mesh(new THREE.SphereGeometry(.93,24,20),skin);head.position.y=1.02;head.scale.set(.94,1.09,.9);headPivot.add(head);
-  // Generated from the user's supplied three-angle references; the old single selfie texture is retired.
-  const faceMap=new THREE.TextureLoader().load('./work/winslow-face-albedo-v2.png');faceMap.colorSpace=THREE.SRGBColorSpace;faceMap.anisotropy=8;faceMap.wrapS=faceMap.wrapT=THREE.ClampToEdgeWrapping;faceMap.repeat.set(.72,.68);faceMap.offset.set(.14,.13);const face=new THREE.Mesh(new THREE.PlaneGeometry(1.58,1.82),new THREE.MeshBasicMaterial({map:faceMap,transparent:true}));face.position.set(0,1.02,.846);headPivot.add(face);
+  // Face texture is an explicit local asset slot. A licensed portrait supplied
+  // by the project owner can replace this file without changing the rig.
+  const faceMap=new THREE.TextureLoader().load('./work/eddie-peng-ccby.png');faceMap.colorSpace=THREE.SRGBColorSpace;faceMap.wrapS=faceMap.wrapT=THREE.ClampToEdgeWrapping;faceMap.repeat.set(.48,.45);faceMap.offset.set(.26,.43);const face=new THREE.Mesh(new THREE.PlaneGeometry(1.58,1.82),new THREE.MeshBasicMaterial({map:faceMap,transparent:true}));face.position.set(0,1.02,.846);headPivot.add(face);
   const hairCap=new THREE.Mesh(new THREE.SphereGeometry(.99,24,16,0,Math.PI*2,0,1.28),hair);hairCap.position.set(0,1.4,.02);hairCap.scale.set(.96,.78,.95);headPivot.add(hairCap);for(let i=-4;i<=4;i++){const tuft=new THREE.Mesh(new THREE.CapsuleGeometry(.06,.42,5,7),hair);tuft.position.set(i*.14,1.74,.68-Math.abs(i)*.025);tuft.rotation.z=-i*.13;tuft.rotation.x=-.45;headPivot.add(tuft)}
   const capTop=new THREE.Mesh(new THREE.SphereGeometry(1.03,24,14,0,Math.PI*2,0,1.18),cap);capTop.position.set(0,1.58,.02);capTop.scale.set(.96,.72,.96);headPivot.add(capTop);const brim=new THREE.Mesh(new THREE.BoxGeometry(1.52,.13,.67),cap);brim.position.set(0,1.58,.83);brim.rotation.x=-.12;headPivot.add(brim);
   for(const x of [-.37,.37]){const glasses=new THREE.Mesh(new THREE.SphereGeometry(.35,14,10),lens);glasses.position.set(x,1.1,.89);glasses.scale.z=.16;headPivot.add(glasses)}const bridge=new THREE.Mesh(new THREE.BoxGeometry(.22,.055,.05),standard(0xb0a187,{metalness:.8,roughness:.22}));bridge.position.set(0,1.11,.93);headPivot.add(bridge);

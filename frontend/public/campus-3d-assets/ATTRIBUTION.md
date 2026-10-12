@@ -4,4 +4,6 @@
 - Three.js 0.180.0：MIT，授权文本保留于 vendor/three/LICENSE。
 - Aventador SVJ SDC 模型：SDC PERFORMANCE™，CC Attribution，模型文件 aventador-svj-sdc.glb。
 - 共享单车模型：CC0，模型文件 shared-bike-cc0.glb。
+- Boeing 747 GLB：OpenDEM 1 上传的 1883 模型，来源 MediaWiki3D / Sketchfab，CC BY-SA 4.0，文件 boeing-747.glb。
+- 彭于晏头像图：am730 视频截图，Wikimedia Commons 文件，CC BY 3.0，文件 eddie-peng-ccby.png；已裁切用于人物头像贴图。
 - 校园建筑、地标与材质沿用用户提供的津南校园 3D 项目。
