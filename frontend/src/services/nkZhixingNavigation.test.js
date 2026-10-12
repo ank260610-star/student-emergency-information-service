@@ -8,6 +8,7 @@ import {
   findDestinationCandidates,
   findLocationMatches,
   findOrigin,
+  isNavigationRequest,
   isNavigationPoint,
   isNamedFacilityGate,
   isPointNearCampus,
@@ -20,6 +21,16 @@ test('detects the latest explicit travel mode in a navigation request', () => {
   assert.equal(findRequestedTravelMode('从西南门走路去食堂'), 'walking')
   assert.equal(findRequestedTravelMode('先骑车，之后改为步行'), 'walking')
   assert.equal(findRequestedTravelMode('去中心图书馆'), '')
+  assert.equal(findRequestedTravelMode('腿着去图书馆'), 'walking')
+  assert.equal(findRequestedTravelMode('骑小电驴去食堂'), 'bicycling')
+  assert.equal(findRequestedTravelMode('打车去校医院'), 'driving')
+})
+
+test('recognizes conversational navigation requests', () => {
+  for (const request of ['图书馆咋走', '中心图书馆怎么过去啊', '带我去文科食堂吧', '校医院离我多远']) {
+    assert.equal(isNavigationRequest(request), true)
+  }
+  assert.equal(isNavigationRequest('思源堂的历史是什么'), false)
 })
 
 test('treats natural current-location phrases as the live starting point', () => {
@@ -28,6 +39,8 @@ test('treats natural current-location phrases as the live starting point', () =>
     '从这里出发去文科食堂',
     '以我的位置为起点前往东门',
     '从我所在的位置导航到体育馆',
+    '从我这边去图书馆',
+    '就从这出发去文科食堂',
   ]) {
     assert.equal(refersToCurrentPosition(request), true)
   }
@@ -59,11 +72,18 @@ test('question suffixes keep a destination instead of splitting it away', () => 
   assert.equal(extractNavigationDestination('从西南门到 中心图书馆 怎么走？'), '中心图书馆')
   assert.equal(extractNavigationDestination('怎么去校医院？'), '校医院')
   assert.equal(extractNavigationDestination('思源堂的历史是什么？'), '')
+  assert.equal(extractNavigationDestination('图书馆咋走？'), '图书馆')
+  assert.equal(extractNavigationDestination('我在西南门，中心图书馆咋走？'), '中心图书馆')
+  assert.equal(extractNavigationDestination('西南门出发，带我去中心图书馆吧'), '中心图书馆')
+  assert.equal(extractNavigationDestination('中心图书馆怎么过去啊'), '中心图书馆')
+  assert.equal(extractNavigationDestination('中心图书馆离我多远'), '中心图书馆')
 })
 
 test('extracts an explicit named-facility gate as an external origin', () => {
   assert.equal(extractNavigationOrigin('从商学院东门去图书馆'), '商学院东门')
   assert.equal(extractNavigationOrigin('去图书馆'), '')
+  assert.equal(extractNavigationOrigin('我在西南门，中心图书馆咋走'), '西南门')
+  assert.equal(extractNavigationOrigin('从西南门出发，带我去中心图书馆'), '西南门')
   assert.equal(isNamedFacilityGate('商学院的东门'), true)
   assert.equal(isNamedFacilityGate('学校东门'), false)
 })
@@ -92,6 +112,7 @@ test('candidate selection uses the destination, preserves ambiguity, and prefers
   assert.deepEqual(findDestinationCandidates('去中心图书馆', campus).map((item) => item.id), ['lib'])
   assert.deepEqual(findDestinationCandidates('去公教', campus).map((item) => item.id), ['jinnan-public-teaching'])
   assert.deepEqual(findDestinationCandidates('从西南门去实验新楼', campus), [])
+  assert.deepEqual(findDestinationCandidates('我在西南门，中心图书馆咋走', campus).map((item) => item.id), ['lib'])
 })
 
 test('request instructions include the confirmed destination and selected mode', () => {
@@ -102,6 +123,7 @@ test('request instructions include the confirmed destination and selected mode',
   assert.match(instructions, /中心图书馆（津南校区）/)
   assert.match(instructions, /禁止替换为另一校区同名 POI/)
   assert.match(instructions, /经度 117\.000000，纬度 39\.000000/)
+  assert.match(instructions, /自然语言理解/)
   const narration = buildAgentInstructions({ campus, mode: 'walking', narrative: { title: '思源堂', brief: '简介', facts: '事实' } })
   assert.match(narration, /本站审核的地点资料/)
   assert.doesNotMatch(narration, /网页导航协同/)
