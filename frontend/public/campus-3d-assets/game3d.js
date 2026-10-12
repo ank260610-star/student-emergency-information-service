@@ -71,17 +71,17 @@ const roads = [
 function seeded(s){let h=2166136261;for(const c of s)h=Math.imul(h^c.charCodeAt(0),16777619);return ()=>((h=Math.imul(h^h>>>15,2246822519))>>>0)/4294967295}
 function label(text,pos,color='#fff'){
   const c=document.createElement('canvas'),x=c.getContext('2d');c.width=512;c.height=96;x.fillStyle='rgba(13,31,34,.78)';x.roundRect(4,4,504,86,14);x.fill();x.strokeStyle='#f3d84f';x.lineWidth=4;x.stroke();x.fillStyle=color;x.font='700 31px Noto Sans SC, sans-serif';x.textAlign='center';x.textBaseline='middle';x.fillText(text,256,48);
-  const tex=new THREE.CanvasTexture(c),spr=new THREE.Sprite(new THREE.SpriteMaterial({map:tex,depthTest:true}));spr.position.copy(pos);spr.scale.set(48,9,1);spr.renderOrder=20;spr.userData.schematic=true;campus.add(spr);return spr;
+  const tex=new THREE.CanvasTexture(c),spr=new THREE.Sprite(new THREE.SpriteMaterial({map:tex,depthTest:true,transparent:true}));spr.position.copy(pos);spr.scale.set(48,9,1);spr.renderOrder=20;spr.userData.schematic=true;spr.userData.locationLabel=true;spr.userData.baseScale=spr.scale.clone();campus.add(spr);return spr;
 }
 const buildings = [
  ['南开大学津南校区中心图书馆',38.9852884,117.3405293,150,95,45,'landmark'],['综合业务东楼',38.9844730,117.3417163,115,65,34],['综合业务西楼',38.9846374,117.3392039,115,65,34],
- ['历史学院',38.9900639,117.3370038,75,55,28],['哲学院',38.9898091,117.3376238,68,48,25],['法学院',38.9894087,117.3357768,78,50,28],['马克思主义学院',38.9902578,117.3377131,72,48,25],['金融学院',38.9891991,117.3369718,76,52,29],
+ ['历史学院',38.9900639,117.3370038,75,55,28],['哲学院',38.9898091,117.3376238,68,48,25],['法学院',38.9894087,117.3357768,78,50,28],['马克思主义学院',38.9902578,117.3377131,72,48,25],['金融学院',38.9891991,117.3369718,76,52,29],['社会学院',38.9898700,117.3351200,78,54,28],
  ['人工智能学院',38.9868672,117.3353223,76,54,31],['计算机与网络空间安全学院',38.9855981,117.3362590,90,58,34],['电子信息与光学工程学院',38.9860611,117.3349731,88,55,31],['材料科学与工程学院',38.9865640,117.3365227,84,54,28],
  ['环境科学与工程学院',38.9881870,117.3309268,88,58,31],['药学院',38.9867716,117.3312736,80,55,29],['南开大学医学院',38.9859732,117.3304926,92,62,34],['汉语言文化学院',38.9896880,117.3353429,76,54,27],
  ['新闻与传播学院',38.9880937,117.3336498,75,52,27],['前沿交叉学科中心',38.9890830,117.3419938,92,62,36],['体育馆',38.9909662,117.3411024,115,90,25],['大通学生活动中心',38.9872244,117.3440134,86,64,22],
  ['木斋图书馆',38.9887377,117.3331249,62,40,17],['秀山堂',38.9880322,117.3336463,55,38,15],['思源堂',38.9889725,117.3340963,55,38,15],['南开大学医院',38.9930869,117.3354414,72,48,21],
  ['学一食堂',38.9916224,117.3359897,90,62,19,'food'],['学二食堂',38.9850844,117.3346608,90,62,19,'food'],['乐群餐厅',38.9915294,117.3340724,68,48,17,'food'],
- ['学生宿舍2',38.9920072,117.3381474,65,38,32,'dorm'],['学生宿舍3',38.9925996,117.3382845,65,38,32,'dorm'],['学生宿舍4',38.9923360,117.3364556,68,40,32,'dorm'],['学8',38.9835076,117.3363956,72,40,31,'dorm'],['学9',38.9828604,117.3361214,72,40,31,'dorm'],['学10',38.9924061,117.3336420,72,40,31,'dorm'],
+ ['学生宿舍1',38.9916500,117.3391000,68,40,32,'dorm'],['学生宿舍2',38.9920072,117.3381474,65,38,32,'dorm'],['学生宿舍3',38.9925996,117.3382845,65,38,32,'dorm'],['学生宿舍4',38.9923360,117.3364556,68,40,32,'dorm'],['学8',38.9835076,117.3363956,72,40,31,'dorm'],['学9',38.9828604,117.3361214,72,40,31,'dorm'],['学10',38.9924061,117.3336420,72,40,31,'dorm'],
  ['学生宿舍5A',38.9833883,117.3353057,62,35,29,'dorm'],['学生宿舍5B',38.9838113,117.3354604,62,35,29,'dorm'],['学生宿舍5C',38.9842641,117.3342463,62,35,29,'dorm'],['学生宿舍5D',38.9838845,117.3341535,62,35,29,'dorm'],['学生宿舍6',38.9832224,117.3340220,67,38,29,'dorm'],['学生宿舍7A',38.9844262,117.3367384,64,38,30,'dorm'],['学生宿舍7B',38.9846195,117.3357803,64,38,30,'dorm'],
  ['留学生公寓A',38.9915215,117.3342552,55,34,30,'dorm'],['留学生公寓B',38.9919101,117.3334064,55,34,30,'dorm'],['留学生公寓C',38.9916186,117.3331596,55,34,30,'dorm'],['留学生公寓D',38.9913065,117.3329562,55,34,30,'dorm'],['留学生公寓E',38.9910913,117.3337414,55,34,30,'dorm']
 ];
@@ -89,6 +89,7 @@ const interactive=[];
 for(const b of buildings){const [name,lat,lon,w,d,h,type]=b,p=world(lat,lon),rand=seeded(name),color=type==='landmark'?0xc8b37a:type==='food'?0xd59258:type==='dorm'?0xc77d68:0xb8b39d;
   const g=new THREE.Group(),body=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),boxMat(color));body.position.y=h/2;body.castShadow=true;body.receiveShadow=true;g.add(body);
   const roof=new THREE.Mesh(new THREE.BoxGeometry(w+4,2,d+4),boxMat(type==='landmark'?0x74583d:0x596768));roof.position.y=h+1;roof.castShadow=true;g.add(roof);
+  if(name==='思源堂'){const cap=new THREE.Mesh(new THREE.ConeGeometry(Math.max(w,d)*.7,7,4),boxMat(0x7b302a));cap.rotation.y=Math.PI/4;cap.position.y=h+5;cap.scale.z=d/w;cap.castShadow=true;g.add(cap);}
   const winMat=new THREE.MeshStandardMaterial({color:0x8bcad4,emissive:0x17343a,emissiveIntensity:.5});for(let floor=7;floor<h-3;floor+=7){for(const side of [-1,1]){const win=new THREE.Mesh(new THREE.BoxGeometry(w*.78,2,.45),winMat);win.position.set(0,floor,side*(d/2+.25));g.add(win)}}
   g.position.copy(p);g.rotation.y=(rand()-.5)*.28;g.userData.schematic=true;campus.add(g);if(type==='landmark'||type==='food'||/学院|体育馆|医院/.test(name))label(name,new THREE.Vector3(p.x,h+19,p.z));interactive.push({name,pos:p,type,reward:type==='food'?80:140});
 }
@@ -214,13 +215,13 @@ const state={mode:'car',carIndex:0,x:world(38.9812,117.3397).x,z:world(38.9812,1
 let cameraPointer=null;
 let activeBike=null,cameraYaw=0,cameraPitch=.2,cameraDistance=5.8,draggingCamera=false,lastPointer={x:0,y:0},walkCycle=0;
 const wheelSpinAxis=new THREE.Vector3(1,0,0),wheelSteerAxis=new THREE.Vector3(0,1,0);
-canvas.addEventListener('pointerdown',e=>{if(!state.started||state.mode!=='person'||cameraPointer!==null)return;cameraPointer=e.pointerId;draggingCamera=true;lastPointer={x:e.clientX,y:e.clientY};canvas.setPointerCapture?.(e.pointerId)});
+canvas.addEventListener('pointerdown',e=>{if(!state.started||state.mode==='plane'||cameraPointer!==null)return;cameraPointer=e.pointerId;draggingCamera=true;lastPointer={x:e.clientX,y:e.clientY};canvas.setPointerCapture?.(e.pointerId)});
 canvas.addEventListener('pointermove',e=>{if(!draggingCamera||e.pointerId!==cameraPointer)return;cameraYaw-=((e.clientX-lastPointer.x)/innerWidth)*Math.PI*2;cameraPitch=THREE.MathUtils.clamp(cameraPitch+((e.clientY-lastPointer.y)/innerHeight)*Math.PI*1.1,-.18,.65);lastPointer={x:e.clientX,y:e.clientY}});
 function endCameraDrag(e){if(e.pointerId!==cameraPointer)return;draggingCamera=false;cameraPointer=null;if(canvas.hasPointerCapture(e.pointerId))canvas.releasePointerCapture(e.pointerId)}
 canvas.addEventListener('pointerup',endCameraDrag);canvas.addEventListener('pointercancel',endCameraDrag);canvas.addEventListener('lostpointercapture',endCameraDrag);
 addEventListener('blur',()=>{draggingCamera=false;cameraPointer=null});
 document.addEventListener('visibilitychange',()=>{if(document.hidden){keys.clear();draggingCamera=false;cameraPointer=null;}});
-canvas.addEventListener('wheel',e=>{if(state.mode==='person'){e.preventDefault();cameraDistance=THREE.MathUtils.clamp(cameraDistance+e.deltaY*.01,3.2,10)}},{passive:false});
+canvas.addEventListener('wheel',e=>{if(state.mode!=='plane'){e.preventDefault();cameraDistance=THREE.MathUtils.clamp(cameraDistance+e.deltaY*.01,state.mode==='person'?3.2:9, state.mode==='person'?10:28)}},{passive:false});
 const missions=['学一食堂','中心图书馆','人工智能学院','体育馆'];
 if(new URLSearchParams(location.search).get('landmark')==='library'){const p=world(38.9836,117.3405293);state.x=p.x;state.z=p.z;state.heading=Math.PI;}
 const buildingViews={east:[38.9834,117.34172],west:[38.9836,117.33920],activity:[38.9859,117.34401],statue:[38.98412,117.34054]};
@@ -281,7 +282,7 @@ function reset(){
  activeBike=null;
  const p=world(38.9812,117.3397);
  Object.assign(state,{x:p.x,z:p.z,y:0,heading:Math.PI});
- applyMode('car');damage=0;car.scale.copy(car.userData.restScale);
+ applyMode('car');damage=0;car.scale.copy(car.userData.restScale);for(const mark of car.userData.damageMarks||[])mark.removeFromParent();car.userData.damageMarks=[];
  // Return the starter bicycle too, so it remains available after a riding reset.
  campusLife.bikes.filter(b=>b.userData.starter).forEach((bike,i)=>{
   bike.position.set(p.x+(i? -3.2:3.2),0,p.z+1);bike.rotation.set(0,Math.PI/2,0);
@@ -292,6 +293,7 @@ function reset(){
  camera.position.set(state.x,6.4,state.z+17);
  toast('已回到南门');
 }
+resetButton.onclick=reset;
 function enterCampus(){
  if(state.started||!campusReady)return;
  $('#start').style.display='none';
@@ -323,6 +325,11 @@ function libraryCrossingBlocked(from,to,r){const lib=collisionBuildings.find(b=>
 function vehicleBlocked(from,to,radius){
  return sampledPathBlocked(from,to,radius,(x,z,r)=>collisionAt(x,z,r,state.mode),libraryCrossingBlocked);
 }
+function addCarScrape(){
+ const marks=car.userData.damageMarks??=[];if(marks.length>=6)return;const side=marks.length%2?-.98:.98,z=-1.7+(marks.length%3)*1.45;
+ const mark=new THREE.Mesh(new THREE.BoxGeometry(.018,.08,.72),new THREE.MeshStandardMaterial({color:0x151719,roughness:.9,metalness:.15}));mark.position.set(side,1.02,z);mark.rotation.y=(marks.length%2?.18:-.22);mark.rotation.z=.08;car.add(mark);marks.push(mark);
+ const dent=new THREE.Mesh(new THREE.SphereGeometry(.16,8,6),new THREE.MeshStandardMaterial({color:0x34383a,roughness:.85,metalness:.05}));dent.scale.set(.2,.5,.75);dent.position.set(side*1.01,1.0,z+.28);car.add(dent);marks.push(dent);
+}
 function stairHeight(x,z){if(state.mode!=='person')return 0;const s=onStairs(x,z);if(s)return s.height;if(!libraryDoor)return 0;const d=Math.hypot(x-libraryDoor.x,z-libraryDoor.z);return d<13?Math.max(0,(13-d)*.16):0}
 function aircraftBlocked(from,to,alt){if(alt<5&&inWater(to.x,to.z))return true;for(const b of collisionBuildings)if(!withinCourtyard(b.courtyard,to.x,to.z,5)&&inside(to.x,to.z,b.points)&&alt<b.height+2)return true;return alt<12&&solidHit(to.x,to.z,5)}
 function debugLine(points,color){const g=new THREE.BufferGeometry().setFromPoints(points.map(p=>new THREE.Vector3(p.x,.8,p.z)));const l=new THREE.LineLoop(g,new THREE.LineBasicMaterial({color,depthTest:false}));l.renderOrder=100;collisionDebug.add(l)}
@@ -341,7 +348,7 @@ function update(dt){if(!state.started)return;
  state.motionHeading??=state.heading;state.motionHeading+=Math.atan2(Math.sin(state.heading-state.motionHeading),Math.cos(state.heading-state.motionHeading))*Math.min(1,dt*(drift?1.8:12));
  state.x+=Math.sin(state.motionHeading)*state.speed*dt;state.z+=Math.cos(state.motionHeading)*state.speed*dt;
  if(state.mode==='plane'){if(keys.has('shift'))state.y+=25*dt;if(keys.has(' '))state.y-=25*dt;if(state.speed>14&&!keys.has(' '))state.y+=4*dt;state.y=THREE.MathUtils.clamp(state.y,4,120)}
- if(state.mode==='plane'?aircraftBlocked(previous,state,state.y):vehicleBlocked(previous,state,isCar?7:isBike?.75:.42)){if(isCar){damage=Math.min(100,damage+Math.abs(state.speed)*.35);toast('碰撞 · 车损 '+Math.round(damage)+'%')}else toast(state.mode==='plane'?'低空障碍，已中止起降':isBike?'前方有障碍，已刹车':'前方有建筑，无法穿墙');state.x=previous.x;state.z=previous.z;state.speed=0;state.y=previous.y;if(isCar)car.scale.z=car.userData.restScale.z*(1-damage*.0015);}
+ if(state.mode==='plane'?aircraftBlocked(previous,state,state.y):vehicleBlocked(previous,state,isCar?7:isBike?.75:.42)){if(isCar){damage=Math.min(100,damage+Math.abs(state.speed)*.35);addCarScrape();toast('碰撞 · 车损 '+Math.round(damage)+'%')}else toast(state.mode==='plane'?'低空障碍，已中止起降':isBike?'前方有障碍，已刹车':'前方有建筑，无法穿墙');state.x=previous.x;state.z=previous.z;state.speed=0;state.y=previous.y;if(isCar)car.scale.z=car.userData.restScale.z*(1-damage*.0015);}
  for(const m of car.userData.brakes||[]){m.traverse?.(part=>{if(part.isMesh&&part.material?.emissive){part.material.emissive.setHex(0xff180d);part.material.emissiveIntensity=brake||drift?2.4:.16}});if(m.emissiveIntensity!==undefined)m.emissiveIntensity=brake||drift?5:.7}
  // GLB wheels use the local X axle. Compose steering and rolling from the
  // original pose, rather than writing two Euler angles to the same wheel.
@@ -357,7 +364,8 @@ function update(dt){if(!state.started)return;
  // generated tyres are drawn over it: both original wheel groups roll, and
  // the front assembly is the only one that steers.
  for(const wheel of (isBike?activeBike?.userData.wheels:[])||[]){
-  wheel.userData.wheelSpin=(wheel.userData.wheelSpin||0)+state.speed*dt/.34;
+  // The authored bike faces +Z and its axle winding is opposite the car rig.
+  wheel.userData.wheelSpin=(wheel.userData.wheelSpin||0)-state.speed*dt/.34;
   const spin=new THREE.Quaternion().setFromAxisAngle(wheelSpinAxis,wheel.userData.wheelSpin);
   const steer=activeBike.userData.frontWheels?.includes(wheel)?new THREE.Quaternion().setFromAxisAngle(wheelSteerAxis,state.bikeSteer||0):null;
   wheel.quaternion.copy(wheel.userData.baseQuaternion||wheel.quaternion);
@@ -395,7 +403,7 @@ function animate(now){requestAnimationFrame(animate);const dt=Math.min(.05,(now-
       activeBike.updateMatrixWorld(true);
     }
   }
-  const personView=state.mode==='person',viewing=personView?state.heading+cameraYaw:state.heading+(orbit?now*.00035:0),forward=new THREE.Vector3(Math.sin(viewing),0,Math.cos(viewing)),carSpeed=Math.min(1,Math.abs(state.speed)/80),distance=personView?cameraDistance:state.mode==='bike'?8:state.mode==='car'?17+carSpeed*8:150,camOffset=forward.clone().multiplyScalar(-distance);camOffset.y=personView?2.25+Math.sin(cameraPitch)*distance*.32:state.mode==='bike'?4:state.mode==='car'?6.4+carSpeed*1.8:80;const desired=new THREE.Vector3(state.x,state.y,state.z).add(camOffset);camera.position.lerp(desired,1-Math.pow(personView ? .00003 : state.mode==='car'?.0012:.0003,dt));camera.lookAt(state.x,state.y+(personView?1.25:state.mode==='bike'?1.6:state.mode==='car'?1.35:10),state.z);
+ const personView=state.mode==='person',viewing=state.heading+cameraYaw+(orbit?now*.00035:0),forward=new THREE.Vector3(Math.sin(viewing),0,Math.cos(viewing)),carSpeed=Math.min(1,Math.abs(state.speed)/80),distance=personView?cameraDistance:state.mode==='bike'?8:state.mode==='car'?17+carSpeed*8:150,camOffset=forward.clone().multiplyScalar(-distance);camOffset.y=personView?2.25+Math.sin(cameraPitch)*distance*.32:state.mode==='bike'?4:state.mode==='car'?6.4+carSpeed*1.8:80;const desired=new THREE.Vector3(state.x,state.y,state.z).add(camOffset);camera.position.lerp(desired,1-Math.exp(-dt*(personView?7:state.mode==='car'?5.5:4.5)));camera.lookAt(state.x,state.y+(personView?1.25:state.mode==='bike'?1.6:state.mode==='car'?1.35:10),state.z);
   const target=currentTarget();beacon.visible=!!target;if(target){beacon.position.set(target.pos.x,0,target.pos.z);ring.rotation.z+=dt;beam.material.opacity=.2+Math.sin(now*.004)*.08}
   renderer.render(scene,camera);
 }
