@@ -3,7 +3,7 @@ import * as THREE from './vendor/three/build/three.module.js';
 import {GLTFLoader} from './vendor/three/examples/jsm/loaders/GLTFLoader.js';
 import {sculptCar as buildSupercar} from './vehicles.js?v=play-2';
 import {loadCampus,inside} from './campus.js?v=photos-1';
-import {addCampusLife,poseBicycleRider} from './campus-life.js?v=life-11';
+import {addCampusLife,poseBicycleRider} from './campus-life.js?v=visual-fix-2';
 import {addMasterplanDetails} from './masterplan.js?v=plan-2';
 import {pointToSegmentSq,nearPolygonEdge,sampledPathBlocked,withinCourtyard} from './collision.js';
 let campusReady=false;
