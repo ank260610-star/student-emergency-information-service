@@ -93,7 +93,9 @@ for(const b of buildings){const [name,lat,lon,w,d,h,type]=b,p=world(lat,lon),ran
   g.position.copy(p);g.rotation.y=(rand()-.5)*.28;g.userData.schematic=true;campus.add(g);if(type==='landmark'||type==='food'||/学院|体育馆|医院/.test(name))label(name,new THREE.Vector3(p.x,h+19,p.z));interactive.push({name,pos:p,type,reward:type==='food'?80:140});
 }
 
-function water(name,lat,lon,w,d){const p=world(lat,lon);const m=new THREE.Mesh(new THREE.CircleGeometry(1,48),new THREE.MeshPhysicalMaterial({color:0x4ca2b8,roughness:.18,metalness:.08,transparent:true,opacity:.88}));m.scale.set(w,d,1);m.rotation.x=-Math.PI/2;m.position.set(p.x,.55,p.z);campus.add(m);label(name,new THREE.Vector3(p.x,13,p.z));}
+function waterTexture(){const c=document.createElement('canvas');c.width=c.height=256;const x=c.getContext('2d');x.fillStyle='#438fa8';x.fillRect(0,0,256,256);for(let i=0;i<180;i++){x.strokeStyle=`rgba(190,240,245,${.08+Math.random()*.16})`;x.lineWidth=1+Math.random()*2;const y=Math.random()*256;x.beginPath();x.moveTo(0,y);x.bezierCurveTo(70,y-8,150,y+8,256,y);x.stroke()}const t=new THREE.CanvasTexture(c);t.wrapS=t.wrapT=THREE.RepeatWrapping;t.repeat.set(3,2);t.colorSpace=THREE.SRGBColorSpace;return t}
+const campusWaterTexture=waterTexture();
+function water(name,lat,lon,w,d){const p=world(lat,lon);const m=new THREE.Mesh(new THREE.CircleGeometry(1,48),new THREE.MeshPhysicalMaterial({map:campusWaterTexture,color:0xffffff,roughness:.16,metalness:.08,transparent:true,opacity:.9,clearcoat:.7}));m.scale.set(w,d,1);m.rotation.x=-Math.PI/2;m.position.set(p.x,.55,p.z);campus.add(m);label(name,new THREE.Vector3(p.x,13,p.z));}
 water('马蹄湖',38.9867751,117.3335141,95,50);water('南开湖',38.9870964,117.3453830,145,82);
 
 function field(name,lat,lon,w,d,color=0x477f54){const p=world(lat,lon),m=new THREE.Mesh(new THREE.PlaneGeometry(w,d),new THREE.MeshStandardMaterial({color,roughness:1}));m.rotation.x=-Math.PI/2;m.position.set(p.x,.8,p.z);campus.add(m);label(name,new THREE.Vector3(p.x,12,p.z));}
@@ -127,6 +129,9 @@ function legacySupercar(spec,index){
   const lightColor=index===2?0xffffff:0xfff4be;for(const x of [-1,1]){const light=new THREE.Mesh(new THREE.BoxGeometry(6,.8,.8),new THREE.MeshStandardMaterial({color:lightColor,emissive:lightColor,emissiveIntensity:3}));light.position.set(x*7.5,8,spec.length/2+.55);light.rotation.z=x*(index===2?.65:.18);g.add(light);const tail=new THREE.Mesh(new THREE.BoxGeometry(7,.7,.7),new THREE.MeshStandardMaterial({color:0xff1f18,emissive:0xff120c,emissiveIntensity:2}));tail.position.set(x*7.2,8,-spec.length/2-.5);tail.rotation.z=-x*.22;g.add(tail)}
   if(spec.spoiler){const post1=new THREE.Mesh(new THREE.BoxGeometry(1,5,1),dark),post2=post1.clone(),blade=new THREE.Mesh(new THREE.BoxGeometry(spec.width*.82,1.2,5),dark);post1.position.set(-7,11,-20);post2.position.set(7,11,-20);blade.position.set(0,14,-20);blade.rotation.x=.08;g.add(post1,post2,blade)}
   if(index===2){const engine=new THREE.Mesh(new THREE.BoxGeometry(14,2,10),dark);engine.position.set(0,12,-15);g.add(engine)}
+  const scratches=new THREE.Group();scratches.name='车损剐蹭痕迹';
+  for(const side of [-1,1])for(const y of [5.7,7.1]){const mark=new THREE.Mesh(new THREE.PlaneGeometry(7,.16),new THREE.MeshBasicMaterial({color:0x8c1616,transparent:true,opacity:0,depthWrite:false}));mark.position.set(side*spec.width*.47,y,0);mark.rotation.y=side<0?Math.PI/2:-Math.PI/2;mark.rotation.z=side*.18;scratches.add(mark)}
+  g.add(scratches);g.userData.damageMarks=scratches;
   g.scale.setScalar(1.08);return g;
 }
 const SUPERCAR_TOP_SPEED_KMH=320, SPEED_DISPLAY_SCALE=2.3;
@@ -175,6 +180,9 @@ function importedAventador(){
   brakes:[nodes.BrakeFrLeft_7,nodes.BrakeFrRight_8,nodes.BrakeRearLeft_10].filter(Boolean),
   rearAxleCombined:!!rearAxle
  };
+ const scratches=new THREE.Group();scratches.name='车损剐蹭痕迹';
+ for(const side of [-1,1])for(const y of [1.5,2.2]){const mark=new THREE.Mesh(new THREE.PlaneGeometry(2.8,.07),new THREE.MeshBasicMaterial({color:0x8c1616,transparent:true,opacity:0,depthWrite:false}));mark.position.set(side*4.8,y,0);mark.rotation.y=side<0?Math.PI/2:-Math.PI/2;mark.rotation.z=side*.18;scratches.add(mark)}
+ holder.add(scratches);holder.userData.damageMarks=scratches;
  return holder;
 }
 function makeCar(spec,index){
@@ -326,7 +334,7 @@ function update(dt){if(!state.started)return;
  state.motionHeading??=state.heading;state.motionHeading+=Math.atan2(Math.sin(state.heading-state.motionHeading),Math.cos(state.heading-state.motionHeading))*Math.min(1,dt*(drift?1.8:12));
  state.x+=Math.sin(state.motionHeading)*state.speed*dt;state.z+=Math.cos(state.motionHeading)*state.speed*dt;
  if(state.mode==='plane'){if(keys.has('shift'))state.y+=25*dt;if(keys.has(' '))state.y-=25*dt;if(state.speed>14&&!keys.has(' '))state.y+=4*dt;state.y=THREE.MathUtils.clamp(state.y,4,120)}
- if(state.mode==='plane'?aircraftBlocked(previous,state,state.y):vehicleBlocked(previous,state,isCar?7:isBike?.75:.42)){if(isCar){damage=Math.min(100,damage+Math.abs(state.speed)*.35);toast('碰撞 · 车损 '+Math.round(damage)+'%')}else toast(state.mode==='plane'?'低空障碍，已中止起降':isBike?'前方有障碍，已刹车':'前方有建筑，无法穿墙');state.x=previous.x;state.z=previous.z;state.speed=0;state.y=previous.y;if(isCar)car.scale.z=car.userData.restScale.z*(1-damage*.0015);}
+ if(state.mode==='plane'?aircraftBlocked(previous,state,state.y):vehicleBlocked(previous,state,isCar?7:isBike?.75:.42)){if(isCar){damage=Math.min(100,damage+Math.abs(state.speed)*.35);toast('碰撞 · 车损 '+Math.round(damage)+'%')}else toast(state.mode==='plane'?'低空障碍，已中止起降':isBike?'前方有障碍，已刹车':'前方有建筑，无法穿墙');state.x=previous.x;state.z=previous.z;state.speed=0;state.y=previous.y;if(isCar){car.scale.z=car.userData.restScale.z*(1-damage*.0015);for(const mark of car.userData.damageMarks?.children||[])mark.material.opacity=Math.min(.78,damage*.012);}}
  for(const m of car.userData.brakes||[]){m.traverse?.(part=>{if(part.isMesh&&part.material?.emissive){part.material.emissive.setHex(0xff180d);part.material.emissiveIntensity=brake||drift?2.4:.16}});if(m.emissiveIntensity!==undefined)m.emissiveIntensity=brake||drift?5:.7}
  // GLB wheels use the local X axle. Compose steering and rolling from the
  // original pose, rather than writing two Euler angles to the same wheel.
