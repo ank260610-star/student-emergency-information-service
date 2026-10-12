@@ -6,8 +6,14 @@ const loadAsset=()=>asset??=new GLTFLoader().loadAsync('./work/zhou-statue-reali
 // at close range. The source is the actual Jinnan bronze statue, not a portrait.
 export function createZhouStatue(){
  const g=new THREE.Group();g.name='周恩来总理铜像';g.userData.statueStatus='loading';
- const stoneCanvas=document.createElement('canvas');stoneCanvas.width=stoneCanvas.height=128;const stoneCtx=stoneCanvas.getContext('2d');stoneCtx.fillStyle='#999c95';stoneCtx.fillRect(0,0,128,128);for(let i=0;i<700;i++){const v=125+Math.random()*38;stoneCtx.fillStyle=`rgba(${v},${v+2},${v-1},${.08+Math.random()*.14})`;stoneCtx.fillRect(Math.random()*128,Math.random()*128,1+Math.random()*3,1+Math.random()*2)}const stoneTexture=new THREE.CanvasTexture(stoneCanvas);stoneTexture.wrapS=stoneTexture.wrapT=THREE.RepeatWrapping;stoneTexture.repeat.set(2,2);stoneTexture.colorSpace=THREE.SRGBColorSpace;
- const stone=new THREE.MeshStandardMaterial({map:stoneTexture,color:0xffffff,roughness:.9,metalness:.02});
+ // Fine stone grain is generated procedurally so the pedestal still reads at
+ // close range without shipping an unlicensed texture. The normal map is
+ // deliberately subtle: silhouette and inscription remain legible.
+ const grainCanvas=document.createElement('canvas');grainCanvas.width=256;grainCanvas.height=256;
+ const grainCtx=grainCanvas.getContext('2d');grainCtx.fillStyle='#969991';grainCtx.fillRect(0,0,256,256);
+ const grain=grainCtx.createImageData(256,256);for(let i=0;i<grain.data.length;i+=4){const n=128+Math.floor((Math.random()-.5)*70);grain.data[i]=n;grain.data[i+1]=n+1;grain.data[i+2]=n-2;grain.data[i+3]=255;}grainCtx.putImageData(grain,0,0);
+ const grainTexture=new THREE.CanvasTexture(grainCanvas);grainTexture.wrapS=grainTexture.wrapT=THREE.RepeatWrapping;grainTexture.repeat.set(5,3);
+ const stone=new THREE.MeshStandardMaterial({color:0x999c95,map:grainTexture,roughness:.96,normalScale:new THREE.Vector2(.18,.18)});
  const slab=new THREE.Mesh(new THREE.BoxGeometry(18.7,.8,11.2),stone);slab.position.y=.4;g.add(slab);
  const pedestal=new THREE.Mesh(new THREE.BoxGeometry(17.5,12,10.5),stone);pedestal.position.y=6.8;g.add(pedestal);
  const plaqueGeometry=new THREE.PlaneGeometry(12.5,2.05);
