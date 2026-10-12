@@ -9,6 +9,7 @@ import {
   imagePointToSimpleLatLng,
   markerPresentationForLocation,
   nextRouteManeuver,
+  orderStopsFromNearestEndpoint,
   routeInstructionsFromGeometry,
   semanticZoomLevel,
   shouldShowPriority,
@@ -67,6 +68,22 @@ test('measures campus-scale deviation from a planned route', () => {
   const route = [[39.1, 117.16], [39.1, 117.17]]
   assert.ok(distanceToPolylineMeters([39.1, 117.165], route) < 1)
   assert.ok(distanceToPolylineMeters([39.1004, 117.165], route) > 30)
+})
+
+test('starts a campus tour from the endpoint nearest the live position', () => {
+  const stops = [
+    { id: 'west', geoPoint: [39.1, 117.15] },
+    { id: 'middle', geoPoint: [39.1, 117.16] },
+    { id: 'east', geoPoint: [39.1, 117.17] },
+  ]
+  const fromWest = orderStopsFromNearestEndpoint(stops, [39.1, 117.151])
+  const fromEast = orderStopsFromNearestEndpoint(stops, [39.1, 117.169])
+
+  assert.equal(fromWest.reversed, false)
+  assert.deepEqual(fromWest.stops.map(({ id }) => id), ['west', 'middle', 'east'])
+  assert.equal(fromEast.reversed, true)
+  assert.deepEqual(fromEast.stops.map(({ id }) => id), ['east', 'middle', 'west'])
+  assert.deepEqual(stops.map(({ id }) => id), ['west', 'middle', 'east'])
 })
 
 test('derives the next clear turn and remaining distance from route geometry', () => {

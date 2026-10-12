@@ -4,9 +4,14 @@ import { useRoute } from 'vue-router'
 import CampusInteractiveMap from '../components/CampusInteractiveMap.vue'
 import CampusMapControls from '../components/CampusMapControls.vue'
 import NkZhixingAgentPanel from '../components/NkZhixingAgentPanel.vue'
-import { consumeNkZhixingHandoff, getRoute } from '../services/nkZhixingAgent'
+import { consumeNkZhixingHandoff, getRoute, resolveCampusPlace } from '../services/nkZhixingAgent'
 import { createNavigationSpeechTracker, speakNkZhixingResult } from '../services/nkZhixingSpeech'
-import { routeInstructionsFromGeometry, wgs84ToGcj02 } from '../utils/mapUtils'
+import {
+  orderStopsFromNearestEndpoint,
+  routeInstructionsFromGeometry,
+  routePointDistance,
+  wgs84ToGcj02,
+} from '../utils/mapUtils'
 import { usePhotoDialog } from '../composables/usePhotoDialog'
 import {
   campusTours,
@@ -34,14 +39,20 @@ const voiceOutputEnabled = ref(false)
 const livePosition = ref(null)
 const activeNavigation = ref(null)
 const activeTourId = ref('')
+const activeTourStopIds = ref([])
 const tourPlanning = ref(false)
+const pendingTour = ref(null)
+const searchRoutePlanning = ref(false)
+const pendingSearchNavigation = ref(null)
 const dismissedNearbyId = ref('')
 const selectedLocationCard = ref(null)
 let rerouteRequestId = 0
 let tourRequestId = 0
+let searchRouteRequestId = 0
 let routeDrawVersion = 0
 let tourController = null
 let rerouteController = null
+let searchRouteController = null
 let disposed = false
 const navigationSpeech = createNavigationSpeechTracker()
 
@@ -70,7 +81,7 @@ const mapLocations = computed(() => campusLocations.value)
 const campusToursForCurrentCampus = computed(() => campusTours[campus.value] || [])
 const activeTour = computed(() => campusToursForCurrentCampus.value.find((tour) => tour.id === activeTourId.value) || null)
 const activeTourStops = computed(() => activeTour.value
-  ? activeTour.value.stopIds.map((id) => campusLocations.value.find((location) => location.id === id)).filter(Boolean)
+  ? activeTourStopIds.value.map((id) => campusLocations.value.find((location) => location.id === id)).filter(Boolean)
   : [])
 const forcedMarkerIds = computed(() => (
   [...new Set([
@@ -93,7 +104,7 @@ const nearbyProfileLocation = computed(() => {
     .filter((location) => location.placeProfile && Array.isArray(location.geoPoint))
     .map((location) => ({
       location,
-      distance: straightLineMeters(currentPoint, location.geoPoint),
+      distance: routePointDistance(currentPoint, location.geoPoint),
     }))
     .filter(({ location, distance }) => distance <= (location.placeProfile.nearbyRadiusMeters || 80))
     .sort((left, right) => left.distance - right.distance)[0] || null
@@ -131,16 +142,27 @@ async function handleLocationFound(position) {
     : `已确认当前位置位于${campusConfigs[detectedCampus].name}。`
 }
 
-function straightLineMeters(start, end) {
-  const [startLatitude, startLongitude] = start || []
-  const [endLatitude, endLongitude] = end || []
-  if (![startLatitude, startLongitude, endLatitude, endLongitude].every(Number.isFinite)) return Number.POSITIVE_INFINITY
-  const radians = Math.PI / 180
-  const latitudeDelta = (endLatitude - startLatitude) * radians
-  const longitudeDelta = (endLongitude - startLongitude) * radians
-  const a = Math.sin(latitudeDelta / 2) ** 2
-    + Math.cos(startLatitude * radians) * Math.cos(endLatitude * radians) * Math.sin(longitudeDelta / 2) ** 2
-  return 6371000 * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
+function handleLivePosition(position) {
+  livePosition.value = position
+  if (pendingSearchNavigation.value) {
+    const request = pendingSearchNavigation.value
+    pendingSearchNavigation.value = null
+    if (campusForPosition(position) !== request.campus) {
+      mapStatus.value = `当前位置不在${campusConfigs[request.campus].name}范围内，无法规划前往“${request.location.name}”的路线。`
+      return
+    }
+    nextTick(() => navigateToSearchedLocation(request.location, { positionConfirmed: true }))
+    return
+  }
+  if (!pendingTour.value) return
+  const { tour, campus: requestedCampus } = pendingTour.value
+  pendingTour.value = null
+  if (campusForPosition(position) !== requestedCampus) {
+    activeTourId.value = ''
+    activeTourStopIds.value = []
+    return
+  }
+  nextTick(() => showCampusTour(tour, { positionConfirmed: true }))
 }
 
 function handleMapSelection(locationId) {
@@ -211,6 +233,14 @@ function clearAgentCandidates() {
   candidateLocationIds.value = []
 }
 
+function cancelSearchRouteRequest() {
+  searchRouteRequestId += 1
+  searchRouteController?.abort()
+  searchRouteController = null
+  searchRoutePlanning.value = false
+  pendingSearchNavigation.value = null
+}
+
 function cancelTourRequest() {
   tourRequestId += 1
   tourController?.abort()
@@ -224,6 +254,110 @@ function cancelRerouteRequest() {
   rerouteController = null
 }
 
+function formatRouteDistance(distanceMeters) {
+  return distanceMeters >= 1000
+    ? `${(distanceMeters / 1000).toFixed(1)} 公里`
+    : `${Math.round(distanceMeters)} 米`
+}
+
+async function navigateToSearchedLocation(location, { positionConfirmed = false } = {}) {
+  if (!location || searchRoutePlanning.value || pendingSearchNavigation.value) return
+  await selectAndFocus(location)
+
+  if (!positionConfirmed) {
+    cancelTourRequest()
+    pendingTour.value = null
+    activeTourId.value = ''
+    activeTourStopIds.value = []
+    const request = { location, campus: campus.value }
+    pendingSearchNavigation.value = request
+    mapStatus.value = `正在获取当前位置，以规划前往“${location.name}”的步行路线…`
+    const started = interactiveMap.value?.locateUser({
+      onError: () => {
+        if (pendingSearchNavigation.value !== request) return
+        pendingSearchNavigation.value = null
+        mapStatus.value = '未能获取当前位置，请允许浏览器使用定位后重试。'
+      },
+    })
+    if (started === false) {
+      pendingSearchNavigation.value = null
+      mapStatus.value = '当前浏览器无法获取位置，暂时不能从当前位置规划路线。'
+    }
+    return
+  }
+
+  const currentPoint = [Number(livePosition.value?.latitude), Number(livePosition.value?.longitude)]
+  if (!currentPoint.every(Number.isFinite)) {
+    mapStatus.value = '未获得有效的实时位置，暂时无法规划路线。'
+    return
+  }
+  const requestCampus = campus.value
+  if (campusForPosition({ latitude: currentPoint[0], longitude: currentPoint[1] }) !== requestCampus) {
+    mapStatus.value = `当前位置不在${currentCampus.value.name}范围内，无法规划校内路线。`
+    return
+  }
+
+  cancelTourRequest()
+  cancelRerouteRequest()
+  cancelSearchRouteRequest()
+  const requestId = ++searchRouteRequestId
+  const controller = new AbortController()
+  searchRouteController = controller
+  searchRoutePlanning.value = true
+  routeDrawVersion += 1
+  activeTourId.value = ''
+  activeTourStopIds.value = []
+  candidateLocationIds.value = []
+  activeNavigation.value = null
+  try {
+    mapStatus.value = `正在高德地图中确认“${location.name}”…`
+    const destinationPoint = await resolveCampusPlace({
+      campus: requestCampus,
+      name: location.name,
+      locationId: location.id,
+    }, { signal: controller.signal })
+    if (disposed || requestId !== searchRouteRequestId || campus.value !== requestCampus) return
+
+    const originPoint = wgs84ToGcj02(currentPoint)
+    if (!originPoint) throw new Error('当前位置坐标格式无效，无法规划路线。')
+    mapStatus.value = `已在高德地图中确认“${location.name}”，正在规划步行路线…`
+    const routeResult = await getRoute({
+      origin: `${originPoint[1]},${originPoint[0]}`,
+      destination: `${destinationPoint[1]},${destinationPoint[0]}`,
+      campus: requestCampus,
+      mode: 'walking',
+    }, { signal: controller.signal })
+    if (disposed || requestId !== searchRouteRequestId || campus.value !== requestCampus) return
+    if (!await ensureOnlineMap() || requestId !== searchRouteRequestId) return
+
+    interactiveMap.value?.clearRoute()
+    if (!interactiveMap.value?.showRoute(routeResult.routePoints, routeResult.coordinateSystem)) {
+      throw new Error('路线已生成，但当前在线地图无法绘制，请稍后重试。')
+    }
+    activeNavigation.value = {
+      destination: {
+        ...location,
+        navigationPoint: destinationPoint,
+        routeSource: `高德地图地点检索：${location.name}`,
+      },
+      mode: 'walking',
+    }
+    navigationSpeech.reset()
+    const distance = formatRouteDistance(Number(routeResult.distanceMeters) || 0)
+    const duration = Math.max(1, Math.round((Number(routeResult.durationSeconds) || 0) / 60))
+    mapStatus.value = `已按高德地图中的“${location.name}”生成从当前位置出发的步行路线：约 ${distance}，约 ${duration} 分钟。`
+    requestAnimationFrame(scrollToMap)
+  } catch (error) {
+    if (disposed || requestId !== searchRouteRequestId || controller.signal.aborted) return
+    mapStatus.value = error.message || `未能在高德地图中确认“${location.name}”，请换用更完整的地点名称。`
+  } finally {
+    if (requestId === searchRouteRequestId) {
+      searchRoutePlanning.value = false
+      searchRouteController = null
+    }
+  }
+}
+
 async function ensureOnlineMap() {
   baseMode.value = 'online'
   await nextTick()
@@ -234,8 +368,11 @@ async function ensureOnlineMap() {
 async function handleAgentRoute(route) {
   cancelTourRequest()
   cancelRerouteRequest()
+  cancelSearchRouteRequest()
   const version = ++routeDrawVersion
   activeTourId.value = ''
+  activeTourStopIds.value = []
+  pendingTour.value = null
   if (!await ensureOnlineMap() || version !== routeDrawVersion) return
   activeNavigation.value = route.destination ? {
     destination: route.destination,
@@ -248,15 +385,58 @@ async function handleAgentRoute(route) {
   }
 }
 
-async function showCampusTour(tour) {
+async function showCampusTour(tour, { positionConfirmed = false } = {}) {
   if (tourPlanning.value) return
-  const stops = tour.stopIds
+  if (!positionConfirmed) cancelSearchRouteRequest()
+  const configuredStops = tour.stopIds
     .map((id) => campusLocations.value.find((location) => location.id === id))
     .filter((location) => location?.geoPoint)
-  if (stops.length < 2) {
+  if (configuredStops.length < 2) {
     mapStatus.value = '该游览路线缺少可用坐标，暂时无法显示。'
     return
   }
+
+  if (!positionConfirmed) {
+    const request = { tour, campus: campus.value }
+    pendingTour.value = request
+    activeTourId.value = tour.id
+    activeTourStopIds.value = []
+    mapStatus.value = `正在获取实时位置，以选择“${tour.name}”较近的路线端点…`
+    const started = interactiveMap.value?.locateUser({
+      onError: () => {
+        if (pendingTour.value !== request) return
+        pendingTour.value = null
+        activeTourId.value = ''
+        activeTourStopIds.value = []
+      },
+    })
+    if (started === false) {
+      pendingTour.value = null
+      activeTourId.value = ''
+      activeTourStopIds.value = []
+    }
+    return
+  }
+
+  const currentPoint = [Number(livePosition.value?.latitude), Number(livePosition.value?.longitude)]
+  if (!currentPoint.every(Number.isFinite)) {
+    activeTourId.value = ''
+    activeTourStopIds.value = []
+    mapStatus.value = '未获得有效的实时位置，暂时无法规划探索路线。'
+    return
+  }
+  if (campusForPosition({ latitude: currentPoint[0], longitude: currentPoint[1] }) !== campus.value) {
+    activeTourId.value = ''
+    activeTourStopIds.value = []
+    mapStatus.value = `当前位置不在${currentCampus.value.name}范围内，无法从当前位置接入这条探索路线。`
+    return
+  }
+
+  const { stops, reversed } = orderStopsFromNearestEndpoint(configuredStops, currentPoint)
+  const alreadyAtEndpoint = routePointDistance(currentPoint, stops[0].geoPoint) < 10
+  const routeNodes = alreadyAtEndpoint
+    ? stops
+    : [{ id: 'current-position', name: '当前位置', geoPoint: currentPoint }, ...stops]
 
   const requestId = ++tourRequestId
   const requestCampus = campus.value
@@ -266,22 +446,24 @@ async function showCampusTour(tour) {
   routeDrawVersion += 1
   tourPlanning.value = true
   activeTourId.value = tour.id
+  activeTourStopIds.value = stops.map((stop) => stop.id)
+  pendingTour.value = null
   candidateLocationIds.value = []
   activeNavigation.value = null
   try {
     if (!await ensureOnlineMap() || requestId !== tourRequestId || campus.value !== requestCampus) return
     interactiveMap.value?.clearRoute()
-    mapStatus.value = `正在按道路网络规划“${tour.name}”的 ${stops.length - 1} 段步行路线…`
+    mapStatus.value = `正在从当前位置接入“${tour.name}”较近的${reversed ? '终点' : '起点'}，并规划 ${routeNodes.length - 1} 段步行路线…`
     requestAnimationFrame(scrollToMap)
     const routePoints = []
     let distanceMeters = 0
     let durationSeconds = 0
-    for (let index = 0; index < stops.length - 1; index += 1) {
-      const origin = wgs84ToGcj02(stops[index].geoPoint)
-      const destination = wgs84ToGcj02(stops[index + 1].geoPoint)
+    for (let index = 0; index < routeNodes.length - 1; index += 1) {
+      const origin = wgs84ToGcj02(routeNodes[index].geoPoint)
+      const destination = wgs84ToGcj02(routeNodes[index + 1].geoPoint)
       if (!origin || !destination) throw new Error('游览站点坐标格式无效，无法规划真实道路路线。')
 
-      mapStatus.value = `正在规划第 ${index + 1}/${stops.length - 1} 段：${stops[index].name} → ${stops[index + 1].name}…`
+      mapStatus.value = `正在规划第 ${index + 1}/${routeNodes.length - 1} 段：${routeNodes[index].name} → ${routeNodes[index + 1].name}…`
       const segment = await getRoute({
         origin: `${origin[1]},${origin[0]}`,
         destination: `${destination[1]},${destination[0]}`,
@@ -290,12 +472,12 @@ async function showCampusTour(tour) {
       }, { signal: controller.signal })
       if (disposed || requestId !== tourRequestId) return
       if (!Array.isArray(segment.routePoints) || segment.routePoints.length < 2) {
-        throw new Error(`未获取到“${stops[index].name} → ${stops[index + 1].name}”的真实步行路线。`)
+        throw new Error(`未获取到“${routeNodes[index].name} → ${routeNodes[index + 1].name}”的真实步行路线。`)
       }
-      const directDistance = straightLineMeters(stops[index].geoPoint, stops[index + 1].geoPoint)
+      const directDistance = routePointDistance(routeNodes[index].geoPoint, routeNodes[index + 1].geoPoint)
       const maximumCampusDistance = Math.max(600, directDistance * 3)
       if (!Number.isFinite(segment.distanceMeters) || segment.distanceMeters > maximumCampusDistance) {
-        throw new Error(`“${stops[index].name} → ${stops[index + 1].name}”被导航服务绕至校外，未绘制不符合校园实际的路线。`)
+        throw new Error(`“${routeNodes[index].name} → ${routeNodes[index + 1].name}”被导航服务绕至校外，未绘制不符合校园实际的路线。`)
       }
 
       routePoints.push(...segment.routePoints.slice(routePoints.length ? 1 : 0))
@@ -309,11 +491,12 @@ async function showCampusTour(tour) {
     }
     const distance = distanceMeters >= 1000 ? `${(distanceMeters / 1000).toFixed(1)} 公里` : `${Math.round(distanceMeters)} 米`
     const duration = Math.max(1, Math.round(durationSeconds / 60))
-    mapStatus.value = `已按真实步行道路绘制“${tour.name}”：约 ${distance}，约 ${duration} 分钟。`
+    mapStatus.value = `已从当前位置接入“${tour.name}”较近的${reversed ? '终点' : '起点'}，并按真实步行道路绘制完整路线：约 ${distance}，约 ${duration} 分钟。`
   } catch (error) {
     if (disposed || requestId !== tourRequestId || controller.signal.aborted) return
     interactiveMap.value?.clearRoute()
     activeTourId.value = ''
+    activeTourStopIds.value = []
     mapStatus.value = error.message || '未能获取完整的真实步行路线，未绘制站点直线。'
   } finally {
     if (requestId === tourRequestId) {
@@ -326,6 +509,8 @@ async function showCampusTour(tour) {
 function clearCampusTour() {
   cancelTourRequest()
   activeTourId.value = ''
+  activeTourStopIds.value = []
+  pendingTour.value = null
   interactiveMap.value?.clearRoute()
   mapStatus.value = '已关闭校史游览路线。'
 }
@@ -375,8 +560,11 @@ function setBaseMode(mode) {
   if (mode === 'illustration' && baseMode.value !== mode) {
     cancelTourRequest()
     cancelRerouteRequest()
+    cancelSearchRouteRequest()
     routeDrawVersion += 1
     activeTourId.value = ''
+    activeTourStopIds.value = []
+    pendingTour.value = null
     activeNavigation.value = null
   }
   baseMode.value = mode
@@ -401,8 +589,11 @@ function stopLiveNavigation() {
   livePosition.value = null
   activeNavigation.value = null
   activeTourId.value = ''
+  activeTourStopIds.value = []
+  pendingTour.value = null
   cancelTourRequest()
   cancelRerouteRequest()
+  cancelSearchRouteRequest()
   routeDrawVersion += 1
 }
 
@@ -430,9 +621,12 @@ watch(campus, () => {
   category.value = 'all'
   candidateLocationIds.value = []
   activeTourId.value = ''
+  activeTourStopIds.value = []
+  pendingTour.value = null
   activeNavigation.value = null
   cancelTourRequest()
   cancelRerouteRequest()
+  cancelSearchRouteRequest()
   routeDrawVersion += 1
   dismissedNearbyId.value = ''
   mapStatus.value = `${currentCampus.value.name} · ${campusLocations.value.length} 个地点`
@@ -453,6 +647,7 @@ onBeforeUnmount(() => {
   routeDrawVersion += 1
   cancelTourRequest()
   cancelRerouteRequest()
+  cancelSearchRouteRequest()
 })
 </script>
 
@@ -496,16 +691,24 @@ onBeforeUnmount(() => {
       </div>
 
       <div v-if="searchResults.length" class="map-search-results" aria-label="建筑搜索结果">
-        <button
+        <div
           v-for="location in searchResults"
           :key="location.id"
-          type="button"
-          @click="selectAndFocus(location)"
+          class="map-search-result"
         >
-          <span>{{ location.number }}</span>
-          <strong>{{ location.name }}</strong>
-          <small>{{ categoryMeta[location.category].label }}</small>
-        </button>
+          <button type="button" class="map-search-result-main" @click="selectAndFocus(location)">
+            <span>{{ location.number }}</span>
+            <strong>{{ location.name }}</strong>
+            <small>{{ categoryMeta[location.category].label }}</small>
+          </button>
+          <button
+            type="button"
+            class="map-search-result-nav"
+            :disabled="searchRoutePlanning || Boolean(pendingSearchNavigation)"
+            :aria-label="`从当前位置导航到${location.name}`"
+            @click="navigateToSearchedLocation(location)"
+          >{{ pendingSearchNavigation?.location.id === location.id ? '正在定位…' : searchRoutePlanning && selectedId === location.id ? '正在规划…' : '从当前位置导航' }}</button>
+        </div>
       </div>
       <p v-else-if="normalizedQuery" class="map-empty-result" role="status">没有找到匹配的建筑，请尝试名称中的其他关键词。</p>
 
@@ -518,14 +721,14 @@ onBeforeUnmount(() => {
           :selected-id="selectedId"
           :forced-ids="forcedMarkerIds"
           :candidate-ids="candidateLocationIds"
-          :tour-stop-ids="activeTour?.stopIds || []"
+          :tour-stop-ids="activeTourStopIds"
           :current-position="livePosition"
           :request-initial-location="true"
           @select="handleMapSelection"
           @clear-selection="clearMapSelection"
           @status="mapStatus = $event"
           @live-navigation-change="handleLiveNavigationChange"
-          @live-position="livePosition = $event"
+          @live-position="handleLivePosition"
           @location-found="handleLocationFound"
           @navigation-cue="handleNavigationCue"
           @route-deviation="rerouteFromCurrentPosition"
@@ -591,14 +794,14 @@ onBeforeUnmount(() => {
         <div class="campus-tour-heading">
           <span class="section-kicker"><i></i> CAMPUS TOUR</span>
           <h3>{{ currentCampus.name }}主题探索路线</h3>
-          <p>选择一条主题路线后，系统会逐段规划真实步行道路并在地图上绘制；站点编号仅表示建议游览顺序。</p>
+          <p>选择路线后，系统会以当前位置为起点，先导航至距离更近的路线端点，再按真实步行道路完成整条路线。</p>
         </div>
         <div class="campus-tour-grid">
           <article v-for="tour in campusToursForCurrentCampus" :key="tour.id" :class="{ active: activeTourId === tour.id }">
             <h4>{{ tour.name }}</h4>
             <p>{{ tour.summary }}</p>
-            <button type="button" :disabled="tourPlanning" @click="showCampusTour(tour)">
-              {{ tourPlanning && activeTourId === tour.id ? '正在按道路规划…' : activeTourId === tour.id ? '已在地图显示' : '按道路规划' }}
+            <button type="button" :disabled="tourPlanning || Boolean(pendingTour)" @click="showCampusTour(tour)">
+              {{ pendingTour?.tour.id === tour.id ? '正在获取位置…' : tourPlanning && activeTourId === tour.id ? '正在按道路规划…' : activeTourId === tour.id ? '已在地图显示' : '从当前位置规划' }}
             </button>
           </article>
         </div>
@@ -639,7 +842,14 @@ onBeforeUnmount(() => {
         </div>
         <small v-if="baseMode === 'online' && !selectedLocation.geoPoint">该地点目前仅提供校园导览图坐标。</small>
       </div>
-      <button type="button" @click="selectAndFocus(selectedLocation, true)">在地图中定位</button>
+      <div class="selected-location-actions">
+        <button type="button" @click="selectAndFocus(selectedLocation, true)">在地图中定位</button>
+        <button
+          type="button"
+          :disabled="searchRoutePlanning || Boolean(pendingSearchNavigation)"
+          @click="navigateToSearchedLocation(selectedLocation)"
+        >{{ pendingSearchNavigation?.location.id === selectedLocation.id ? '正在获取位置…' : searchRoutePlanning ? '正在高德规划…' : '从当前位置导航' }}</button>
+      </div>
       <div v-if="selectedLocation.photos?.length" class="location-photo-gallery">
         <div class="location-photo-heading">
           <span>地点实景</span>

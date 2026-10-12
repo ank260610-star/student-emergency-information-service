@@ -83,20 +83,30 @@ export function createGeolocationSession({
     locationVersion += 1
   }
 
-  function locate(onLocation, { initial = false } = {}) {
-    if (!available() || suspended) return
+  function locate(onLocation, { initial = false, onError } = {}) {
+    if (!available() || suspended) return false
     const version = ++locationVersion
     const isCurrent = () => !disposed && !suspended && version === locationVersion
     onStatus(initial ? '正在请求定位，以识别所在校区…' : '正在请求浏览器定位…')
     try {
       geolocation.getCurrentPosition(
         (position) => { if (isCurrent()) onLocation(position) },
-        (error) => { if (isCurrent()) onStatus(locationErrorMessage(error)) },
-        { enableHighAccuracy: false, timeout: 8000, maximumAge: 60000 },
+        (error) => {
+          if (!isCurrent()) return
+          onStatus(locationErrorMessage(error))
+          onError?.(error)
+        },
+        initial
+          ? { enableHighAccuracy: false, timeout: 8000, maximumAge: 60000 }
+          : { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 },
       )
     } catch (error) {
-      if (isCurrent()) onStatus(locationErrorMessage(error))
+      if (isCurrent()) {
+        onStatus(locationErrorMessage(error))
+        onError?.(error)
+      }
     }
+    return true
   }
 
   function suspend() {

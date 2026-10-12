@@ -116,7 +116,8 @@ export function findOrigin(text, destination, campus) {
 }
 
 export function refersToCurrentPosition(value) {
-  return /(我的位置|当前位置|从我这里|从我这儿|从我当前位置)/.test(value)
+  const text = normalize(value)
+  return /(?:我的位置|当前位置|从我这里|从我这儿|从这里|我所在的位置|以我(?:的)?位置为起点)/.test(text)
 }
 
 export function requestsLandmarkHistory(value) {

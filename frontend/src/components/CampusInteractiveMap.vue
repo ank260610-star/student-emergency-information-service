@@ -757,8 +757,8 @@ function stopLiveNavigation(announce = true) {
   if (announce) emit('status', '实时导航已结束，当前位置与本次轨迹已从浏览器内存清除。')
 }
 
-function locateUser({ initial = false } = {}) {
-  geolocationSession.locate(
+function locateUser({ initial = false, onError } = {}) {
+  return geolocationSession.locate(
     ({ coords }) => {
       if (!map) return
       const position = { latitude: coords.latitude, longitude: coords.longitude, accuracy: coords.accuracy }
@@ -772,7 +772,7 @@ function locateUser({ initial = false } = {}) {
         ? '已获取当前位置；未说明起点的导航将默认从这里出发，不保存。'
         : '已显示当前位置；仅在你发起以当前位置为起点的导航时用于本次路线计算，不保存。')
     },
-    { initial },
+    { initial, onError },
   )
 }
 
