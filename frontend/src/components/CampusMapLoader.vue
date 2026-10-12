@@ -99,9 +99,9 @@ const props = defineProps({
 
 .nankai-medallion {
   position: absolute;
-  z-index: 8;
+  z-index: 20;
   left: 50%;
-  top: 2%;
+  top: -7%;
   width: clamp(50px, 8.2vw, 82px);
   aspect-ratio: 1;
   transform-style: preserve-3d;
@@ -133,6 +133,7 @@ const props = defineProps({
 
 .popup-campus {
   position: absolute;
+  z-index: 1;
   left: 50%;
   bottom: 3%;
   width: 88%;
@@ -409,7 +410,7 @@ const props = defineProps({
 @media (max-width: 600px) {
   .loader-stage { width: min(92vw, 430px); height: min(58vw, 245px); }
   .popup-campus { width: 94%; }
-  .nankai-medallion { top: -2%; }
+  .nankai-medallion { top: -10%; }
   .loader-copy { margin-top: 4px; }
 }
 
