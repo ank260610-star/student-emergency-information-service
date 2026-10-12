@@ -1,10 +1,12 @@
-import {surveyedBuilding,addSurveyDetails,optimizePhotoDetails} from './campus-photo-details.js?v=photos-1';
+import {createSiyuanRoof} from './restored-landmarks.js';
+import {surveyedBuilding,addSurveyDetails,optimizePhotoDetails} from './campus-photo-details.js?v=3d-restored-16-1';
 import * as T from './vendor/three/build/three.module.js';
 import {libraryModel} from './landmarks.js?v=landmarks-3';
 import {officeModel,activityModel,gymModel} from './additional-landmarks.js?v=buildings-3';
 import {hospitalModel,cultureModel} from './photo-landmarks.js?v=photo-1';
 export async function loadCampus(scene,project){
  const response=await fetch('./work/campus-osm.json');if(!response.ok)throw Error('地图数据未下载完成');const data=await response.json(),group=new T.Group(),obstacles=[],driveLanes=[],waterAreas=[],stairSegments=[];let buildings=0,roads=0,libraryDoor=null;
+ const namedBuildings=[];
  const materialCache=new Map();
  const mat=c=>{if(!materialCache.has(c))materialCache.set(c,new T.MeshStandardMaterial({color:c,roughness:.88}));return materialCache.get(c)};
  // A high-frequency brick/concrete facade tile gives the non-landmark OSM footprints
@@ -81,7 +83,13 @@ export async function loadCampus(scene,project){
   const canvas=document.createElement('canvas');canvas.width=1024;canvas.height=400;const ctx=canvas.getContext('2d');ctx.clearRect(0,0,1024,400);ctx.fillStyle='#f5eee2';ctx.textAlign='center';ctx.font='700 86px Noto Sans SC, sans-serif';ctx.fillText('公共教学楼',512,142);ctx.font='700 44px Arial';ctx.fillText('PUBLIC TEACHING HALL',512,215);ctx.font='700 62px Noto Sans SC, sans-serif';ctx.fillText(zone,512,300);const plaque=new T.Mesh(new T.PlaneGeometry(8.2,3.15),new T.MeshBasicMaterial({map:new T.CanvasTexture(canvas),transparent:true}));plaque.position.copy(mid).addScaledVector(normal,.31);plaque.position.x+=Math.sin(yaw)*(span*.43);plaque.position.z+=Math.cos(yaw)*(span*.43);plaque.position.y=8.2;plaque.rotation.y=yaw;model.add(plaque);
   model.userData={kind:'public-teaching',name:`公共教学楼 ${zone}`};model.traverse(o=>{if(o.isMesh){o.castShadow=true;o.receiveShadow=true}});return model;
  }
+ // Sociology follows J31 on the project guide; dorm 1 is just north of the
+ // field-collected J17 entrance, converted from GCJ-02 to WGS-84.
+ for(const [name,lat,lon,w,d] of [['社会学院',38.9901500,117.3359500,60,42],['学生宿舍1',38.9911500,117.3368050,68,40]]){
+  if(!data.elements.some(e=>e.tags?.name===name))data.elements.push({tags:{building:name==='学生宿舍1'?'dormitory':'university',name,height:'28'},geometry:[[-1,-1],[1,-1],[1,1],[-1,1],[-1,-1]].map(([x,z])=>({lat:lat+z*d/2/111320,lon:lon+x*w/2/(111320*Math.cos(lat*Math.PI/180))}))});
+ }
  for(const e of data.elements){const tags=e.tags||{},raw=e.geometry||[],pts=raw.map(p=>project(p.lat,p.lon)),meanLon=raw.reduce((sum,p)=>sum+p.lon,0)/Math.max(1,raw.length);if(pts.length<2)continue;
+ if(tags.building&&tags.name){const box=new T.Box3().setFromPoints(pts),center=box.getCenter(new T.Vector3());center.y=(parseFloat(tags.height)||(+tags['building:levels']||5)*3.4)+12;namedBuildings.push({name:tags.name,position:center});}
  if(tags.building&&pts.length>3){const surveyed=surveyedBuilding(pts,tags.name,e.id);if(surveyed){group.add(surveyed);obstacles.push({osmId:e.id,points:pts,height:surveyed.userData.height,box:new T.Box3().setFromObject(surveyed),courtyard:surveyed.userData.courtyard,groundOpening:surveyed.userData.groundOpening});buildings++;continue;}}
  if(tags.building&&pts.length>3&&(/综合业务[东西]楼/.test(tags.name)||tags.name==='大通学生活动中心')){
   const activity=tags.name==='大通学生活动中心',model=activity?activityModel(pts):officeModel(pts,tags.name);if(activity){model.userData.photoComponent='activity-white-perforated-facade';model.userData.evidencePhotoIds=[14];model.userData.photoIds=[14];}group.add(model);obstacles.push({points:pts,height:activity?15:23,box:new T.Box3().setFromObject(model),courtyard:model.userData.courtyard});buildings++;continue;
@@ -104,7 +112,9 @@ export async function loadCampus(scene,project){
  if(tags.building&&pts.length>3&&tags.name==='D区'){
   const model=labDModel(pts);group.add(model);obstacles.push({points:pts,height:18,box:new T.Box3().setFromObject(model)});buildings++;continue;
  }
- if(tags.building&&pts.length>3){if(tags.name?.includes('津南校区中心图书馆')){const model=libraryModel();model.position.copy(project(38.9852884,117.3405293));group.add(model);model.updateMatrixWorld(true);libraryDoor=model.localToWorld(new T.Vector3(0,0,24));const interiorBoxes=(model.userData.interiorSolids||[]).map(o=>new T.Box3().setFromObject(o));obstacles.push({points:pts,height:43.2,box:new T.Box3().setFromObject(model),interior:true,door:libraryDoor.clone(),interiorBoxes});buildings++;continue;}const h=parseFloat(tags.height)||(+tags['building:levels']||5)*3.4;const m=polygon(pts,h,/dormitory|apartments/.test(tags.building)?0xc3a895:0xd3c8b5);m.userData.label=tags.name||'未命名建筑';const box=new T.Box3().setFromObject(m);obstacles.push({points:pts,height:h,box});buildings++;
+ if(tags.building&&pts.length>3){if(tags.name?.includes('津南校区中心图书馆')){const model=libraryModel();model.position.copy(project(38.9852884,117.3405293));group.add(model);model.updateMatrixWorld(true);libraryDoor=model.localToWorld(new T.Vector3(0,0,24));const interiorBoxes=(model.userData.interiorSolids||[]).map(o=>new T.Box3().setFromObject(o));obstacles.push({points:pts,height:43.2,box:new T.Box3().setFromObject(model),interior:true,door:libraryDoor.clone(),interiorBoxes});buildings++;continue;}const h=parseFloat(tags.height)||(+tags['building:levels']||5)*3.4;const m=polygon(pts,h,/dormitory|apartments/.test(tags.building)?0xc3a895:0xd3c8b5);m.userData.label=tags.name||'未命名建筑';
+ if(tags.name==='思源堂')group.add(createSiyuanRoof(pts,h));
+ const box=new T.Box3().setFromObject(m);obstacles.push({points:pts,height:h,box});buildings++;
  // Individual panes, mullions and a recessed entry follow the real OSM footprint edges.
  const wm=new T.MeshStandardMaterial({color:0x416a78,metalness:.58,roughness:.18,emissive:0x07151b,emissiveIntensity:.28}),frame=mat(0x303637);
  for(let i=1;i<pts.length;i++){const a=pts[i-1],b=pts[i],len=a.distanceTo(b);if(len<5)continue;const angle=Math.atan2(b.x-a.x,b.z-a.z),mid=a.clone().add(b).multiplyScalar(.5),panes=Math.min(5,Math.max(2,Math.floor(len/12))),step=len/(panes+1),dx=(b.x-a.x)/len,dz=(b.z-a.z)/len;
@@ -112,14 +122,15 @@ export async function loadCampus(scene,project){
    if(i===1&&tags.name){const entry=new T.Mesh(new T.BoxGeometry(.28,3.4,Math.min(7,len*.42)),wm);entry.position.copy(mid);entry.position.y=1.9;entry.rotation.y=angle;group.add(entry);for(let s=-1;s<=1;s+=2){const jamb=new T.Mesh(new T.BoxGeometry(.4,3.9,.25),frame);jamb.position.copy(mid);jamb.position.x+=dx*s*Math.min(3,len*.18);jamb.position.z+=dz*s*Math.min(3,len*.18);jamb.position.y=2;jamb.rotation.y=angle;group.add(jamb)}}
    if(i===1&&h>12){const roofUnit=new T.Mesh(new T.BoxGeometry(Math.min(8,len*.28),1.25,3.4),frame);roofUnit.position.copy(mid);roofUnit.position.y=h+.7;group.add(roofUnit)}
  }
- }else if(tags.natural==='water'&&pts.length>3){const xs=pts.map(p=>p.x),zs=pts.map(p=>p.z),spanX=Math.max(...xs)-Math.min(...xs),spanZ=Math.max(...zs)-Math.min(...zs);if(spanX<420&&spanZ<420){polygon(pts,.15,0x498a9a,false);waterAreas.push({points:pts})}}else if(tags.highway){if(tags.highway==='construction')continue;const width=parseFloat(tags.width)||(/footway|path|steps/.test(tags.highway)?2.3:/primary|secondary/.test(tags.highway)?16:8);for(let i=1;i<pts.length;i++){const a=pts[i-1],b=pts[i],len=a.distanceTo(b);if(len<.1)continue;if(tags.highway==='steps')stairSegments.push({a:a.clone(),b:b.clone(),width:Math.max(width,2.2),height:Math.min(3.2,Math.max(.45,len*.12))});const angle=Math.atan2(b.x-a.x,b.z-a.z),mid=a.clone().add(b).multiplyScalar(.5),isFoot=width<3;
+ }else if(tags.natural==='water'&&pts.length>3){const xs=pts.map(p=>p.x),zs=pts.map(p=>p.z),spanX=Math.max(...xs)-Math.min(...xs),spanZ=Math.max(...zs)-Math.min(...zs);if(spanX<420&&spanZ<420){const lake=polygon(pts,.15,0x498a9a,false);lake.name='湖面波纹';const c=document.createElement('canvas');c.width=c.height=256;const ctx=c.getContext('2d');ctx.fillStyle='#438fa8';ctx.fillRect(0,0,256,256);for(let y=0;y<256;y+=10){ctx.strokeStyle='#8fc9d5';ctx.lineWidth=1;ctx.beginPath();for(let x=0;x<=256;x+=4){const v=y+Math.sin(x*.07+y)*2;if(x===0)ctx.moveTo(x,v);else ctx.lineTo(x,v)}ctx.stroke()}const map=new T.CanvasTexture(c);map.wrapS=map.wrapT=T.RepeatWrapping;map.repeat.set(.025,.025);map.colorSpace=T.SRGBColorSpace;lake.material=new T.MeshPhysicalMaterial({map,color:0xffffff,roughness:.18,metalness:.1,clearcoat:1});waterAreas.push({points:pts})}}else if(tags.highway){if(tags.highway==='construction')continue;const width=parseFloat(tags.width)||(/footway|path|steps/.test(tags.highway)?2.3:/primary|secondary/.test(tags.highway)?16:8);for(let i=1;i<pts.length;i++){const a=pts[i-1],b=pts[i],len=a.distanceTo(b);if(len<.1)continue;if(tags.highway==='steps')stairSegments.push({a:a.clone(),b:b.clone(),width:Math.max(width,2.2),height:Math.min(3.2,Math.max(.45,len*.12))});const angle=Math.atan2(b.x-a.x,b.z-a.z),mid=a.clone().add(b).multiplyScalar(.5),isFoot=width<3;
    const m=new T.Mesh(new T.BoxGeometry(width,.16,len),isFoot?mat(0xb6b1a4):asphalt(width,len));m.position.copy(mid);m.position.y=.08;m.rotation.y=angle;m.receiveShadow=true;group.add(m);
    if(!isFoot)driveLanes.push({a:a.clone(),b:b.clone(),width});
    if(!isFoot&&width>=6){for(const side of [-1,1]){const curb=new T.Mesh(new T.BoxGeometry(.34,.22,len),mat(0xc0c3bb));curb.position.copy(mid);curb.position.y=.16;curb.position.x+=Math.cos(angle)*side*(width/2+.15);curb.position.z-=Math.sin(angle)*side*(width/2+.15);curb.rotation.y=angle;group.add(curb)}}
    if(!isFoot&&width>=13){for(let at=-len/2+2.5;at<len/2;at+=7){const dash=new T.Mesh(new T.BoxGeometry(.28,.08,3.2),mat(0xf0e5bd));dash.position.copy(mid);dash.position.y=.19;dash.position.x+=Math.sin(angle)*at;dash.position.z+=Math.cos(angle)*at;dash.rotation.y=angle;group.add(dash)}}
   }roads++}
  }
- scene.add(group);const result={group,obstacles,buildings,roads,driveLanes,libraryDoor,waterAreas,stairSegments};
+ for(const label of namedBuildings){const building=obstacles.find(b=>inside(label.position.x,label.position.z,b.points));if(building)label.position.y=building.height+12;}
+ scene.add(group);const result={group,obstacles,buildings,roads,driveLanes,libraryDoor,waterAreas,stairSegments,namedBuildings};
  result.photoDetails=addSurveyDetails(scene,data,project,result);optimizePhotoDetails(group);return result;
 }
 export function inside(x,z,points){let hit=false;for(let i=0,j=points.length-1;i<points.length;j=i++){const a=points[i],b=points[j];if((a.z>z)!==(b.z>z)&&x<(b.x-a.x)*(z-a.z)/(b.z-a.z)+a.x)hit=!hit}return hit}

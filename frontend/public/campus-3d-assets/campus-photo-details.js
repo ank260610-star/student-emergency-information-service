@@ -1,4 +1,5 @@
 import * as T from './vendor/three/build/three.module.js';
+import {isWorldVisible} from './scene-rules.js';
 import {mergeGeometries} from './vendor/three/examples/jsm/utils/BufferGeometryUtils.js';
 
 // Photograph numbers refer to work/campus-photo-survey.json. These are modeled
@@ -20,9 +21,9 @@ export function preparePhotoMaterials(){
 // remains on each batch; animated gameplay objects are never passed here.
 export function optimizePhotoDetails(root){
  root.updateMatrixWorld(true);
- if(!root.userData.photoColliders){const colliders=[];root.traverse(o=>{if(o.visible&&o.userData.photoSolid){const b=new T.Box3().setFromObject(o),p=b.getCenter(new T.Vector3()),size=b.getSize(new T.Vector3());colliders.push({x:p.x,z:p.z,box:{halfX:size.x/2,halfZ:size.z/2},type:'photo-fixture'});}if(o.visible&&o.userData.photoRadius){const p=o.getWorldPosition(new T.Vector3());colliders.push({x:p.x,z:p.z,r:o.userData.photoRadius,type:'photo-trunk'});}});root.userData.photoColliders=colliders;}
+ if(!root.userData.photoColliders){const colliders=[];root.traverse(o=>{if(isWorldVisible(o)&&o.userData.photoSolid){o.geometry.computeBoundingBox();const b=o.geometry.boundingBox,p=o.localToWorld(b.getCenter(new T.Vector3())),scale=o.getWorldScale(new T.Vector3()),size=b.getSize(new T.Vector3()).multiply(scale),yaw=Math.atan2(o.matrixWorld.elements[8],o.matrixWorld.elements[10]);colliders.push({x:p.x,z:p.z,box:{halfX:size.x/2,halfZ:size.z/2,yaw},type:'photo-fixture'});}if(isWorldVisible(o)&&o.userData.photoRadius){const p=o.getWorldPosition(new T.Vector3());colliders.push({x:p.x,z:p.z,r:o.userData.photoRadius,type:'photo-trunk'});}});root.userData.photoColliders=colliders;}
  const inverse=root.matrixWorld.clone().invert(),batches=new Map();
- root.traverse(o=>{if(!o.isMesh||Array.isArray(o.material)||o.material.transparent||o.userData.photoBatch)return;
+ root.traverse(o=>{if(!isWorldVisible(o)||!o.isMesh||Array.isArray(o.material)||o.material.transparent||o.userData.photoBatch)return;
   const ids=new Set();for(let p=o;p;p=p.parent){for(const n of p.userData.photoIds||[])ids.add(n);if(p===root)break;}
   let component=null,sourceIds=[];for(let p=o;p;p=p.parent){if(p.userData.photoComponent){component=p.userData.photoComponent;sourceIds=p.userData.evidencePhotoIds||[];break;}if(p===root)break;}
   const provenance=[...ids].sort((a,b)=>a-b),signature=Object.keys(o.geometry.attributes).sort().join(','),key=o.material.uuid+signature+provenance.join('-')+(component||'');

@@ -45,7 +45,7 @@ onBeforeUnmount(() => {
   if (pageFullscreen.value) setPageFullscreen(false)
 })
 // The scene selects its touch controls and rendering quality for the device.
-const sceneAssetVersion = '3d-visual-fix-2'
+const sceneAssetVersion = '3d-restored-16-1'
 const sceneUrl = `/campus-3d-assets/index.html?v=${sceneAssetVersion}`
 </script>
 
@@ -73,7 +73,7 @@ const sceneUrl = `/campus-3d-assets/index.html?v=${sceneAssetVersion}`
     </section>
 
     <div class="campus-3d-help">
-      <p><strong>电脑：</strong>点击场景后使用 WASD 移动，C 切换步行，E 骑车；拖动鼠标环视，滚轮缩放。</p>
+      <p><strong>电脑：</strong>点击场景后使用 WASD 移动，C 切换步行，E 骑车；拖动鼠标环视，滚轮缩放；R 或“返回南门”按钮重置位置。</p>
       <p><strong>手机：</strong>使用屏幕摇杆与操作按钮，横屏或独立打开可获得更大的探索空间。</p>
       <p>当前提供津南校区三维探索场景。建筑与道路为建模展示，实际出行请使用“校园地图 · NK 智行”。</p>
     </div>
