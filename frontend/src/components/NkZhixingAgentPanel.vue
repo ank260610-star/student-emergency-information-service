@@ -245,12 +245,13 @@ async function submit() {
   }
 
   const destinationCandidates = narrative ? [] : findDestinationCandidates(prompt, campus)
-  const selectedDestination = campus.locations?.find((location) => location.id === selectedDestinationId.value) || null
+  const selectedDestination = campus.locations?.find((location) => location.id === selectedDestinationId.value)
+    || (destinationCandidates.length === 1 ? destinationCandidates[0] : null)
   const navigationIntent = !narrative && (
     isNavigationRequest(prompt) || needsCurrentPosition || Boolean(selectedDestination)
     || destinationCandidates.some((location) => [location.name, ...(location.aliases || [])].includes(prompt))
   )
-  if (navigationIntent && !selectedDestination && destinationCandidates.length) {
+  if (navigationIntent && !selectedDestination && destinationCandidates.length > 1) {
     pendingCandidates = { campusId: campus.id, prompt, ids: destinationCandidates.map((location) => location.id) }
     emit('show-candidates', destinationCandidates)
     error.value = destinationCandidates.length > 1

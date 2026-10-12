@@ -1,6 +1,6 @@
 {
   "schemaVersion": "0.2",
-  "updatedAt": "2026-10-10",
+  "updatedAt": "2026-10-12",
   "cases": [
     {"id":"E01","input":"我在津南西南门，想去中心图书馆。","expected":{"intent":"navigation","campus":"jinnan","origin":"jinnan-southwest-gate","destination":"jinnan-library","mustCall":["place_search","route_plan"],"mustNot":"invent_route_without_tool"}},
     {"id":"E02","input":"从西门到法学院怎么走？","expected":{"intent":"navigation","campus":"jinnan","origin":"jinnan-west-gate","destination":"jinnan-law-school","mustCall":["place_search","route_plan"],"mustMention":"destination_needs_field_verification"}},
@@ -39,6 +39,11 @@
     {"id":"E35","input":"从当前位置去文科食堂。\n【当前校区已确定】用户正在查看津南校区地图。\n【本次导航起点】当前位置（GCJ-02）：经度 117.344000，纬度 38.990000。","expected":{"intent":"navigation","campus":"jinnan","destination":"jinnan-first-cafeteria","mustUse":"self_built_poi_before_amap"}},
     {"id":"E36","input":"从当前位置去一个自建库没有的校外地点。\n【当前校区已确定】用户正在查看津南校区地图。\n【本次导航起点】当前位置（GCJ-02）：经度 117.344000，纬度 38.990000。","expected":{"intent":"navigation","campus":"jinnan","mustUse":"amap_fallback_after_self_built_miss"}},
     {"id":"E37","input":"介绍一下主楼。\n【地点检索资料】命中地点：主楼。类型：校园建筑。简介：八里台校区重要的教学与办公地标。事实资料：主楼前广场与周恩来总理像共同构成具有辨识度的校园空间。","expected":{"intent":"place_introduction","mustNotCall":["weather","route_plan"],"mustNot":"add_unprovided_dates_or_dimensions"}},
-    {"id":"E38","input":"从我的位置去公共教学楼B。\n【当前校区已确定】用户正在查看津南校区地图。\n【用户已选择出行方式】步行。\n【本次导航起点】当前位置（GCJ-02）：经度 117.344000，纬度 38.990000。","expected":{"intent":"navigation","campus":"jinnan","destination":"jinnan-public-teaching-b","mustNot":"treat_name_as_uncertain"}}
+    {"id":"E38","input":"从我的位置去公共教学楼B。\n【当前校区已确定】用户正在查看津南校区地图。\n【用户已选择出行方式】步行。\n【本次导航起点】当前位置（GCJ-02）：经度 117.344000，纬度 38.990000。","expected":{"intent":"navigation","campus":"jinnan","destination":"jinnan-public-teaching-b","mustNot":"treat_name_as_uncertain"}},
+    {"id":"E39","input":"图书馆咋走？\n【当前校区已确定】用户正在查看津南校区地图。\n【本次导航起点】当前位置（GCJ-02）：经度 117.344000，纬度 38.990000。","expected":{"intent":"navigation","campus":"jinnan","origin":"current-location","mustAskOnlyIf":"multiple_library_candidates"}},
+    {"id":"E40","input":"我在西南门，中心图书馆咋走啊？\n【当前校区已确定】用户正在查看津南校区地图。","expected":{"intent":"navigation","campus":"jinnan","origin":"jinnan-southwest-gate","destination":"jinnan-library","mustNot":"ask_user_to_rephrase"}},
+    {"id":"E41","input":"从这边出发，带我去大通学活吧。\n【当前校区已确定】用户正在查看津南校区地图。\n【本次导航起点】当前位置（GCJ-02）：经度 117.344000，纬度 38.990000。","expected":{"intent":"navigation","campus":"jinnan","origin":"current-location","destination":"jinnan-student-center","mustNot":"ask_origin_again"}},
+    {"id":"E42","input":"中心图书馆离我多远？\n【当前校区已确定】用户正在查看津南校区地图。\n【本次导航起点】当前位置（GCJ-02）：经度 117.344000，纬度 38.990000。","expected":{"intent":"navigation","campus":"jinnan","origin":"current-location","destination":"jinnan-library","mustNot":"estimate_without_route_tool"}},
+    {"id":"E43","input":"腿着去公教。\n【当前校区已确定】用户正在查看津南校区地图。\n【本次导航起点】当前位置（GCJ-02）：经度 117.344000，纬度 38.990000。","expected":{"intent":"navigation","campus":"jinnan","origin":"current-location","destination":"jinnan-public-teaching","travelMode":"walking","mustNot":"ask_user_to_rephrase"}}
   ]
 }

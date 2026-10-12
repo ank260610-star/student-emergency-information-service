@@ -5,9 +5,9 @@ export const travelModeLabels = {
 }
 
 const travelModePatterns = {
-  walking: /(?:步行|走路|徒步)/g,
-  bicycling: /(?:骑行|骑车|自行车|单车|电动车)/g,
-  driving: /(?:驾车|开车|自驾)/g,
+  walking: /(?:步行|走路|徒步|腿着)/g,
+  bicycling: /(?:骑行|骑车|自行车|单车|共享单车|电动车|小电驴)/g,
+  driving: /(?:驾车|开车|自驾|打车|出租车|网约车)/g,
 }
 
 const campusAliases = { jinnan: { 'jinnan-public-teaching': ['公教'] } }
@@ -26,7 +26,7 @@ export function isNamedFacilityGate(value) {
 }
 
 export function isNavigationRequest(value) {
-  return /(?:前往|抵达|到|去|怎么走|怎么去|如何去|导航|路线)/.test(String(value || ''))
+  return /(?:前往|抵达|到达|到|去|过去|怎么走|怎么去|怎么过去|如何走|如何去|咋走|咋去|咋过去|带路|领路|导航|路线|想找|要找|帮我找|离我多远|远不远|要多久|几分钟)/.test(String(value || ''))
 }
 
 export function findRequestedTravelMode(value) {
@@ -44,21 +44,38 @@ export function findRequestedTravelMode(value) {
 export function extractNavigationDestination(value) {
   const text = String(value || '').replace(/\s/g, '')
   if (!text || !isNavigationRequest(text)) return ''
-  // Strip trailing questions before splitting, so “图书馆怎么去” keeps its destination.
-  const statement = text.replace(/(?:怎么走|怎么去|如何去|导航|路线|在哪里|在哪儿|在哪)[？?。！!]*$/, '')
-  const parts = statement.split(/(?:前往|抵达|到|去)/)
-  return (parts[parts.length - 1] || '')
-    .replace(/^(?:一下|往|校园内|校内)/, '')
-    .replace(/(?:怎么走|怎么去|如何去|导航|路线|在哪里|在哪儿|在哪|[？?。！!，,]).*/, '')
+  // Strip conversational question tails before splitting, so “图书馆咋走” and
+  // “图书馆怎么过去” keep the place instead of splitting on the final “去”.
+  let statement = text
+    .replace(/[？?。！!]+$/, '')
+    .replace(/(?:怎么|如何|咋)(?:走|去|过去|到|导航)(?:呀|啊|呢|吧)?$/, '')
+    .replace(/(?:给我)?(?:带路|领路|导航|路线)(?:呀|啊|呢|吧)?$/, '')
+  const distanceQuestion = statement.match(/^(.+?)离(?:我|这里|这儿|当前位置).*(?:多远|远不远|多久|几分钟)$/)
+  if (distanceQuestion) statement = distanceQuestion[1]
+  statement = statement
+    .replace(/^我(?:现在)?在.+?[，,](?:我)?(?:想|要|准备|打算)?/, '')
+    .replace(/^.+?出发[，,](?:我)?(?:想|要|准备|打算)?/, '')
+  const parts = statement.split(/(?:导航到|带我去|领我去|前往|抵达|到达|走到|到|去)/)
+  return (parts[parts.length - 1] || statement)
+    .replace(/^(?:麻烦|请问|请|帮我|给我|带我|领我|我想|我要|想|要|找一下|找|一下|往|校园内|校内)+/, '')
+    .replace(/(?:怎么走|怎么去|怎么过去|如何走|如何去|咋走|咋去|咋过去|导航|路线|在哪里|在哪儿|在哪|[？?。！!，,]).*/, '')
+    .replace(/(?:一下|一趟|吧|呀|啊|呢)+$/, '')
     .trim().slice(0, 80)
 }
 
 export function extractNavigationOrigin(value) {
   const text = String(value || '').replace(/\s/g, '')
-  const separator = text.match(/(?:前往|抵达|到|去)/)
+  const departingFrom = text.match(/(?:从|由)(.+?)出发(?:[，,]|$)/)
+  if (departingFrom) return departingFrom[1].replace(/[，,。！!？?].*/, '').trim().slice(0, 80)
+  const explicitFrom = text.match(/(?:从|由)(.+?)(?:导航到|前往|抵达|到达|走到|到|去)/)
+  if (explicitFrom) return explicitFrom[1].replace(/[，,。！!？?].*/, '').trim().slice(0, 80)
+  const locatedAt = text.match(/我(?:现在)?在(.+?)[，,](?:(?:我)?(?:想|要|准备|打算))?(?:导航到|前往|抵达|到达|走到|到|去|.+?(?:怎么|如何|咋)(?:走|去|过去))/)
+  if (locatedAt) return locatedAt[1].replace(/[，,。！!？?].*/, '').trim().slice(0, 80)
+  const separator = text.match(/(?:导航到|前往|抵达|到达|走到|到|去)/)
   if (!separator || separator.index === 0) return ''
   return text.slice(0, separator.index)
-    .replace(/^(?:从|由|我在|起点是?)/, '')
+    .replace(/^(?:麻烦|请问|请|帮我|我想|我要|想|要|从|由|我在|起点是?)+/, '')
+    .replace(/(?:出发|走)$/, '')
     .replace(/[，,。！!？?].*/, '')
     .trim().slice(0, 80)
 }
@@ -93,8 +110,12 @@ export function findDestinationCandidates(text, campus) {
   const matches = findLocationMatches(destinationText, campus)
     .filter((match) => !isNamedFacilityGate(destinationText)
       || genericGatePattern.test(match.alias))
-  const longest = Math.max(0, ...matches.map((match) => match.aliasLength))
-  const locations = matches.filter((match) => match.aliasLength === longest).map((match) => match.location)
+  // The destination is normally the last mentioned place. Keep every location
+  // sharing that final alias so generic names such as “图书馆” still disambiguate.
+  const latestIndex = Math.max(-1, ...matches.map((match) => match.index))
+  const latestMatches = matches.filter((match) => match.index === latestIndex)
+  const longest = Math.max(0, ...latestMatches.map((match) => match.aliasLength))
+  const locations = latestMatches.filter((match) => match.aliasLength === longest).map((match) => match.location)
   if (locations.length) return [...new Map(locations.map((location) => [location.id, location])).values()]
 
   const term = ['图书馆', '食堂', '宿舍', '体育馆', '教学楼', '校门', '大门', '医院', '广场']
@@ -117,7 +138,7 @@ export function findOrigin(text, destination, campus) {
 
 export function refersToCurrentPosition(value) {
   const text = normalize(value)
-  return /(?:我的位置|当前位置|从我这里|从我这儿|从这里|我所在的位置|以我(?:的)?位置为起点)/.test(text)
+  return /(?:我的位置|当前位置|从我这里|从我这儿|从我这边|从这里|从这儿|从这边|从我这|我所在的位置|以我(?:的)?位置为起点|从脚下|就从这)/.test(text)
 }
 
 export function requestsLandmarkHistory(value) {
@@ -141,7 +162,10 @@ export function isPointNearCampus(point, geoCenter, maximumDistanceMeters = 8000
 }
 
 export function buildAgentInstructions({ campus, narrative, navigationIntent, liveOrigin, mode, destination, prompt = '' }) {
-  const instructions = [`【当前校区已确定】用户正在查看${campus.name}地图。未明确提出跨校区时，用户提到的所有校门、建筑、教学楼、图书馆、食堂、宿舍、场馆和地标均只允许在${campus.name}地点库内解析；不得使用另一校区的同名或相似地点，也不要再次询问用户所在校区。`]
+  const instructions = [
+    `【当前校区已确定】用户正在查看${campus.name}地图。未明确提出跨校区时，用户提到的所有校门、建筑、教学楼、图书馆、食堂、宿舍、场馆和地标均只允许在${campus.name}地点库内解析；不得使用另一校区的同名或相似地点，也不要再次询问用户所在校区。`,
+    '【自然语言理解】用户可能使用简称、口语、语气词或省略句，例如“咋走”“怎么过去”“带我去”“从这边出发”“学活”“公教”。应结合当前校区地点名称与别名理解真实意图，不要求用户改写成固定句式；已有唯一合理解释时直接处理，只有存在多个实际候选时才询问或让用户点选。',
+  ]
   if (campus.id === 'balitai') {
     instructions.push('【八里台校门规则】用户只说“东门”“西门”“南门”“北门”或带方向的“××门”，且未明确说明属于某学院、场馆或建筑时，一律按南开大学八里台校区的学校大门理解；只有用户明说“某学院/某建筑××门”时，才按该单位入口理解。')
   }
