@@ -1,8 +1,21 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
+  "installCommand": "cd frontend && npm install --no-audit --no-fund",
+  "buildCommand": "cd frontend && npm run build",
+  "outputDirectory": "frontend/dist",
   "functions": {
-    "api/nk-zhixing.js": {
-      "maxDuration": 60
+    "api/nk-zhixing.js": { "maxDuration": 60 },
+    "api/nk-zhixing/place.js": { "maxDuration": 60 },
+    "api/nk-zhixing/route.js": { "maxDuration": 60 }
+  },
+  "rewrites": [
+    {
+      "source": "/api/:path*",
+      "destination": "https://student-emergency-information-service.ank260610.workers.dev/api/:path*"
+    },
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
     }
-  }
+  ]
 }
