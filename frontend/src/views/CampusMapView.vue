@@ -33,6 +33,9 @@ const mapStatus = ref(`${campusConfigs[campus.value].name} · ${getCampusLocatio
 const interactiveMap = ref(null)
 const nkZhixingPanel = ref(null)
 const mapWorkspace = ref(null)
+const tourPanel = ref(null)
+const directoryPanel = ref(null)
+const directoryExpanded = ref(false)
 const { photoDialog, activePhoto, photoFallback, openPhoto, closePhoto } = usePhotoDialog()
 const liveNavigation = ref(false)
 const voiceOutputEnabled = ref(false)
@@ -182,8 +185,25 @@ function clearMapSelection() {
 }
 
 function scrollToMap() {
+  scrollToSection(mapWorkspace.value)
+}
+
+function scrollToSection(target) {
+  if (!target) return
   const behavior = window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth'
-  mapWorkspace.value?.scrollIntoView({ behavior, block: 'start' })
+  target.scrollIntoView({ behavior, block: 'start' })
+}
+
+function scrollToAgent() {
+  scrollToSection(nkZhixingPanel.value?.$el)
+}
+
+function scrollToTours() {
+  scrollToSection(tourPanel.value)
+}
+
+function scrollToDirectory() {
+  scrollToSection(directoryPanel.value)
 }
 
 async function selectAndFocus(location, shouldScroll = false) {
@@ -676,6 +696,13 @@ onBeforeUnmount(() => {
       </div>
     </section>
 
+    <nav class="map-mobile-jump" aria-label="地图页面快捷导航">
+      <button type="button" @click="scrollToMap">地图</button>
+      <button type="button" @click="scrollToAgent">问智行</button>
+      <button type="button" @click="scrollToTours">探索路线</button>
+      <button type="button" @click="scrollToDirectory">地点</button>
+    </nav>
+
     <section class="map-experience" aria-labelledby="interactive-map-title">
       <div class="map-experience-heading">
         <div class="section-heading compact">
@@ -790,7 +817,7 @@ onBeforeUnmount(() => {
         @voice-output-change="voiceOutputEnabled = $event"
       />
 
-      <section v-if="campusToursForCurrentCampus.length" class="campus-tour-panel" aria-label="校园游览路线">
+      <section v-if="campusToursForCurrentCampus.length" ref="tourPanel" class="campus-tour-panel" aria-label="校园游览路线">
         <div class="campus-tour-heading">
           <span class="section-kicker"><i></i> CAMPUS TOUR</span>
           <h3>{{ currentCampus.name }}主题探索路线</h3>
@@ -891,12 +918,25 @@ onBeforeUnmount(() => {
       </dialog>
     </Teleport>
 
-    <section class="map-directory" aria-labelledby="directory-title">
-      <div class="section-heading compact">
-        <span class="section-kicker"><i></i> LOCATION INDEX</span>
-        <h2 id="directory-title">{{ currentCampus.short }}地点索引</h2>
+    <section ref="directoryPanel" class="map-directory" aria-labelledby="directory-title">
+      <div class="map-directory-heading">
+        <div class="section-heading compact">
+          <span class="section-kicker"><i></i> LOCATION INDEX</span>
+          <h2 id="directory-title">{{ currentCampus.short }}地点索引</h2>
+        </div>
+        <button
+          type="button"
+          class="map-directory-toggle"
+          :aria-expanded="directoryExpanded"
+          aria-controls="campus-location-directory"
+          @click="directoryExpanded = !directoryExpanded"
+        >{{ directoryExpanded ? '收起地点' : `展开 ${filteredLocations.length} 个地点` }}</button>
       </div>
-      <div class="map-directory-grid">
+      <div
+        id="campus-location-directory"
+        class="map-directory-grid"
+        :class="{ 'mobile-collapsed': !directoryExpanded }"
+      >
         <button
           v-for="location in filteredLocations"
           :key="location.id"
