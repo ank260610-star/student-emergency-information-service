@@ -15,7 +15,7 @@ function setup(options = {}) {
       return watches.length - 1
     },
     clearWatch(id) { cleared.push(id) },
-    getCurrentPosition(success, error) { locations.push({ success, error }) },
+    getCurrentPosition(success, error, requestOptions) { locations.push({ success, error, requestOptions }) },
   }
   const session = createGeolocationSession({
     geolocation,
@@ -75,6 +75,20 @@ test('a new location request supersedes old results and errors', () => {
   state.locations[1].success('new')
   assert.deepEqual(results, ['new'])
   assert.equal(state.statuses.length, statusCount)
+})
+
+test('route-triggered positioning requests a fresh high-accuracy fix and reports failure', () => {
+  const state = setup()
+  const errors = []
+  assert.equal(state.session.locate(() => {}, { onError: (error) => errors.push(error) }), true)
+  assert.deepEqual(state.locations[0].requestOptions, {
+    enableHighAccuracy: true,
+    timeout: 10000,
+    maximumAge: 0,
+  })
+  const denied = { code: 1 }
+  state.locations[0].error(denied)
+  assert.deepEqual(errors, [denied])
 })
 
 test('map changes and disposal invalidate pending one-time positioning', () => {

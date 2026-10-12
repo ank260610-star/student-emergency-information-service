@@ -45,7 +45,8 @@ onBeforeUnmount(() => {
   if (pageFullscreen.value) setPageFullscreen(false)
 })
 // The scene selects its touch controls and rendering quality for the device.
-const sceneUrl = '/campus-3d-assets/index.html'
+const sceneAssetVersion = '3d-fix-49f8785'
+const sceneUrl = `/campus-3d-assets/index.html?v=${sceneAssetVersion}`
 </script>
 
 <template>

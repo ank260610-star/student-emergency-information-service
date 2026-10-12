@@ -124,12 +124,22 @@ export function distanceToPolylineMeters(point, polyline) {
   return nearest
 }
 
-function routePointDistance(start, end) {
-  if (!Array.isArray(start) || !Array.isArray(end)) return 0
+export function routePointDistance(start, end) {
+  if (!Array.isArray(start) || !Array.isArray(end)) return Number.POSITIVE_INFINITY
+  if (![...start, ...end].every(Number.isFinite)) return Number.POSITIVE_INFINITY
   const referenceLatitude = (start[0] + end[0]) / 2
   const [startX, startY] = projectedMeters(start, referenceLatitude)
   const [endX, endY] = projectedMeters(end, referenceLatitude)
   return Math.hypot(endX - startX, endY - startY)
+}
+
+export function orderStopsFromNearestEndpoint(stops, currentPoint) {
+  const orderedStops = Array.isArray(stops) ? [...stops] : []
+  if (orderedStops.length < 2) return { stops: orderedStops, reversed: false }
+  const startDistance = routePointDistance(currentPoint, orderedStops[0]?.geoPoint)
+  const endDistance = routePointDistance(currentPoint, orderedStops.at(-1)?.geoPoint)
+  const reversed = endDistance < startDistance
+  return { stops: reversed ? orderedStops.reverse() : orderedStops, reversed }
 }
 
 function roundedInstructionDistance(distanceMeters) {

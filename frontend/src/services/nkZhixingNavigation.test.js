@@ -11,6 +11,7 @@ import {
   isNavigationPoint,
   isNamedFacilityGate,
   isPointNearCampus,
+  refersToCurrentPosition,
 } from './nkZhixingNavigation.js'
 
 test('detects the latest explicit travel mode in a navigation request', () => {
@@ -19,6 +20,18 @@ test('detects the latest explicit travel mode in a navigation request', () => {
   assert.equal(findRequestedTravelMode('从西南门走路去食堂'), 'walking')
   assert.equal(findRequestedTravelMode('先骑车，之后改为步行'), 'walking')
   assert.equal(findRequestedTravelMode('去中心图书馆'), '')
+})
+
+test('treats natural current-location phrases as the live starting point', () => {
+  for (const request of [
+    '从我的位置出发去图书馆',
+    '从这里出发去文科食堂',
+    '以我的位置为起点前往东门',
+    '从我所在的位置导航到体育馆',
+  ]) {
+    assert.equal(refersToCurrentPosition(request), true)
+  }
+  assert.equal(refersToCurrentPosition('从西门出发去图书馆'), false)
 })
 
 const campus = {

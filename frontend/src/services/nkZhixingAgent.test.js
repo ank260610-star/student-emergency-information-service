@@ -99,8 +99,20 @@ test('agent validates answers and omits unsafe map link schemes', async (t) => {
 })
 
 test('place lookup rejects empty, malformed, and out-of-range coordinates', async (t) => {
-  t.mock.method(globalThis, 'fetch', async () => ({ ok: true, json: async () => ({ coordinate: '117.1,39.1' }) }))
-  const request = { campus: 'jinnan', name: '中心图书馆' }
+  t.mock.method(globalThis, 'fetch', async (url, options) => {
+    assert.equal(url, '/api/nk-zhixing/place')
+    assert.deepEqual(JSON.parse(options.body), {
+      campus: 'balitai',
+      name: '南开大学八里台校区东门',
+      locationId: 'balitai-east-gate',
+    })
+    return { ok: true, json: async () => ({ coordinate: '117.1,39.1' }) }
+  })
+  const request = {
+    campus: 'balitai',
+    name: '南开大学八里台校区东门',
+    locationId: 'balitai-east-gate',
+  }
   assert.deepEqual(await resolveCampusPlace(request), [39.1, 117.1])
   for (const coordinate of [null, '', ',', '117.1,', '117.1,39.1,0', '181,39', '117,91', 'abc,39']) {
     globalThis.fetch = async () => ({ ok: true, json: async () => ({ coordinate }) })

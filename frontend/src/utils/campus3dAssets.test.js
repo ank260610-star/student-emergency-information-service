@@ -6,12 +6,19 @@ import { dirname, join, resolve } from 'node:path'
 
 const publicRoot = fileURLToPath(new URL('../../public/', import.meta.url))
 const sceneRoot = join(publicRoot, 'campus-3d-assets')
+const sceneAssetVersion = '3d-fix-49f8785'
 
 test('3D scene resources do not shadow the Vue page route', () => {
   assert.equal(existsSync(join(publicRoot, 'campus-3d/index.html')), false)
   assert.equal(existsSync(join(sceneRoot, 'index.html')), true)
   const view = readFileSync(new URL('../views/Campus3DView.vue', import.meta.url), 'utf8')
-  assert.match(view, /sceneUrl = '\/campus-3d-assets\/index\.html'/)
+  const sceneDocument = readFileSync(join(sceneRoot, 'index.html'), 'utf8')
+  assert.match(view, new RegExp(`sceneAssetVersion = '${sceneAssetVersion}'`))
+  assert.match(view, /sceneUrl = `\/campus-3d-assets\/index\.html\?v=\$\{sceneAssetVersion\}`/)
+  for (const asset of ['style.css', 'bootstrap.js', 'game3d.js']) {
+    const escapedAsset = asset.replace('.', '\\.')
+    assert.match(sceneDocument, new RegExp(`${escapedAsset}\\?v=${sceneAssetVersion}`))
+  }
 })
 
 test('3D runtime imports resolve locally without an inline import map', () => {
