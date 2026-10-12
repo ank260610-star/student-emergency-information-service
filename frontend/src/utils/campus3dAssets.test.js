@@ -47,6 +47,14 @@ test('3D flight mode retains an editable widebody source and a local fallback', 
   assert.match(game, /jetWhine/)
 })
 
+test('3D runtime boots without referencing a missing desktop reset button', () => {
+  const game = readFileSync(join(sceneRoot, 'game3d.js'), 'utf8')
+  const sceneDocument = readFileSync(join(sceneRoot, 'index.html'), 'utf8')
+  assert.doesNotMatch(game, /resetButton/)
+  assert.match(game, /function reset\(/)
+  assert.match(sceneDocument, /data-action="reset"/)
+})
+
 test('3D security rules allow only same-origin embedding and local model blobs', () => {
   const headers = readFileSync(join(publicRoot, '_headers'), 'utf8')
   const sceneRules = headers.split('/campus-3d-assets/*')[1]

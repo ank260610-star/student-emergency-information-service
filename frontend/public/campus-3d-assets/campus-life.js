@@ -1,6 +1,6 @@
 import * as THREE from './vendor/three/build/three.module.js';
 import {GLTFLoader} from './vendor/three/examples/jsm/loaders/GLTFLoader.js';
-import {createZhouStatue} from './zhou-statue.js?v=visual-fix-2';
+import {createZhouStatue} from './zhou-statue.js';
 
 const standard = (color, extra={}) => new THREE.MeshStandardMaterial({color, roughness:.7, metalness:.08, ...extra});
 
@@ -64,7 +64,7 @@ function mountSharedBikeModel(bike, template){
       wheels.push(node);
       if(node.name==='wheel-bike-front')frontWheels.push(node);
     }
-    if(node.isMesh){node.castShadow=true;node.receiveShadow=true;if(node.name==='wheel-bike-front'||node.name==='wheel-bike-rear'){node.material=node.material?.clone?.()||node.material;if(node.material){node.material.metalness=.82;node.material.roughness=.24;}}}
+    if(node.isMesh){node.castShadow=true;node.receiveShadow=true;}
   });
   // Yellow, blue and red are original campus-fleet colourways. Brand marks are
   // intentionally not copied from Meituan, ByteDance or Ele.me assets.
@@ -127,13 +127,14 @@ function winslowAvatar(){
   const arms=[limb(-1.32,4.95,coat),limb(1.32,4.95,coat)];arms[0].rotation.z=.12;arms[1].rotation.z=-.12;
   const headPivot=new THREE.Group();headPivot.position.y=5.78;g.add(headPivot);const neck=new THREE.Mesh(new THREE.CylinderGeometry(.46,.52,.52,12),skin);neck.position.y=.15;headPivot.add(neck);
   const head=new THREE.Mesh(new THREE.SphereGeometry(.93,24,20),skin);head.position.y=1.02;head.scale.set(.94,1.09,.9);headPivot.add(head);
-  // Generated from the user's supplied three-angle references; the old single selfie texture is retired.
-  const faceMap=new THREE.TextureLoader().load('./work/winslow-face-albedo-v2.png');faceMap.colorSpace=THREE.SRGBColorSpace;faceMap.anisotropy=8;faceMap.wrapS=faceMap.wrapT=THREE.ClampToEdgeWrapping;faceMap.repeat.set(.72,.68);faceMap.offset.set(.14,.13);const face=new THREE.Mesh(new THREE.PlaneGeometry(1.58,1.82),new THREE.MeshBasicMaterial({map:faceMap,transparent:true}));face.position.set(0,1.02,.846);headPivot.add(face);
+  // Face texture is an explicit local asset slot. A licensed portrait supplied
+  // by the project owner can replace this file without changing the rig.
+  const faceMap=new THREE.TextureLoader().load('./work/daniel-wu-cc-by-sa.jpg');faceMap.colorSpace=THREE.SRGBColorSpace;faceMap.wrapS=faceMap.wrapT=THREE.ClampToEdgeWrapping;faceMap.repeat.set(.48,.45);faceMap.offset.set(.26,.43);const face=new THREE.Mesh(new THREE.PlaneGeometry(1.58,1.82),new THREE.MeshBasicMaterial({map:faceMap,transparent:true}));face.position.set(0,1.02,.846);headPivot.add(face);
   const hairCap=new THREE.Mesh(new THREE.SphereGeometry(.99,24,16,0,Math.PI*2,0,1.28),hair);hairCap.position.set(0,1.4,.02);hairCap.scale.set(.96,.78,.95);headPivot.add(hairCap);for(let i=-4;i<=4;i++){const tuft=new THREE.Mesh(new THREE.CapsuleGeometry(.06,.42,5,7),hair);tuft.position.set(i*.14,1.74,.68-Math.abs(i)*.025);tuft.rotation.z=-i*.13;tuft.rotation.x=-.45;headPivot.add(tuft)}
   const capTop=new THREE.Mesh(new THREE.SphereGeometry(1.03,24,14,0,Math.PI*2,0,1.18),cap);capTop.position.set(0,1.58,.02);capTop.scale.set(.96,.72,.96);headPivot.add(capTop);const brim=new THREE.Mesh(new THREE.BoxGeometry(1.52,.13,.67),cap);brim.position.set(0,1.58,.83);brim.rotation.x=-.12;headPivot.add(brim);
   for(const x of [-.37,.37]){const glasses=new THREE.Mesh(new THREE.SphereGeometry(.35,14,10),lens);glasses.position.set(x,1.1,.89);glasses.scale.z=.16;headPivot.add(glasses)}const bridge=new THREE.Mesh(new THREE.BoxGeometry(.22,.055,.05),standard(0xb0a187,{metalness:.8,roughness:.22}));bridge.position.set(0,1.11,.93);headPivot.add(bridge);
   const earring=new THREE.Mesh(new THREE.TorusGeometry(.12,.025,6,12),standard(0xd4d5d1,{metalness:.85,roughness:.18}));earring.position.set(-.9,.78,.16);earring.rotation.y=Math.PI/2;headPivot.add(earring);
-  const tag=campusLabel('Winslow · 南开本科新生',new THREE.Vector3(0,8.35,0),0x69b6f2);tag.scale.set(19,3.5,1);g.add(tag);g.userData={tag,arms,legs:[legA,legB],head:headPivot,torso};g.traverse(o=>{if(o.isMesh){o.castShadow=true;o.receiveShadow=true}});return g;
+  const tag=campusLabel('Winslow · 吴彦祖头像 · 南开本科新生',new THREE.Vector3(0,8.35,0),0x69b6f2);tag.scale.set(19,3.5,1);g.add(tag);g.userData={tag,arms,legs:[legA,legB],head:headPivot,torso};g.traverse(o=>{if(o.isMesh){o.castShadow=true;o.receiveShadow=true}});return g;
 }
 
 // Two-bone IK in avatar coordinates: the feet follow a circular crank path,
@@ -163,13 +164,15 @@ export function poseBicycleRider(avatar,{phase,steer,moving,pedaling}){
 export function addCampusLife(scene, world){
   const all=new THREE.Group(),nightLights=[];all.name='campus-life';
   // Official campus sources place the bronze statue in the Library forecourt, inside the south gate.
-  const statuePoint=world(38.98447,117.34054),statue=createZhouStatue(),statueLabel=campusLabel('周恩来总理铜像 · 图书馆前广场',statuePoint.clone().add(new THREE.Vector3(0,13,0)),0xe2bb64);statue.position.copy(statuePoint);statue.scale.setScalar(.25);statueLabel.scale.set(34,6.4,1);all.add(statue,statueLabel);
+  const statuePoint=world(38.98447,117.34054),statue=createZhouStatue(),statueLabel=campusLabel('周恩来总理铜像 · 图书馆前广场',statuePoint.clone().add(new THREE.Vector3(0,18,0)),0xe2bb64);statue.position.copy(statuePoint);statue.scale.setScalar(.25);statueLabel.scale.set(28,5.2,1);all.add(statue,statueLabel);
   all.add(flowerBed(statuePoint.x-16,statuePoint.z-3,15,8),flowerBed(statuePoint.x+16,statuePoint.z-3,15,8));
   // Deliberately planted corridors, rather than random forest scattered over roads.
   [[38.9835,117.3394],[38.9841,117.33965],[38.9850,117.3401],[38.9860,117.3406],[38.9871,117.3408],[38.9882,117.3410],[38.9895,117.3412],[38.9908,117.3413],[38.9920,117.3414]].forEach(([lat,lon],i)=>{const p=world(lat,lon),left=streetLamp(p.x-8,p.z),right=streetLamp(p.x+8,p.z);all.add(tree(p.x-13,p.z,1.05),tree(p.x+13,p.z,.94),left.g,right.g);nightLights.push(left.light,right.light)});
-  const commerce=world(38.99182,117.33530);all.add(storefront('KFC',commerce.x-80,commerce.z-30,0xbc1d30),storefront('健身房 GYM',commerce.x+78,commerce.z-30,0x247d89)); // McDonald's is modeled once in the photo survey street.
+  const commerce=world(38.99182,117.33530); // McDonald's is modeled once in the photo survey street; KFC/GYM placeholders removed.
   const bikes=[];for(let i=0;i<11;i++){const kind=i%3===0?'byte':i%5===0?'red-bike':'meituan',color=kind==='byte'?0x49b9f1:kind==='red-bike'?0xde4343:0xf1b92b;const bike=publicBike(color,kind);bike.position.set(commerce.x-36+i*6,0,commerce.z+12);bike.rotation.y=Math.PI/2;all.add(bike);bikes.push(bike)}
   const parking=world(38.98372,117.3426);all.add(parkingEntrance(parking.x,parking.z));
+  // Parcel pickup belongs beside the north gate service road, not the commerce street.
+  const north=world(38.98805,117.32855),parcel=new THREE.Group();parcel.position.copy(north);const parcelWall=new THREE.Mesh(new THREE.BoxGeometry(18,4.6,7),standard(0xb24a55,{roughness:.82}));parcelWall.position.y=2.3;parcel.add(parcelWall);const parcelGlass=new THREE.Mesh(new THREE.BoxGeometry(14,3.1,.18),standard(0x6e9aa3,{metalness:.28,roughness:.18,transparent:true,opacity:.82}));parcelGlass.position.set(0,1.9,3.55);parcel.add(parcelGlass);parcel.add(campusLabel('北门 · 校园快递服务站',new THREE.Vector3(0,5.5,0),0xffe9b4));parcel.userData.collisionBox={halfX:9,halfZ:3.5};all.add(parcel);
   // Two rideable starter bikes cover both the initial and reset south-gate positions, so E works immediately.
   const spawn=world(38.9812,117.3397),resetSpawn=world(38.9812,117.3397);
   [[spawn,0xf1b92b,'meituan'],[resetSpawn,0x49b9f1,'byte']].forEach(([p,color,kind],i)=>{const bike=publicBike(color,kind);bike.position.set(p.x+(i? -3.2:3.2),0,p.z+1);bike.rotation.y=Math.PI/2;bike.userData.starter=true;all.add(bike);bikes.push(bike)});
