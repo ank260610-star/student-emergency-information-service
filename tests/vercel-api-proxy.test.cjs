@@ -1,7 +1,7 @@
 const assert = require('node:assert/strict')
 const test = require('node:test')
 
-const handler = require('../api/[...path].js')
+const { createCampusProxy } = require('../lib/campus-api-proxy.js')
 
 function responseRecorder() {
   return {
@@ -19,6 +19,7 @@ function responseRecorder() {
 }
 
 test('Vercel compatibility proxy forwards only campus APIs without browser origin headers', async () => {
+  const handler = createCampusProxy('/api/nk-zhixing/place')
   const originalFetch = global.fetch
   let forwarded
   global.fetch = async (url, options) => {
@@ -50,9 +51,24 @@ test('Vercel compatibility proxy forwards only campus APIs without browser origi
   }
 })
 
-test('Vercel compatibility proxy rejects unrelated paths', async () => {
-  const response = responseRecorder()
-  await handler({ method: 'GET', url: '/api/private', headers: {} }, response)
-  assert.equal(response.status, 404)
-  assert.deepEqual(JSON.parse(response.body), { error: 'Not found' })
+test('Vercel compatibility proxy preserves query parameters for GET requests', async () => {
+  const originalFetch = global.fetch
+  let forwarded
+  global.fetch = async (url, options) => {
+    forwarded = { url, options }
+    return new Response(JSON.stringify({ total: 10 }), { status: 200 })
+  }
+  try {
+    const response = responseRecorder()
+    await createCampusProxy('/api/visits')({
+      method: 'GET',
+      url: '/api/visits?source=mobile',
+      headers: {},
+    }, response)
+    assert.equal(response.status, 200)
+    assert.equal(forwarded.url, 'https://student-emergency-information-service.ank260610.workers.dev/api/visits?source=mobile')
+    assert.equal(forwarded.options.body, undefined)
+  } finally {
+    global.fetch = originalFetch
+  }
 })
