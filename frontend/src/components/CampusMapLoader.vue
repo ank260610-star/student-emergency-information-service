@@ -26,16 +26,22 @@ const props = defineProps({
           <div class="library-side library-side-left"></div>
           <div class="library-side library-side-right"></div>
           <div class="library-main">
-            <div class="library-top-windows"></div>
-            <div class="library-roof"></div>
+            <div class="library-crown">
+              <div class="library-top-windows"></div>
+            </div>
+            <div class="library-crown-shadow"></div>
             <div class="library-wings library-wing-left"></div>
             <div class="library-wings library-wing-right"></div>
             <div class="library-center">
-              <span class="library-seal">南开</span>
+              <img class="library-seal" src="/images/nankai-university-logo.png" alt="">
             </div>
+            <div class="library-ground-floor"></div>
             <div class="library-entrance">
               <i></i><i></i><i></i><i></i><i></i>
             </div>
+            <div class="library-terrace library-terrace-left"></div>
+            <div class="library-terrace library-terrace-right"></div>
+            <div class="library-stairs"></div>
           </div>
         </div>
       </div>
@@ -177,8 +183,8 @@ const props = defineProps({
   position: absolute;
   left: 50%;
   bottom: 22%;
-  width: 76%;
-  height: 67%;
+  width: 82%;
+  height: 73%;
   transform: translateX(-50%) rotateX(-59deg) translateZ(1px);
   transform-origin: center bottom;
   transform-style: preserve-3d;
@@ -199,98 +205,142 @@ const props = defineProps({
 
 .library-main {
   position: absolute;
-  inset: 8% 4% 0;
+  inset: 2% 2% 0;
   overflow: visible;
-  border: 1px solid rgba(255, 222, 180, .7);
-  background:
-    repeating-linear-gradient(90deg, #7f2b38 0 6%, #9f4850 6% 8%, #4d1c2c 8% 10%),
-    #7e2737;
-  box-shadow: inset 0 5px 0 rgba(255,255,255,.13), 0 9px 18px rgba(25, 2, 21, .36);
+  filter: drop-shadow(0 9px 10px rgba(25, 2, 21, .35));
   transform: translateZ(4px);
 }
 
-.library-roof {
+.library-crown {
   position: absolute;
-  left: -5%;
-  right: -5%;
-  top: -11%;
-  height: 19%;
-  border: 1px solid #d4a76e;
-  background: linear-gradient(#d1aa80, #89575b);
-  clip-path: polygon(3% 0, 97% 0, 100% 100%, 0 100%);
+  z-index: 5;
+  left: 13%;
+  right: 13%;
+  top: 0;
+  height: 29%;
+  padding: 2.5% 8% 5%;
+  border: 1px solid #d8c7ad;
+  background: linear-gradient(172deg, #f3ebdc 0 33%, #cbbba5 34% 45%, #eee4d3 46% 100%);
+  clip-path: polygon(8% 0, 92% 0, 100% 76%, 95% 100%, 5% 100%, 0 76%);
+  box-sizing: border-box;
 }
 
 .library-top-windows {
+  width: 100%;
+  height: 69%;
+  margin-top: 2%;
+  border: 3px solid #b7a68f;
+  background: repeating-linear-gradient(90deg, #29404e 0 3.4%, #d5c9b7 3.4% 4.8%);
+  box-shadow: inset 0 3px 0 rgba(255,255,255,.18);
+}
+
+.library-crown-shadow {
   position: absolute;
   z-index: 2;
-  left: 7%;
-  right: 7%;
-  top: 3%;
-  height: 19%;
-  border: 3px solid #845058;
-  background: repeating-linear-gradient(90deg, #243b52 0 3%, #7b354a 3% 4.4%);
-  box-shadow: 0 5px 0 rgba(39, 18, 28, .45);
+  left: 10%;
+  right: 10%;
+  top: 26%;
+  height: 7%;
+  background: linear-gradient(#57303b, #291923);
+  clip-path: polygon(3% 0, 97% 0, 100% 100%, 0 100%);
 }
 
 .library-center {
   position: absolute;
   z-index: 3;
-  left: 34%;
-  right: 34%;
-  top: 28%;
-  bottom: 12%;
+  left: 35.5%;
+  right: 35.5%;
+  top: 31%;
+  bottom: 15%;
   display: grid;
   place-items: center;
-  border-inline: 4px solid #4c2430;
-  background: #933d48;
+  border-inline: 3px solid #4c2430;
+  background: linear-gradient(90deg, #8b3542, #a84d54 50%, #84323f);
 }
 
 .library-seal {
-  display: grid;
-  place-items: center;
-  width: clamp(24px, 4vw, 42px);
+  width: clamp(22px, 3.6vw, 38px);
   aspect-ratio: 1;
-  border: 2px solid rgba(54, 16, 37, .78);
   border-radius: 50%;
-  color: rgba(54, 16, 37, .9);
-  font-family: serif;
-  font-size: clamp(7px, 1.1vw, 11px);
-  font-weight: 800;
+  object-fit: contain;
+  opacity: .72;
+  filter: sepia(1) saturate(.42) contrast(1.25) brightness(.72);
 }
 
 .library-wings {
   position: absolute;
-  top: 30%;
-  bottom: 12%;
-  width: 29%;
-  background: repeating-linear-gradient(90deg, #a35055 0 9%, #412739 9% 13%, #76303d 13% 19%);
+  top: 32%;
+  bottom: 16%;
+  width: 34%;
+  border-top: 3px solid #c2a596;
+  background: repeating-linear-gradient(90deg, #7b303e 0 3%, #a94d55 3% 5.5%, #342936 5.5% 7.5%);
 }
 
-.library-wing-left { left: 3%; }
-.library-wing-right { right: 3%; }
+.library-wing-left { left: 1%; }
+.library-wing-right { right: 1%; }
+
+.library-ground-floor {
+  position: absolute;
+  z-index: 2;
+  left: 2%;
+  right: 2%;
+  bottom: 5%;
+  height: 13%;
+  border-block: 3px solid #dfd0ba;
+  background: repeating-linear-gradient(90deg, #c7b69e 0 1.8%, #263844 1.8% 5%);
+}
 
 .library-entrance {
   position: absolute;
   z-index: 4;
-  left: 25%;
-  right: 25%;
-  bottom: -5%;
-  height: 19%;
+  left: 38%;
+  right: 38%;
+  bottom: 4%;
+  height: 18%;
   display: flex;
   justify-content: space-around;
-  border-top: 5px solid #ddc5a7;
+  border: 4px solid #ddc5a7;
+  border-bottom: 0;
   background: linear-gradient(rgba(29, 46, 59, .92), rgba(18, 28, 36, .95));
 }
 
 .library-entrance i { width: 5px; height: 118%; background: #d9cab7; }
 
+.library-terrace {
+  position: absolute;
+  z-index: 6;
+  bottom: -4%;
+  width: 30%;
+  height: 12%;
+  border: 3px solid #ded3c1;
+  background: linear-gradient(#657d45 0 32%, #bfb8a8 34% 100%);
+  transform: perspective(90px) rotateX(48deg);
+}
+
+.library-terrace-left { left: 7%; }
+.library-terrace-right { right: 7%; }
+
+.library-stairs {
+  position: absolute;
+  z-index: 7;
+  left: 30%;
+  right: 30%;
+  bottom: -12%;
+  height: 17%;
+  border-inline: 1px solid rgba(103, 73, 67, .42);
+  background: repeating-linear-gradient(0deg, #d7cdbd 0 8%, #ad9e8c 8% 12%);
+  clip-path: polygon(12% 0, 88% 0, 100% 100%, 0 100%);
+  transform: perspective(110px) rotateX(53deg);
+  transform-origin: top;
+}
+
 .library-side {
   position: absolute;
   z-index: -1;
   bottom: 1%;
-  width: 16%;
-  height: 72%;
-  background: #632435;
+  width: 15%;
+  height: 65%;
+  background: repeating-linear-gradient(0deg, #6c2b38 0 5%, #a55257 5% 8%);
 }
 
 .library-side-left { left: -1%; transform: rotateY(-61deg); transform-origin: right; }
