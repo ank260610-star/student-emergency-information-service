@@ -1,6 +1,7 @@
 <script setup>
 import { onBeforeUnmount, onMounted, ref } from 'vue'
 import { RouterLink, RouterView } from 'vue-router'
+import CampusMapLoader from './components/CampusMapLoader.vue'
 import { navigationItems } from './data/navigation'
 import { useMobileMenu } from './composables/useMobileMenu'
 import { useVisitCount } from './composables/useVisitCount'
@@ -12,7 +13,7 @@ let introTimer
 
 onMounted(() => {
   const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
-  introTimer = window.setTimeout(() => { showIntro.value = false }, reducedMotion ? 100 : 650)
+  introTimer = window.setTimeout(() => { showIntro.value = false }, reducedMotion ? 250 : 3000)
 })
 
 onBeforeUnmount(() => window.clearTimeout(introTimer))
@@ -20,15 +21,7 @@ onBeforeUnmount(() => window.clearTimeout(introTimer))
 
 <template>
   <Transition name="intro">
-    <div v-if="showIntro" class="intro-screen" role="status" aria-label="南开大学校徽与校训入场动画">
-      <div class="intro-glow" aria-hidden="true"></div>
-      <div class="intro-identity">
-        <div class="intro-emblem"><img src="/images/nankai-university-logo.png" alt="南开大学校徽" /></div>
-        <div class="intro-rule" aria-hidden="true"><i></i></div>
-        <p class="intro-motto">允公允能&nbsp;&nbsp;日新月异</p>
-        <span>南开大学 · 校园生活指北</span>
-      </div>
-    </div>
+    <CampusMapLoader v-if="showIntro" fullscreen />
   </Transition>
   <div class="app-shell">
     <header class="mobile-header" @click.capture="onNavigationClick">

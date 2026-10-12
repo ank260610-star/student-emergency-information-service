@@ -1,6 +1,7 @@
 <script setup>
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import L from 'leaflet'
+import CampusMapLoader from './CampusMapLoader.vue'
 import { categoryMeta, onlineMapProvider } from '../data/campusLocations'
 import { createGeolocationSession } from '../utils/geolocationSession'
 import {
@@ -849,10 +850,7 @@ defineExpose({
     ></div>
     <div v-if="baseMode === 'illustration'" class="campus-map-finish" aria-hidden="true"></div>
 
-    <div v-if="loading" class="map-state-overlay" role="status">
-      <span class="map-loading-spinner" aria-hidden="true"></span>
-      正在加载{{ baseMode === 'online' ? '在线底图' : '校园导览图' }}…
-    </div>
+    <CampusMapLoader v-if="loading" :mode="baseMode" />
     <div v-else-if="mapError" class="map-state-overlay is-error" role="alert">{{ mapError }}</div>
 
     <div v-if="tileError" class="map-tile-warning" role="alert">
