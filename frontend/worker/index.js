@@ -7,19 +7,13 @@ const VISIT_API_PATH = '/api/visits'
 const NK_ZHIXING_API_PATH = '/api/nk-zhixing'
 const NK_ZHIXING_ROUTE_PATH = '/api/nk-zhixing/route'
 const NK_ZHIXING_PLACE_PATH = '/api/nk-zhixing/place'
-const ALLOWED_BROWSER_ORIGINS = new Set([
-  'https://student-emergency-information-servi.vercel.app',
-])
 
 function isAllowedBrowserWrite(request, url) {
   const origin = request.headers.get('Origin')
-  if (origin && origin !== url.origin && !ALLOWED_BROWSER_ORIGINS.has(origin)) return false
+  if (origin && origin !== url.origin) return false
 
   const fetchSite = request.headers.get('Sec-Fetch-Site')
-  return !fetchSite
-    || fetchSite === 'same-origin'
-    || fetchSite === 'none'
-    || (fetchSite === 'cross-site' && ALLOWED_BROWSER_ORIGINS.has(origin))
+  return !fetchSite || fetchSite === 'same-origin' || fetchSite === 'none'
 }
 
 export class VisitCounter extends DurableObject {
