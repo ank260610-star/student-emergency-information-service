@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as T from '../../public/campus-3d-assets/vendor/three/build/three.module.js'
-import { isWorldVisible, wheelRollDirection, orientedBoxHit } from '../../public/campus-3d-assets/scene-rules.js'
+import { isWorldVisible, rollingAngle, aircraftYaw, orientedBoxHit } from '../../public/campus-3d-assets/scene-rules.js'
 import { createAthleticsTrack, createSiyuanRoof } from '../../public/campus-3d-assets/restored-landmarks.js'
 import { optimizePhotoDetails } from '../../public/campus-3d-assets/campus-photo-details.js'
 
@@ -45,10 +45,38 @@ test('Siyuan roof has low pitched wings and raised central dome', () => {
   assert.ok(new T.Box3().setFromObject(roof).max.y > 23)
 })
 
-test('wheel direction follows authored axle orientation, including reversed hubs', () => {
-  assert.equal(wheelRollDirection({x:1,z:0},{x:0,z:1}), 1)
-  assert.equal(wheelRollDirection({x:-1,z:0},{x:0,z:1}), -1)
-  assert.equal(wheelRollDirection({x:0,z:-1},{x:1,z:0}), 1)
+test('wheel rolling follows actual travel and individual radius without ground slip', () => {
+  for (const radius of [.37275, .41475, 1.12]) {
+    const axle={x:1,z:0},distance=.15,angle=rollingAngle({x:0,z:distance},axle,radius)
+    const rotation=new T.Quaternion().setFromAxisAngle(new T.Vector3(1,0,0),angle)
+    const top=new T.Vector3(0,radius,0).applyQuaternion(rotation)
+    assert.ok(top.z>0)
+    assert.ok(Math.abs(angle*radius-distance)<1e-12)
+    assert.equal(rollingAngle({x:0,z:0},axle,radius),0)
+    assert.ok(rollingAngle({x:0,z:-distance},axle,radius)<0)
+  }
+  assert.ok(rollingAngle({x:0,z:.1},{x:-1,z:0},.37)<0)
+})
+
+test('aircraft authored nose points along gameplay forward for every heading', () => {
+  for(let heading=0;heading<Math.PI*2;heading+=Math.PI/4){
+    const rotation=new T.Matrix4().makeRotationY(aircraftYaw(heading))
+    const nose=new T.Vector3(0,0,-1).transformDirection(rotation)
+    const movement=new T.Vector3(Math.sin(heading),0,Math.cos(heading))
+    assert.ok(nose.dot(movement)>.999999)
+  }
+})
+
+test('north athletics track has rubber grain, grass stripes and surface bumps', () => {
+  const track=createAthleticsTrack('文科田径场',{detailed:true})
+  for (const name of ['塑胶跑道表面','足球场草坪']) {
+    const m=track.getObjectByName(name).material
+    assert.ok(m.map?.isDataTexture && m.bumpMap?.isDataTexture)
+    assert.ok(m.bumpScale>0)
+    assert.ok(new Set(m.map.image.data).size>20)
+  }
+  const pixels=track.getObjectByName('足球场草坪').material.map.image.data
+  assert.notDeepEqual([...pixels.slice(0,3)],[...pixels.slice(32*4,32*4+3)])
 })
 
 test('rotated fixtures collide with visible walls rather than empty AABB corners', () => {

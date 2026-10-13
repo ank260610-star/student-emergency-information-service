@@ -12,11 +12,24 @@ export function createSiyuanRoof(points,height){
 function stadiumPath(straight,radius){
  const path=new T.Shape();path.moveTo(-straight,-radius);path.lineTo(straight,-radius);path.absarc(straight,0,radius,-Math.PI/2,Math.PI/2,false);path.lineTo(-straight,radius);path.absarc(-straight,0,radius,Math.PI/2,Math.PI*1.5,false);return path;
 }
-export function createAthleticsTrack(name){
+let athleticsMaterials;
+function texturedAthleticsMaterials(){
+ if(athleticsMaterials)return athleticsMaterials;
+ const size=256,rubber=new Uint8Array(size*size*4),grass=new Uint8Array(size*size*4),grain=new Uint8Array(size*size*4);
+ for(let y=0;y<size;y++)for(let x=0;x<size;x++){const i=(y*size+x)*4,noise=((x*73856093^y*19349663)>>>0)%31-15,stripe=Math.floor(x/32)%2;
+  rubber.set([167+noise,88+noise,65+noise,255],i);grass.set([48+stripe*15+noise,105+stripe*18+noise,49+stripe*8+noise,255],i);const pore=125+noise*4;grain.set([pore,pore,pore,255],i);
+ }
+ const texture=(pixels,repeatX,repeatY,srgb=false)=>{const t=new T.DataTexture(pixels,size,size);t.wrapS=t.wrapT=T.RepeatWrapping;t.repeat.set(repeatX,repeatY);t.magFilter=T.LinearFilter;t.minFilter=T.LinearMipmapLinearFilter;t.generateMipmaps=true;if(srgb)t.colorSpace=T.SRGBColorSpace;t.needsUpdate=true;return t};
+ const track=new T.MeshStandardMaterial({map:texture(rubber,.25,.25,true),bumpMap:texture(grain,.25,.25),bumpScale:.025,roughness:.94});track.name='颗粒塑胶跑道';
+ const turf=new T.MeshStandardMaterial({map:texture(grass,1,1,true),bumpMap:texture(grain,20,12),bumpScale:.018,roughness:1});turf.name='分区修剪草坪';
+ return athleticsMaterials={track,turf};
+}
+export function createAthleticsTrack(name,{detailed=false}={}){
  const group=new T.Group();group.name=name;group.userData.athleticsTrack=true;
- const surface=new T.Mesh(new T.ShapeGeometry(stadiumPath(39,42),48),material(0xad624e));surface.rotation.x=-Math.PI/2;surface.position.y=.95;group.add(surface);
+ const materials=detailed?texturedAthleticsMaterials():{track:material(0xad624e),turf:material(0x4a8050)};
+ const surface=new T.Mesh(new T.ShapeGeometry(stadiumPath(39,42),48),materials.track);surface.name='塑胶跑道表面';surface.rotation.x=-Math.PI/2;surface.position.y=.95;group.add(surface);
  for(let lane=0;lane<=8;lane++){const path=stadiumPath(39,32+lane*1.15),points=path.getPoints(128).map(p=>new T.Vector3(p.x,.98,p.y));const line=new T.LineLoop(new T.BufferGeometry().setFromPoints(points),new T.LineBasicMaterial({color:0xf0e6d2}));line.name=`跑道线 ${lane}`;group.add(line)}
- const turf=new T.Mesh(new T.PlaneGeometry(100,58),material(0x4a8050));turf.rotation.x=-Math.PI/2;turf.position.y=1;group.add(turf);
+ const turf=new T.Mesh(new T.PlaneGeometry(100,58),materials.turf);turf.name='足球场草坪';turf.rotation.x=-Math.PI/2;turf.position.y=1;group.add(turf);
  const white=material(0xf3ead6),line=(w,d,x,z)=>{const mesh=new T.Mesh(new T.BoxGeometry(w,.025,d),white);mesh.position.set(x,1.03,z);group.add(mesh)};
  for(const z of [-27,27])line(96,.15,0,z);for(const x of [-48,0,48])line(.15,54,x,0);
  const center=new T.Mesh(new T.RingGeometry(8.95,9.1,64),white);center.rotation.x=-Math.PI/2;center.position.y=1.04;group.add(center);

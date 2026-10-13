@@ -1,11 +1,11 @@
-import {orientedBoxHit} from './scene-rules.js';
+import {rollingAngle, aircraftYaw, orientedBoxHit} from './scene-rules.js?v=3d-motion-fix-1';
 import {createTouchControls} from './mobile-controls.js';
 import * as THREE from './vendor/three/build/three.module.js';
 import {GLTFLoader} from './vendor/three/examples/jsm/loaders/GLTFLoader.js';
 import {sculptCar as buildSupercar} from './vehicles.js?v=play-2';
-import {loadCampus,inside} from './campus.js?v=3d-restored-16-1';
-import {addCampusLife,poseBicycleRider} from './campus-life.js?v=3d-restored-16-1';
-import {addMasterplanDetails} from './masterplan.js?v=3d-restored-16-1';
+import {loadCampus,inside} from './campus.js?v=3d-motion-fix-1';
+import {addCampusLife,poseBicycleRider} from './campus-life.js?v=3d-motion-fix-1';
+import {addMasterplanDetails} from './masterplan.js?v=3d-motion-fix-1';
 import {pointToSegmentSq,nearPolygonEdge,sampledPathBlocked,withinCourtyard} from './collision.js';
 let campusReady=false;
 let collisionBuildings=[],libraryDoor=null,waterAreas=[],stairSegments=[],solidColliders=[],waterPaths=[],bridgeZones=[];
@@ -209,7 +209,7 @@ function makeWidebodyFallback(){
  const fuselage=new THREE.Mesh(new THREE.CylinderGeometry(3.5,4.8,52,24),white);fuselage.rotation.x=Math.PI/2;model.add(fuselage);
  const upperDeck=new THREE.Mesh(new THREE.CapsuleGeometry(2.35,10,8,16),white);upperDeck.rotation.x=Math.PI/2;upperDeck.position.set(0,2.3,-7);model.add(upperDeck);
  const wing=new THREE.Mesh(new THREE.BoxGeometry(66,.75,6.2),white);wing.position.z=-1;model.add(wing);
- const tailplane=new THREE.Mesh(new THREE.BoxGeometry(23,.45,3),white);tailplane.position.set(0,1.4,20);model.add(tailplane);
+ const tailplane=new THREE.Mesh(new THREE.BoxGeometry(23,.45,3),white);tailplane.name='飞机尾翼';tailplane.position.set(0,1.4,20);model.add(tailplane);
  const fin=new THREE.Mesh(new THREE.BoxGeometry(.55,10,5),blue);fin.position.set(0,6.5,20);fin.rotation.x=-.18;model.add(fin);
  for(const side of [-1,1])for(const x of [12,24]){const engine=new THREE.Group(),nacelle=new THREE.Mesh(new THREE.CylinderGeometry(1.8,1.45,7.5,18),metal),intake=new THREE.Mesh(new THREE.CylinderGeometry(1.4,1.4,.15,18),dark),pylon=new THREE.Mesh(new THREE.BoxGeometry(.7,2.4,2.1),white);nacelle.rotation.x=Math.PI/2;intake.rotation.x=Math.PI/2;intake.position.z=-3.82;pylon.position.y=1.5;engine.add(nacelle,intake,pylon);engine.position.set(side*x,-1.7,-1);engine.name=`四发宽体引擎 ${side<0?'左':'右'} ${x===12?'内':'外'}`;model.add(engine)}
  for(const x of [-2.05,-1.35,-.65,.65,1.35,2.05])for(let z=-18;z<12;z+=3.2){const window=new THREE.Mesh(new THREE.SphereGeometry(.22,8,6),dark);window.position.set(x,1.42,z);window.scale.set(1,.55,.55);model.add(window)}
@@ -372,13 +372,15 @@ function update(dt){if(!state.started)return;
  // generated tyres are drawn over it: both original wheel groups roll, and
  // the front assembly is the only one that steers.
  for(const wheel of (isBike?activeBike?.userData.wheels:[])||[]){
-  wheel.userData.wheelSpin=(wheel.userData.wheelSpin||0)+(wheel.userData.rollDirection||1)*state.speed*dt/.34;
-  const spin=new THREE.Quaternion().setFromAxisAngle(wheelSpinAxis,wheel.userData.wheelSpin);
-  const steer=activeBike.userData.frontWheels?.includes(wheel)?new THREE.Quaternion().setFromAxisAngle(wheelSteerAxis,state.bikeSteer||0):null;
-  wheel.quaternion.copy(wheel.userData.baseQuaternion||wheel.quaternion);
+  const axis=wheel.userData.spinAxis||wheelSpinAxis,steer=activeBike.userData.frontWheels?.includes(wheel)?new THREE.Quaternion().setFromAxisAngle(wheelSteerAxis,state.bikeSteer||0):null;
+  wheel.quaternion.copy(wheel.userData.baseQuaternion);
   if(steer)wheel.quaternion.multiply(steer);
-  wheel.quaternion.multiply(spin);
+  wheel.updateWorldMatrix(true,false);
+  const worldAxle=axis.clone().applyQuaternion(wheel.getWorldQuaternion(new THREE.Quaternion()));
+  wheel.userData.wheelSpin+=rollingAngle({x:state.x-previous.x,z:state.z-previous.z},worldAxle,wheel.userData.rollingRadius);
+  wheel.quaternion.multiply(new THREE.Quaternion().setFromAxisAngle(axis,wheel.userData.wheelSpin));
  }
+
  if(engine){const rpm=(state.carIndex===1?48:38)+Math.abs(state.speed)*2.25+(throttle?42:0);engine.frequency.setTargetAtTime(rpm,audio.currentTime,.06);engineHarmonic.frequency.setTargetAtTime(rpm*2.03,audio.currentTime,.06);gain.gain.setTargetAtTime(muted||!isCar?0:throttle?.022:.008,audio.currentTime,.06);harmonicGain.gain.setTargetAtTime(muted||!isCar?0:throttle?.006:.0015,audio.currentTime,.06);const thrust=Math.max(0,state.speed)/30,jetRpm=54+thrust*138+(throttle?24:0);jetCore.frequency.setTargetAtTime(jetRpm,audio.currentTime,.08);jetWhine.frequency.setTargetAtTime(jetRpm*6.3,audio.currentTime,.08);jetGain.gain.setTargetAtTime(muted||state.mode!=='plane'?0:.018+thrust*.042,audio.currentTime,.08);jetWhineGain.gain.setTargetAtTime(muted||state.mode!=='plane'?0:.002+thrust*.009,audio.currentTime,.08)}
 
   if(state.mode!=='plane')state.y=stairHeight(state.x,state.z);
@@ -389,7 +391,7 @@ function update(dt){if(!state.started)return;
   state.x=THREE.MathUtils.clamp(state.x,-1250,1250);state.z=THREE.MathUtils.clamp(state.z,-900,900);gameMinutes=(gameMinutes+dt*2.4)%1440;const h=String(Math.floor(gameMinutes/60)).padStart(2,'0'),m=String(Math.floor(gameMinutes%60)).padStart(2,'0');$('#clock').textContent=`${h}:${m}`;$('#speed').textContent=`${Math.min(SUPERCAR_TOP_SPEED_KMH,Math.round(Math.abs(state.speed)*SPEED_DISPLAY_SCALE))} km/h`;
  const daylight=Math.max(0,Math.sin((gameMinutes/1440)*Math.PI*2-Math.PI/2));sun.intensity=.26+daylight*3.1;hemi.intensity=.52+daylight*2.2;scene.background.setHSL(.57,.42,.13+daylight*.45);scene.fog.color.setHSL(.57,.28,.16+daylight*.47);for(const lamp of campusLife.nightLights)lamp.intensity=(1-daylight)*ultra*8.5;
 }
-function animate(now){requestAnimationFrame(animate);const dt=Math.min(.05,(now-prev)/1000);prev=now;update(dt);const active=state.mode==='car'?car:state.mode==='plane'?plane:state.mode==='bike'?activeBike:campusLife.player;if(active){active.position.set(state.x,state.y+(state.mode==='person'?(state.avatarBob||0):0),state.z);active.rotation.y=state.mode==='bike'?state.heading+Math.PI/2:state.heading}if(state.mode==='car'){car.rotation.z=THREE.MathUtils.lerp(car.rotation.z,-((keys.has('a')?1:0)-(keys.has('d')?1:0))*.035*Math.min(1,Math.abs(state.speed)/20),dt*8);car.rotation.x=THREE.MathUtils.lerp(car.rotation.x,(keys.has('s')?-.035:keys.has('w')?.018:0),dt*7)}if(state.mode==='bike'){const lean=THREE.MathUtils.clamp((state.bikeSteer||0)*state.speed*.08,-.19,.19);activeBike.rotation.x=lean;campusLife.player.position.set(state.x,state.y+.5,state.z);campusLife.player.rotation.set(0,state.heading,lean);campusLife.player.userData.tag.visible=false}else {campusLife.player.rotation.x=0;campusLife.player.rotation.z=0;}plane.rotation.z=THREE.MathUtils.lerp(plane.rotation.z,(keys.has('a')?-.18:keys.has('d')?.18:0),.08);
+function animate(now){requestAnimationFrame(animate);const dt=Math.min(.05,(now-prev)/1000);prev=now;update(dt);const active=state.mode==='car'?car:state.mode==='plane'?plane:state.mode==='bike'?activeBike:campusLife.player;if(active){active.position.set(state.x,state.y+(state.mode==='person'?(state.avatarBob||0):0),state.z);active.rotation.y=state.mode==='bike'?state.heading+Math.PI/2:state.mode==='plane'?aircraftYaw(state.heading):state.heading}if(state.mode==='car'){car.rotation.z=THREE.MathUtils.lerp(car.rotation.z,-((keys.has('a')?1:0)-(keys.has('d')?1:0))*.035*Math.min(1,Math.abs(state.speed)/20),dt*8);car.rotation.x=THREE.MathUtils.lerp(car.rotation.x,(keys.has('s')?-.035:keys.has('w')?.018:0),dt*7)}if(state.mode==='bike'){const lean=THREE.MathUtils.clamp((state.bikeSteer||0)*state.speed*.08,-.19,.19);activeBike.rotation.x=lean;campusLife.player.position.set(state.x,state.y+.5,state.z);campusLife.player.rotation.set(0,state.heading,lean);campusLife.player.userData.tag.visible=false}else {campusLife.player.rotation.x=0;campusLife.player.rotation.z=0;}plane.rotation.z=THREE.MathUtils.lerp(plane.rotation.z,(keys.has('a')?-.18:keys.has('d')?.18:0),.08);
   // Keep feet above the actual road surface after returning from the riding pose.
   if(state.mode==='person'){
     const avatar=campusLife.player,feet=new THREE.Box3();
@@ -418,7 +420,7 @@ loadCampus(scene,world).then(result=>{
  for(const o of campus.children.filter(o=>o.userData.locationLabel))o.removeFromParent();
  for(const b of result.namedBuildings)label(b.name,b.position);
  buildCollisionDebug();campus.children.filter(o=>o.userData.schematic).forEach(o=>o.visible=false);
- if(new URLSearchParams(location.search).get('qa')==='1')window.__campusQA={scene,state,camera,renderer,photoIds:result.photoDetails.userData.usedPhotoIds,collisionAt,vehicleBlocked,reset,interact,togglePerson,update,getCar:()=>car,getBike:()=>activeBike,solidColliders,buildings:collisionBuildings};
+ if(new URLSearchParams(location.search).get('qa')==='1')window.__campusQA={scene,state,camera,renderer,photoIds:result.photoDetails.userData.usedPhotoIds,collisionAt,vehicleBlocked,reset,interact,togglePerson,update,getCar:()=>car,getPlane:()=>plane,getBike:()=>activeBike,solidColliders,buildings:collisionBuildings};
  campusReady=true;
  $('#runtime-status').textContent=`校园地图已就绪：${result.buildings} 栋建筑 / ${result.roads} 段道路`;
  $('#runtime-status').dataset.state='ready';

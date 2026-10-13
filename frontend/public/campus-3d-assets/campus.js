@@ -1,5 +1,5 @@
 import {createSiyuanRoof} from './restored-landmarks.js';
-import {surveyedBuilding,addSurveyDetails,optimizePhotoDetails} from './campus-photo-details.js?v=3d-restored-16-1';
+import {surveyedBuilding,addSurveyDetails,optimizePhotoDetails} from './campus-photo-details.js?v=3d-motion-fix-1';
 import * as T from './vendor/three/build/three.module.js';
 import {libraryModel} from './landmarks.js?v=landmarks-3';
 import {officeModel,activityModel,gymModel} from './additional-landmarks.js?v=buildings-3';
