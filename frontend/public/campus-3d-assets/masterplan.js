@@ -1,4 +1,4 @@
-import {createAthleticsTrack} from './restored-landmarks.js?v=3d-motion-fix-1';
+import {createAthleticsTrack} from './restored-landmarks.js?v=3d-wheel-shops-1';
 import * as THREE from './vendor/three/build/three.module.js';
 
 const mat=(color,extra={})=>new THREE.MeshStandardMaterial({color,roughness:.78,metalness:.04,...extra});
