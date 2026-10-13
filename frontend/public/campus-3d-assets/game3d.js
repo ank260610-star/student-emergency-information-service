@@ -1,11 +1,13 @@
+import {renderQuality,simplifyMaterials,staticDrawDistance} from './render-quality.js?v=3d-mobile-1';
+import {aircraftPathBlocked} from './aircraft-collision.js?v=3d-flight-1';
 import {rollingAngle, aircraftYaw, orientedBoxHit} from './scene-rules.js?v=3d-wheel-shops-1';
-import {createTouchControls} from './mobile-controls.js';
+import {createTouchControls} from './mobile-controls.js?v=3d-flight-1';
 import * as THREE from './vendor/three/build/three.module.js';
 import {GLTFLoader} from './vendor/three/examples/jsm/loaders/GLTFLoader.js';
 import {sculptCar as buildSupercar} from './vehicles.js?v=play-2';
-import {loadCampus,inside} from './campus.js?v=3d-wheel-shops-1';
+import {loadCampus,inside} from './campus.js?v=3d-flight-1';
 import {addCampusLife,poseBicycleRider} from './campus-life.js?v=3d-wheel-shops-1';
-import {addMasterplanDetails} from './masterplan.js?v=3d-courts-1';
+import {addMasterplanDetails} from './masterplan.js?v=3d-flight-1';
 import {pointToSegmentSq,nearPolygonEdge,sampledPathBlocked,withinCourtyard} from './collision.js';
 let campusReady=false;
 let collisionBuildings=[],libraryDoor=null,waterAreas=[],stairSegments=[],solidColliders=[],waterPaths=[],bridgeZones=[];
@@ -14,19 +16,20 @@ const collisionDebug=new THREE.Group();collisionDebug.name='碰撞调试边界';
 const canvas = document.querySelector('#game');
 const $ = s => document.querySelector(s);
 const touchDevice=matchMedia('(any-pointer: coarse)').matches;
-const quality=new URLSearchParams(location.search).get('quality')||(touchDevice?'low':'ultra'),ultra=quality==='ultra',low=quality==='low';
+const renderProfile=renderQuality({requested:new URLSearchParams(location.search).get('quality'),coarse:touchDevice,width:innerWidth,pixelRatio:devicePixelRatio}),{quality,ultra,low}=renderProfile;
+let refreshDrawDistance=null,lastDrawDistanceUpdate=0;
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x8bc4da);
-scene.fog = new THREE.FogExp2(0x9bc9d2, 0.00042);
+scene.fog = new THREE.FogExp2(0x9bc9d2, low?.0013:.00042);
 
 const renderer = new THREE.WebGLRenderer({canvas, antialias:!low, powerPreference:'high-performance'});
-renderer.setPixelRatio(ultra?Math.min(devicePixelRatio*1.35,3):Math.min(devicePixelRatio, low?1:2));
+renderer.setPixelRatio(renderProfile.pixelRatio);
 renderer.shadowMap.enabled = !low;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=ultra?1.16:1.03;
 
-const camera = new THREE.PerspectiveCamera(58, 1, 0.5, 7000);
+const camera = new THREE.PerspectiveCamera(58, 1, 0.5, low?1200:7000);
 const hemi = new THREE.HemisphereLight(0xd8f2ff, 0x63704e, 2.4);
 scene.add(hemi);
 const sun = new THREE.DirectionalLight(0xfff3cf, 3.1);
@@ -100,7 +103,7 @@ function water(name,lat,lon,w,d){const p=world(lat,lon);const m=new THREE.Mesh(n
 water('马蹄湖',38.9867751,117.3335141,95,50);water('南开湖',38.9870964,117.3453830,145,82);
 
 function field(name,lat,lon,w,d,color=0x477f54){const p=world(lat,lon),m=new THREE.Mesh(new THREE.PlaneGeometry(w,d),new THREE.MeshStandardMaterial({color,roughness:1}));m.rotation.x=-Math.PI/2;m.position.set(p.x,.8,p.z);campus.add(m);label(name,new THREE.Vector3(p.x,12,p.z));}
-field('西区足球场',38.9847346,117.3322347,135,82);field('文科足球场',38.9911081,117.3435917,150,90);
+field('西区足球场',38.9847346,117.3322347,135,82);
 
 // 城市天际线与校园绿化，补足完整空间感。
 for(let i=0;i<260;i++){const r=seeded('tree'+i),x=(r()-.5)*2500,z=(r()-.5)*1700;if(Math.abs(x)<65||Math.abs(z)<55||[[38.9847346,117.3322347,90,52],[38.9911081,117.3435917,90,52],[38.99335,117.33725,30,25],[38.99115,117.33930,78,98]].some(([lat,lon,w,d])=>{const p=world(lat,lon);return Math.abs(x-p.x)<w&&Math.abs(z-p.z)<d}))continue;const trunk=new THREE.Mesh(new THREE.CylinderGeometry(1.2,1.6,8,6),boxMat(0x6d4d32));trunk.position.set(x,4,z);const crown=new THREE.Mesh(new THREE.ConeGeometry(7+r()*5,18+r()*8,7),boxMat(0x397b4c));crown.position.set(x,16,z);trunk.castShadow=crown.castShadow=true;campus.add(trunk,crown)}
@@ -217,8 +220,10 @@ function makeWidebodyFallback(){
  for(const side of [-1,1]){const nav=new THREE.Mesh(new THREE.SphereGeometry(.3,8,6),light);nav.position.set(side*33,.4,-1);model.add(nav)}
  model.name='四发宽体飞机 · 程序化后备模型';model.scale.setScalar(.72);model.traverse(o=>{if(o.isMesh){o.castShadow=true;o.receiveShadow=true}});return model;
 }
-const plane=new THREE.Group();plane.add(makeWidebodyFallback());plane.visible=false;scene.add(plane);
-new GLTFLoader().load('./work/campus-widebody-747.glb',gltf=>{const imported=gltf.scene;imported.traverse(o=>{if(o.isMesh){o.castShadow=true;o.receiveShadow=true;}});plane.clear();plane.add(imported);plane.userData.assetStatus='editable-widebody-glb-ready';},undefined,error=>{plane.userData.assetStatus='procedural-widebody-fallback';console.info('Editable widebody GLB is not available yet; using the built-in four-engine model.',error)});
+// Reserve clearance for the renderer's maximum 0.18-radian bank.
+function planeBounds(model){model.updateMatrixWorld(true);const b=new THREE.Box3().setFromObject(model);const bankMargin=Math.max(Math.abs(b.min.x),Math.abs(b.max.x),Math.abs(b.min.y),Math.abs(b.max.y))*Math.sin(.18);b.min.x-=bankMargin;b.max.x+=bankMargin;b.min.y-=bankMargin;b.max.y+=bankMargin;return {min:b.min.clone(),max:b.max.clone()};}
+const plane=new THREE.Group(),fallbackPlane=makeWidebodyFallback();plane.userData.collisionBounds=planeBounds(fallbackPlane);plane.add(fallbackPlane);plane.visible=false;scene.add(plane);
+new GLTFLoader().load('./work/campus-widebody-747.glb',gltf=>{const imported=gltf.scene;imported.traverse(o=>{if(o.isMesh){o.castShadow=true;o.receiveShadow=true;}});plane.userData.collisionBounds=planeBounds(imported);plane.clear();plane.add(imported);plane.userData.assetStatus='editable-widebody-glb-ready';},undefined,error=>{plane.userData.assetStatus='procedural-widebody-fallback';console.info('Editable widebody GLB is not available yet; using the built-in four-engine model.',error)});
 
 const state={mode:'car',carIndex:0,x:world(38.9812,117.3397).x,z:world(38.9812,117.3397).z,y:0,heading:Math.PI,speed:0,started:false,credits:0,mission:0};
 let cameraPointer=null;
@@ -277,7 +282,7 @@ function applyMode(mode){
 function switchVehicle(){
  applyMode(state.mode==='plane'?'car':'plane');
  enableAudio();
- toast(state.mode==='plane'?(touchDevice?'四发宽体飞行：限高 120 米，油门加速，按钮升降':'四发宽体飞行：W 加速，Shift 上升，四台引擎声随速度变化'):`${carSpecs[state.carIndex].name}：极速 320 km/h`);
+ toast(state.mode==='plane'?(touchDevice?'四发宽体飞行：限高 120 米，油门加速，按钮升降':'四发宽体飞行：W/↑ 加速，S/↓ 减速，Shift 上升，空格下降，四台引擎声随速度变化'):`${carSpecs[state.carIndex].name}：极速 320 km/h`);
 }
 function togglePerson(){
  applyMode(state.mode==='person'?'car':'person');
@@ -340,24 +345,24 @@ function vehicleBlocked(from,to,radius){
  return sampledPathBlocked(from,to,radius,(x,z,r)=>collisionAt(x,z,r,state.mode),libraryCrossingBlocked);
 }
 function stairHeight(x,z){if(state.mode!=='person')return 0;const s=onStairs(x,z);if(s)return s.height;if(!libraryDoor)return 0;const d=Math.hypot(x-libraryDoor.x,z-libraryDoor.z);return d<13?Math.max(0,(13-d)*.16):0}
-function aircraftBlocked(from,to,alt){if(alt<5&&inWater(to.x,to.z))return true;for(const b of collisionBuildings)if(!withinCourtyard(b.courtyard,to.x,to.z,5)&&inside(to.x,to.z,b.points)&&alt<b.height+2)return true;return alt<12&&solidHit(to.x,to.z,5)}
+function aircraftBlocked(from,to){return aircraftPathBlocked(from,to,{bounds:plane.userData.collisionBounds,buildings:collisionBuildings,fixtures:solidColliders,inWater});}
 function debugLine(points,color){const g=new THREE.BufferGeometry().setFromPoints(points.map(p=>new THREE.Vector3(p.x,.8,p.z)));const l=new THREE.LineLoop(g,new THREE.LineBasicMaterial({color,depthTest:false}));l.renderOrder=100;collisionDebug.add(l)}
 function buildCollisionDebug(){collisionDebug.clear();collisionBuildings.forEach(b=>debugLine(b.points,0xff3344));waterAreas.forEach(w=>debugLine(w.points,0x32b6ff));stairSegments.forEach(s=>debugLine([s.a,new THREE.Vector3(s.b.x,0,s.b.z),new THREE.Vector3(s.b.x+s.width*.5,0,s.b.z),new THREE.Vector3(s.a.x+s.width*.5,0,s.a.z)],0xffd53d));for(const w of waterPaths){const g=new THREE.BufferGeometry().setFromPoints(w.points.map(p=>new THREE.Vector3(p.x,.9,p.z)));collisionDebug.add(new THREE.Line(g,new THREE.LineBasicMaterial({color:0x32b6ff,depthTest:false})))}solidColliders.forEach(s=>{const geo=new THREE.RingGeometry(Math.max(.12,(s.r||.5)-.08),s.r||.5,16);const m=new THREE.Mesh(geo,new THREE.MeshBasicMaterial({color:0xff3344,side:THREE.DoubleSide,depthTest:false}));m.rotation.x=-Math.PI/2;m.position.set(s.x,1,s.z);collisionDebug.add(m)})}
 let campusDriveLanes=[];
 function onDriveLane(x,z){return campusDriveLanes.some(l=>pointToSegmentSq(x,z,l.a,l.b)<Math.max(8,l.width*.7)**2)}
 let prev=performance.now(),gameMinutes=620;
 function update(dt){if(!state.started)return;
- const previous={x:state.x,z:state.z,y:state.y},spec=carSpecs[state.carIndex],isCar=state.mode==='car',isPerson=state.mode==='person',isBike=state.mode==='bike',throttle=keys.has('w')||keys.has('arrowup'),brake=keys.has('s')||keys.has('arrowdown'),drift=isCar&&keys.has(' ');
+ const previous={x:state.x,z:state.z,y:state.y,heading:state.heading},spec=carSpecs[state.carIndex],isCar=state.mode==='car',isPerson=state.mode==='person',isBike=state.mode==='bike',throttle=keys.has('w')||keys.has('arrowup'),brake=keys.has('s')||keys.has('arrowdown'),drift=isCar&&keys.has(' ');
  const max=isCar?spec.max/SPEED_DISPLAY_SCALE:isBike?5.8:isPerson?3.4:30,accel=isCar?13:isBike?9:isPerson?8:16;
  if(throttle)state.speed+=accel*dt;if(brake)state.speed-=accel*1.4*dt;
- state.speed*=Math.pow(drift?.42:throttle?.91:.5,dt);state.speed=THREE.MathUtils.clamp(state.speed,-12,max);
+ state.speed*=Math.pow(drift?.42:throttle?.91:.5,dt);state.speed=THREE.MathUtils.clamp(state.speed,state.mode==='plane'?0:-12,max);
  const steering=(keys.has('a')||keys.has('arrowleft')?1:0)-(keys.has('d')||keys.has('arrowright')?1:0);
  if(isBike){state.speed=Math.max(0,state.speed);state.bikeSteer=THREE.MathUtils.lerp(state.bikeSteer||0,-steering*.42,1-Math.exp(-dt*8));state.pedalPhase??=0;if(throttle&&!brake&&state.speed>.05)state.pedalPhase+=dt*Math.min(9,2.5+state.speed*.9);}
  state.heading+=steering*(drift?2.5:1.25)*Math.min(1,Math.abs(state.speed)/8)*dt*Math.sign(state.speed||1);
  state.motionHeading??=state.heading;state.motionHeading+=Math.atan2(Math.sin(state.heading-state.motionHeading),Math.cos(state.heading-state.motionHeading))*Math.min(1,dt*(drift?1.8:12));
  state.x+=Math.sin(state.motionHeading)*state.speed*dt;state.z+=Math.cos(state.motionHeading)*state.speed*dt;
  if(state.mode==='plane'){if(keys.has('shift'))state.y+=25*dt;if(keys.has(' '))state.y-=25*dt;if(state.speed>14&&!keys.has(' '))state.y+=4*dt;state.y=THREE.MathUtils.clamp(state.y,4,120)}
- if(state.mode==='plane'?aircraftBlocked(previous,state,state.y):vehicleBlocked(previous,state,isCar?7:isBike?.75:.42)){if(isCar){damage=Math.min(100,damage+Math.abs(state.speed)*.35);toast('碰撞 · 车损 '+Math.round(damage)+'%')}else toast(state.mode==='plane'?'低空障碍，已中止起降':isBike?'前方有障碍，已刹车':'前方有建筑，无法穿墙');state.x=previous.x;state.z=previous.z;state.speed=0;state.y=previous.y;if(isCar){car.scale.z=car.userData.restScale.z*(1-damage*.0015);for(const mark of car.userData.damageMarks?.children||[])mark.material.opacity=damage>0?Math.min(.85,.28+damage*.009):0;}}
+ if(state.mode==='plane'?aircraftBlocked(previous,state):vehicleBlocked(previous,state,isCar?7:isBike?.75:.42)){if(isCar){damage=Math.min(100,damage+Math.abs(state.speed)*.35);toast('碰撞 · 车损 '+Math.round(damage)+'%')}else toast(state.mode==='plane'?'低空障碍，已中止起降':isBike?'前方有障碍，已刹车':'前方有建筑，无法穿墙');state.x=previous.x;state.z=previous.z;state.speed=0;state.y=previous.y;if(state.mode==='plane'){state.heading=previous.heading;state.motionHeading=previous.heading;}if(isCar){car.scale.z=car.userData.restScale.z*(1-damage*.0015);for(const mark of car.userData.damageMarks?.children||[])mark.material.opacity=damage>0?Math.min(.85,.28+damage*.009):0;}}
  for(const m of car.userData.brakes||[]){m.traverse?.(part=>{if(part.isMesh&&part.material?.emissive){part.material.emissive.setHex(0xff180d);part.material.emissiveIntensity=brake||drift?2.4:.16}});if(m.emissiveIntensity!==undefined)m.emissiveIntensity=brake||drift?5:.7}
  // GLB wheels use the local X axle. Compose steering and rolling from the
  // original pose, rather than writing two Euler angles to the same wheel.
@@ -392,7 +397,7 @@ function update(dt){if(!state.started)return;
   state.x=THREE.MathUtils.clamp(state.x,-1250,1250);state.z=THREE.MathUtils.clamp(state.z,-900,900);gameMinutes=(gameMinutes+dt*2.4)%1440;const h=String(Math.floor(gameMinutes/60)).padStart(2,'0'),m=String(Math.floor(gameMinutes%60)).padStart(2,'0');$('#clock').textContent=`${h}:${m}`;$('#speed').textContent=`${Math.min(SUPERCAR_TOP_SPEED_KMH,Math.round(Math.abs(state.speed)*SPEED_DISPLAY_SCALE))} km/h`;
  const daylight=Math.max(0,Math.sin((gameMinutes/1440)*Math.PI*2-Math.PI/2));sun.intensity=.26+daylight*3.1;hemi.intensity=.52+daylight*2.2;scene.background.setHSL(.57,.42,.13+daylight*.45);scene.fog.color.setHSL(.57,.28,.16+daylight*.47);for(const lamp of campusLife.nightLights)lamp.intensity=(1-daylight)*ultra*8.5;
 }
-function animate(now){requestAnimationFrame(animate);const dt=Math.min(.05,(now-prev)/1000);prev=now;update(dt);const active=state.mode==='car'?car:state.mode==='plane'?plane:state.mode==='bike'?activeBike:campusLife.player;if(active){active.position.set(state.x,state.y+(state.mode==='person'?(state.avatarBob||0):0),state.z);active.rotation.y=state.mode==='bike'?state.heading+Math.PI/2:state.mode==='plane'?aircraftYaw(state.heading):state.heading}if(state.mode==='car'){car.rotation.z=THREE.MathUtils.lerp(car.rotation.z,-((keys.has('a')?1:0)-(keys.has('d')?1:0))*.035*Math.min(1,Math.abs(state.speed)/20),dt*8);car.rotation.x=THREE.MathUtils.lerp(car.rotation.x,(keys.has('s')?-.035:keys.has('w')?.018:0),dt*7)}if(state.mode==='bike'){const lean=THREE.MathUtils.clamp((state.bikeSteer||0)*state.speed*.08,-.19,.19);activeBike.rotation.x=lean;campusLife.player.position.set(state.x,state.y+.5,state.z);campusLife.player.rotation.set(0,state.heading,lean);campusLife.player.userData.tag.visible=false}else {campusLife.player.rotation.x=0;campusLife.player.rotation.z=0;}plane.rotation.z=THREE.MathUtils.lerp(plane.rotation.z,(keys.has('a')?-.18:keys.has('d')?.18:0),.08);
+function animate(now){requestAnimationFrame(animate);if(now-prev<renderProfile.frameInterval)return;const dt=Math.min(.05,(now-prev)/1000);prev=now;update(dt);const active=state.mode==='car'?car:state.mode==='plane'?plane:state.mode==='bike'?activeBike:campusLife.player;if(active){active.position.set(state.x,state.y+(state.mode==='person'?(state.avatarBob||0):0),state.z);active.rotation.y=state.mode==='bike'?state.heading+Math.PI/2:state.mode==='plane'?aircraftYaw(state.heading):state.heading}if(state.mode==='car'){car.rotation.z=THREE.MathUtils.lerp(car.rotation.z,-((keys.has('a')?1:0)-(keys.has('d')?1:0))*.035*Math.min(1,Math.abs(state.speed)/20),dt*8);car.rotation.x=THREE.MathUtils.lerp(car.rotation.x,(keys.has('s')?-.035:keys.has('w')?.018:0),dt*7)}if(state.mode==='bike'){const lean=THREE.MathUtils.clamp((state.bikeSteer||0)*state.speed*.08,-.19,.19);activeBike.rotation.x=lean;campusLife.player.position.set(state.x,state.y+.5,state.z);campusLife.player.rotation.set(0,state.heading,lean);campusLife.player.userData.tag.visible=false}else {campusLife.player.rotation.x=0;campusLife.player.rotation.z=0;}plane.rotation.z=THREE.MathUtils.lerp(plane.rotation.z,(keys.has('a')?-.18:keys.has('d')?.18:0),.08);
   // Keep feet above the actual road surface after returning from the riding pose.
   if(state.mode==='person'){
     const avatar=campusLife.player,feet=new THREE.Box3();
@@ -414,14 +419,17 @@ function animate(now){requestAnimationFrame(animate);const dt=Math.min(.05,(now-
   }
   const personView=state.mode==='person',viewing=state.heading+cameraYaw+(orbit?now*.00035:0),forward=new THREE.Vector3(Math.sin(viewing),0,Math.cos(viewing)),carSpeed=Math.min(1,Math.abs(state.speed)/80),distance=personView?cameraDistance:state.mode==='bike'?cameraDistance+3:state.mode==='car'?cameraDistance+11+carSpeed*8:150,camOffset=forward.clone().multiplyScalar(-distance);camOffset.y=personView?2.25+Math.sin(cameraPitch)*distance*.32:state.mode==='bike'?4+Math.sin(cameraPitch)*distance*.32:state.mode==='car'?6.4+carSpeed*1.8+Math.sin(cameraPitch)*distance*.32:80;const desired=new THREE.Vector3(state.x,state.y,state.z).add(camOffset);camera.position.lerp(desired,1-Math.exp(-dt*(personView?7:state.mode==='car'?5.5:4.5)));camera.lookAt(state.x,state.y+(personView?1.25:state.mode==='bike'?1.6:state.mode==='car'?1.35:10),state.z);
   const target=currentTarget();beacon.visible=!!target;if(target){beacon.position.set(target.pos.x,0,target.pos.z);ring.rotation.z+=dt;beam.material.opacity=.2+Math.sin(now*.004)*.08}
+  if(refreshDrawDistance&&now-lastDrawDistanceUpdate>250){refreshDrawDistance(state.x,state.z);lastDrawDistanceUpdate=now;}
   renderer.render(scene,camera);
 }
 loadCampus(scene,world).then(result=>{
  collisionBuildings=result.obstacles;result.group.traverse(o=>{if(o.userData.photoColliders)solidColliders.push(...o.userData.photoColliders);});solidColliders.push(...result.photoDetails.userData.photoColliders);campusDriveLanes=result.driveLanes;libraryDoor=result.libraryDoor;waterAreas=result.waterAreas;stairSegments=result.stairSegments;
  for(const o of campus.children.filter(o=>o.userData.locationLabel))o.removeFromParent();
  for(const b of result.namedBuildings)label(b.name,b.position);
- buildCollisionDebug();campus.children.filter(o=>o.userData.schematic).forEach(o=>o.visible=false);
- if(new URLSearchParams(location.search).get('qa')==='1')window.__campusQA={scene,state,camera,renderer,photoIds:result.photoDetails.userData.usedPhotoIds,collisionAt,vehicleBlocked,reset,interact,togglePerson,update,getCar:()=>car,getPlane:()=>plane,getBike:()=>activeBike,solidColliders,buildings:collisionBuildings};
+ campus.children.filter(o=>o.userData.schematic).forEach(o=>o.visible=false);
+ if(low){simplifyMaterials(scene);const refreshers=[result.group,result.photoDetails,masterplan.group,campus].map(root=>staticDrawDistance(root,650));refreshDrawDistance=(x,z)=>refreshers.forEach(refresh=>refresh(x,z));refreshDrawDistance(state.x,state.z);}
+ buildCollisionDebug();
+ if(new URLSearchParams(location.search).get('qa')==='1')window.__campusQA={scene,state,camera,renderer,photoIds:result.photoDetails.userData.usedPhotoIds,collisionAt,vehicleBlocked,aircraftBlocked,reset,interact,togglePerson,update,getCar:()=>car,getPlane:()=>plane,getBike:()=>activeBike,solidColliders,buildings:collisionBuildings};
  campusReady=true;
  $('#runtime-status').textContent=`校园地图已就绪：${result.buildings} 栋建筑 / ${result.roads} 段道路`;
  $('#runtime-status').dataset.state='ready';

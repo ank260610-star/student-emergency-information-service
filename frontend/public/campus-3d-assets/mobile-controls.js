@@ -39,11 +39,11 @@ export function createTouchControls({started,action}) {
   root.querySelector('[data-action="plane"]').textContent=mode==='plane'?'返回汽车':'飞行';
   root.querySelector('[data-action="interact"]').textContent=mode==='bike'?'停好单车':'互动 / 骑车';
   root.querySelector('#touch-throttle').textContent=mode==='person'?'前进':mode==='bike'?'骑行':'油门';
-  root.querySelector('#touch-brake').textContent=mode==='person'?'后退':mode==='bike'?'刹车':'刹车 / 倒车';
+  root.querySelector('#touch-brake').textContent=mode==='person'?'后退':mode==='bike'?'刹车':mode==='plane'?'减速':'刹车 / 倒车';
   root.querySelector('#touch-special').textContent=mode==='plane'?'下降':'手刹';
   root.querySelector('#touch-special').hidden=mode==='person'||mode==='bike';
   root.querySelector('.flight-control').hidden=mode!=='plane';
-  root.querySelector('#touch-hint').textContent=mode==='person'?'摇杆移动 · 拖动画面环视':mode==='plane'?'摇杆转向 · 油门加速 · 上升 / 下降':'摇杆控制方向 · 右侧油门与刹车';
+  root.querySelector('#touch-hint').textContent=mode==='person'?'摇杆移动 · 拖动画面环视':mode==='plane'?'摇杆转向 · 油门加速 · 减速 · 上升 / 下降':'摇杆控制方向 · 右侧油门与刹车';
  }
  addEventListener('blur',clear);document.addEventListener('visibilitychange',()=>{if(document.hidden)clear();});addEventListener('resize',clear);
  return {has,clear,setMode,start(){setMode(mode);refresh();}};

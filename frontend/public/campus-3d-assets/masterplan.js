@@ -1,5 +1,5 @@
-import {createOutdoorCourts} from './outdoor-courts.js?v=3d-courts-1';
-import {createAthleticsTrack} from './restored-landmarks.js?v=3d-wheel-shops-1';
+import {createOutdoorCourts} from './outdoor-courts.js?v=3d-flight-1';
+import {createAthleticsTrack} from './restored-landmarks.js?v=3d-flight-1';
 import * as THREE from './vendor/three/build/three.module.js';
 
 const mat=(color,extra={})=>new THREE.MeshStandardMaterial({color,roughness:.78,metalness:.04,...extra});
@@ -46,7 +46,7 @@ export function addMasterplanDetails(scene,world){
   const wetland=world(38.98305,117.3448),grass=mat(0x4e8444,{roughness:1});for(const [dx,dz,rx,rz] of [[0,0,15,9],[-17,7,10,6],[18,-8,12,7]]){const island=new THREE.Mesh(new THREE.CircleGeometry(1,28),grass);island.scale.set(rx,rz,1);island.rotation.x=-Math.PI/2;island.position.set(wetland.x+dx,.35,wetland.z+dz);g.add(island);for(let k=0;k<10;k++){const a=k*2.4+dx,d=3+(k%4)*1.5;g.add(tree(wetland.x+dx+Math.cos(a)*d,wetland.z+dz+Math.sin(a)*d,.46+(k%3)*.08))}}
   g.add(campusSign('生态湿地与水系',wetland.clone().add(new THREE.Vector3(0,9,0))));
   // Track and courts replicate the clear athletic cluster visible beside student living areas.
-  for(const [lat,lon,name] of [[38.9847346,117.3322347,'西区田径场'],[38.9911081,117.3435917,'文科田径场']]){const sport=world(lat,lon),track=createAthleticsTrack(name,{detailed:name==='文科田径场'});track.position.copy(sport);g.add(track,campusSign(name,sport.clone().add(new THREE.Vector3(0,12,0))));}
+  for(const [lat,lon,name] of [[38.9847346,117.3322347,'西区田径场'],[38.9911081,117.3435917,'文科田径场']]){const sport=world(lat,lon),track=createAthleticsTrack(name,{detailed:name==='文科田径场',northSouth:name==='文科田径场'});track.position.copy(sport);g.add(track,campusSign(name,sport.clone().add(new THREE.Vector3(0,12,0))));}
   const westGate=world(38.98215,117.3282);g.add(vehicleGate(westGate,'西门 · 车辆主入口'));
   // Separate north-west service entrance: lower brick guardhouse, road markings and closed barrier.
   const northWestGate=world(38.9940386,117.3348347);g.add(vehicleGate(northWestGate,'西北门 · 校园车辆入口',{closed:true}));
