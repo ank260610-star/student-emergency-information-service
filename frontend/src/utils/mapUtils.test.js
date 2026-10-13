@@ -209,7 +209,7 @@ test('retrieves one matching landmark narrative for a campus-history question', 
 
 test('retrieves reviewed college and building profiles for campus introductions', () => {
   assert.equal(findPlaceProfile('金融学院是做什么的？')?.title, '金融学院')
-  assert.equal(findPlaceProfile('介绍一下津南公教楼')?.title, '公共教学楼')
+  assert.equal(findPlaceProfile('介绍一下津南公教楼')?.title, '公共教学楼A')
   assert.equal(findPlaceProfile('从西门去食堂怎么走'), null)
 
   const jinnanLocations = getCampusLocations('jinnan')

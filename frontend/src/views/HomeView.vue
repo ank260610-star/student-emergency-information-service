@@ -13,8 +13,9 @@ const message = ref('')
 const handoffError = ref('')
 
 const selectedCampus = computed(() => campusConfigs[campus.value])
+const exampleGate = computed(() => campus.value === 'balitai' ? '东门' : '西南门')
 const suggestions = computed(() => [
-  `从${selectedCampus.value.short}西南门去图书馆怎么走？`,
+  `从${selectedCampus.value.short}${exampleGate.value}去图书馆怎么走？`,
   `我在${selectedCampus.value.short}，附近哪里可以吃饭？`,
   `怎么去${selectedCampus.value.short}校医院？`,
 ])

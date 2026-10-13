@@ -57,8 +57,9 @@ let requestVersion = 0
 let requestController = null
 let speechRecognition = null
 
+const exampleGate = computed(() => props.campus.id === 'balitai' ? '东门' : '西南门')
 const suggestions = computed(() => [
-  `从${props.campus.short}西南门去中心图书馆怎么走？`,
+  `从${props.campus.short}${exampleGate.value}去中心图书馆怎么走？`,
   `我在${props.campus.short}，想去校医院。`,
   '晚上一个人在学校里迷路了，该怎么办？',
 ])

@@ -56,7 +56,7 @@ export const placeProfiles = {
     ],
   },
   'jinnan-public-teaching': buildingProfile(
-    '公共教学楼',
+    '公共教学楼A',
     '津南校区承担公共课程教学的重要建筑群。',
     '建筑分为多个区域。前往具体教室时请同时核对区号、楼层和房间号，入口位置以现场标识为准。',
   ),
@@ -78,7 +78,7 @@ const placeProfileAliases = {
   'balitai-location-54': ['新图书馆', '大图书馆'],
   'balitai-location-87': ['商学院大楼'],
   'jinnan-location-j51': ['计算机学院', '网安学院', '人工智能学院'],
-  'jinnan-public-teaching': ['公教', '公教楼'],
+  'jinnan-public-teaching': ['公共教学楼', '公教', '公教楼', '公教A', '教学楼A'],
   'jinnan-integrated-lab': ['实验楼'],
   'jinnan-library': ['津南图书馆'],
 }
