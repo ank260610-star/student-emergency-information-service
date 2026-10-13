@@ -8,12 +8,27 @@ import { useVisitCount } from './composables/useVisitCount'
 
 const { menuOpen, menuButton, sidebar, mainContent, closeMenu, onNavigationClick } = useMobileMenu()
 const { formattedVisitCount, visitCountStatus } = useVisitCount()
-const showIntro = ref(true)
+function hasSeenIntro() {
+  try {
+    return window.sessionStorage.getItem('nku-campus-intro-seen') === '1'
+  } catch {
+    return false
+  }
+}
+
+const showIntro = ref(!hasSeenIntro())
 let introTimer
 
 onMounted(() => {
+  if (!showIntro.value) return
+  try {
+    window.sessionStorage.setItem('nku-campus-intro-seen', '1')
+  } catch {
+    // Some embedded browsers disable storage; the intro still works without it.
+  }
   const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
-  introTimer = window.setTimeout(() => { showIntro.value = false }, reducedMotion ? 250 : 3000)
+  const compactScreen = window.matchMedia('(max-width: 820px), (max-height: 600px)').matches
+  introTimer = window.setTimeout(() => { showIntro.value = false }, reducedMotion ? 250 : compactScreen ? 1600 : 2500)
 })
 
 onBeforeUnmount(() => window.clearTimeout(introTimer))

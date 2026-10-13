@@ -1621,7 +1621,7 @@
 
 }
 
-@media (max-width: 720px) {
+@media (max-width: 720px), (max-width: 1024px) and (max-height: 600px) and (orientation: landscape) {
   .map-page {
     width: calc(100% - 36px);
   }
@@ -1638,7 +1638,7 @@
 
   .map-mobile-jump {
     position: sticky;
-    z-index: 750;
+    z-index: 20;
     top: calc(62px + env(safe-area-inset-top, 0px));
     display: grid;
     grid-template-columns: repeat(4, minmax(max-content, 1fr));
@@ -1653,7 +1653,7 @@
   }
 
   .map-mobile-jump button {
-    min-height: 40px;
+    min-height: 44px;
     padding: 8px 10px;
     border: 0;
     color: var(--purple-dark);
@@ -1761,12 +1761,17 @@
   }
 
   .campus-interactive-map {
-    height: min(56dvh, 430px);
+    height: min(56vh, 430px);
+    height: var(--map-mobile-height);
     min-height: 340px;
   }
 
   .map-search-results, .map-directory-grid {
     grid-template-columns: 1fr;
+  }
+
+  .map-search-result-main, .map-search-result-nav, .map-empty-result button {
+    min-height: 44px;
   }
 
   .map-controls-body {
@@ -1800,7 +1805,7 @@
 
   .location-photo-dialog {
     width: calc(100vw - 20px);
-    max-height: calc(100vh - 20px);
+    max-height: calc(var(--visual-viewport-height) - 20px);
   }
 
   .map-caption {
@@ -1860,6 +1865,13 @@
   .nearby-place-notice { grid-template-columns: 1fr; gap: 8px; padding: 14px 44px 14px 14px; }
   .nearby-place-notice > button:not(.nearby-place-dismiss) { justify-self: start; }
 
+}
+
+@media (max-width: 1024px) and (max-height: 600px) and (orientation: landscape) {
+  .campus-interactive-map {
+    height: var(--map-mobile-height);
+    min-height: 300px;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
