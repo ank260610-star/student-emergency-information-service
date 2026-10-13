@@ -11,7 +11,11 @@ const travelModePatterns = {
 }
 
 const campusAliases = { jinnan: { 'jinnan-public-teaching': ['公教'] } }
-const normalize = (value) => String(value || '').toLowerCase().replace(/\s/g, '')
+const chineseNumerals = { '〇': '0', '○': '0', '一': '1', '二': '2', '三': '3', '四': '4', '五': '5', '六': '6', '七': '7', '八': '8', '九': '9', '十': '10' }
+const normalize = (value) => String(value || '')
+  .toLowerCase()
+  .replace(/\s/g, '')
+  .replace(/[〇○一二三四五六七八九十]/g, (character) => chineseNumerals[character])
 const genericGatePattern = /(?:东北门|东南门|西北门|西南门|东门|西门|南门|北门)$/
 const facilityGateOwnerPattern = /(?:学院|书院|图书馆|体育馆|医院|食堂|宿舍|教学楼|实验楼|办公楼|主楼|中心|大楼|楼|馆|园|场|室)(?:的)?$/
 const namedFacilityGatePattern = /(?:学院|书院|图书馆|体育馆|医院|食堂|宿舍|教学楼|实验楼|办公楼|主楼|中心|大楼|楼|馆|园|场|室)(?:的)?(?:东北门|东南门|西北门|西南门|东门|西门|南门|北门)$/
@@ -118,9 +122,38 @@ export function findDestinationCandidates(text, campus) {
   const locations = latestMatches.filter((match) => match.aliasLength === longest).map((match) => match.location)
   if (locations.length) return [...new Map(locations.map((location) => [location.id, location])).values()]
 
+  const normalizedDestination = normalize(destinationText)
+  const typoTolerantMatches = (campus.locations || []).filter((location) => [location.name, ...(location.aliases || [])]
+    .map(normalize)
+    .some((alias) => alias.length >= 2 && isSingleCharacterTypo(normalizedDestination, alias)))
+  if (typoTolerantMatches.length) return typoTolerantMatches
+
   const term = ['图书馆', '食堂', '宿舍', '体育馆', '教学楼', '校门', '大门', '医院', '广场']
     .find((item) => destinationText.includes(item))
   return term ? (campus.locations || []).filter((location) => location.name.includes(term)) : []
+}
+
+function isSingleCharacterTypo(left, right) {
+  if (Math.abs(left.length - right.length) > 1) return false
+  let leftIndex = 0
+  let rightIndex = 0
+  let edits = 0
+  while (leftIndex < left.length && rightIndex < right.length) {
+    if (left[leftIndex] === right[rightIndex]) {
+      leftIndex += 1
+      rightIndex += 1
+      continue
+    }
+    edits += 1
+    if (edits > 1) return false
+    if (left.length > right.length) leftIndex += 1
+    else if (right.length > left.length) rightIndex += 1
+    else {
+      leftIndex += 1
+      rightIndex += 1
+    }
+  }
+  return true
 }
 
 export function findOrigin(text, destination, campus) {

@@ -2,6 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import {
   askNkZhixingAgent,
+  askNkZhixingAgentWithNavigationFallback,
   consumeNkZhixingHandoff,
   extractNavigationDestination,
   getRoute,
@@ -96,6 +97,27 @@ test('agent validates answers and omits unsafe map link schemes', async (t) => {
     globalThis.fetch = async () => ({ ok: true, json: async () => ({ answer }) })
     await assert.rejects(askNkZhixingAgent(request), /有效回答/)
   }
+})
+
+test('known campus destinations keep routing when the agent returns an invalid answer', async (t) => {
+  t.mock.method(globalThis, 'fetch', async () => ({
+    ok: true,
+    json: async () => ({ answer: '' }),
+  }))
+
+  const request = { message: '去金融学院', campus: 'jinnan' }
+  const fallback = await askNkZhixingAgentWithNavigationFallback(request, {
+    destinationName: '金融学院',
+    modeLabel: '步行',
+  })
+  assert.match(fallback.answer, /已识别目的地为“金融学院”/)
+  assert.match(fallback.warning, /已自动继续规划路线/)
+  assert.equal(fallback.fallback, true)
+
+  await assert.rejects(
+    askNkZhixingAgentWithNavigationFallback(request),
+    /有效回答/,
+  )
 })
 
 test('place lookup rejects empty, malformed, and out-of-range coordinates', async (t) => {

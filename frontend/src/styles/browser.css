@@ -1,12 +1,31 @@
 /* Shared browser adaptations. Page-specific layout stays in the preceding files. */
+:root {
+  --app-height: 100vh;
+  --visual-viewport-height: 100vh;
+  --visual-viewport-offset-top: 0px;
+  --keyboard-inset-height: 0px;
+  --map-mobile-height: 430px;
+}
+
 html {
   -webkit-text-size-adjust: 100%;
   text-size-adjust: 100%;
+  scroll-padding-top: calc(76px + env(safe-area-inset-top, 0px));
 }
 
 body, .app-shell, .main-content {
   min-height: 100vh;
   min-height: 100dvh;
+  min-height: var(--app-height);
+}
+
+body {
+  width: 100%;
+  overflow-x: hidden;
+}
+
+img, video, iframe, canvas, svg {
+  max-width: 100%;
 }
 
 input, textarea, select, button {
@@ -17,8 +36,16 @@ button, a, input, textarea, select {
   -webkit-tap-highlight-color: rgba(126, 12, 110, .15);
 }
 
-button, a {
+button, a, input, textarea, select {
   touch-action: manipulation;
+}
+
+input, textarea, select {
+  max-width: 100%;
+}
+
+textarea {
+  resize: vertical;
 }
 
 input:focus-visible, textarea:focus-visible, select:focus-visible {
@@ -51,18 +78,18 @@ input:focus-visible, textarea:focus-visible, select:focus-visible {
 }
 
 .location-photo-dialog {
-  max-height: calc(100dvh - 40px);
+  max-height: calc(var(--visual-viewport-height) - 40px);
 }
 
 .location-photo-dialog figure {
-  max-height: calc(100dvh - 42px);
+  max-height: calc(var(--visual-viewport-height) - 42px);
 }
 
 .location-photo-dialog img {
-  max-height: calc(100dvh - 100px);
+  max-height: calc(var(--visual-viewport-height) - 100px);
 }
 
-@media (max-width: 820px) {
+@media (max-width: 820px), (max-width: 1024px) and (max-height: 600px) and (orientation: landscape) {
   .mobile-header {
     height: calc(62px + env(safe-area-inset-top, 0px));
     padding-top: env(safe-area-inset-top, 0px);
@@ -72,9 +99,12 @@ input:focus-visible, textarea:focus-visible, select:focus-visible {
 
   .menu-backdrop, .sidebar {
     top: calc(62px + env(safe-area-inset-top, 0px));
+    bottom: auto;
+    height: calc(var(--visual-viewport-height) - 62px - env(safe-area-inset-top, 0px));
   }
 
   .main-content {
+    min-height: var(--app-height);
     padding-left: env(safe-area-inset-left, 0px);
     padding-right: env(safe-area-inset-right, 0px);
   }
@@ -96,9 +126,15 @@ input:focus-visible, textarea:focus-visible, select:focus-visible {
   }
 
   /* 16px fields avoid focus zoom on iOS without disabling user zoom. */
+  input, textarea, select,
   .home-agent-form textarea, .map-search input, .wechat-search input,
   .nk-agent-form textarea, .map-category-filter select, .nk-agent-mode select {
     font-size: 16px;
+  }
+
+  input[type="checkbox"], input[type="radio"] {
+    min-width: 20px;
+    min-height: 20px;
   }
 
   .campus-map-workspace {
@@ -112,11 +148,42 @@ input:focus-visible, textarea:focus-visible, select:focus-visible {
   .wechat-copy-result {
     flex-wrap: wrap;
   }
+
+  .soft-keyboard-open .map-mobile-jump {
+    position: relative;
+    top: auto;
+  }
+
+  .wechat-webview .map-mobile-jump {
+    background: #fff;
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
 }
 
 @media (max-width: 540px) {
   .location-photo-dialog {
-    max-height: calc(100dvh - 20px);
+    max-height: calc(var(--visual-viewport-height) - 20px);
+  }
+}
+
+@media (max-width: 380px) {
+  .page, .inner-page, .map-page, .daily-home {
+    width: calc(100% - 20px);
+  }
+
+  .mobile-header {
+    padding-left: max(12px, env(safe-area-inset-left, 0px));
+    padding-right: max(12px, env(safe-area-inset-right, 0px));
+  }
+
+  .mobile-brand {
+    gap: 8px;
+    font-size: 15px;
+  }
+
+  .map-mobile-jump {
+    margin-inline: 0;
   }
 }
 

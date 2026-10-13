@@ -33,6 +33,7 @@ const mapStatus = ref(`${campusConfigs[campus.value].name} · ${getCampusLocatio
 const interactiveMap = ref(null)
 const nkZhixingPanel = ref(null)
 const mapWorkspace = ref(null)
+const mapSearchInput = ref(null)
 const tourPanel = ref(null)
 const directoryPanel = ref(null)
 const directoryExpanded = ref(false)
@@ -74,7 +75,12 @@ const agentCampus = computed(() => ({ ...currentCampus.value, locations: campusL
 const normalizedQuery = computed(() => query.value.trim().toLocaleLowerCase('zh-CN'))
 const filteredLocations = computed(() => campusLocations.value.filter((location) => {
   const matchesCategory = category.value === 'all' || location.category === category.value
-  const searchText = `${location.number} ${location.name} ${location.description}`.toLocaleLowerCase('zh-CN')
+  const searchText = [
+    location.number,
+    location.name,
+    location.description,
+    ...(location.aliases || []),
+  ].join(' ').toLocaleLowerCase('zh-CN')
   const matchesQuery = !normalizedQuery.value || searchText.includes(normalizedQuery.value)
   return matchesCategory && matchesQuery
 }))
@@ -196,6 +202,23 @@ function scrollToSection(target) {
 
 function scrollToAgent() {
   scrollToSection(nkZhixingPanel.value?.$el)
+}
+
+function useCurrentPosition() {
+  interactiveMap.value?.locateUser()
+}
+
+function chooseDestination() {
+  const behavior = window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth'
+  mapSearchInput.value?.scrollIntoView({ behavior, block: 'center' })
+  requestAnimationFrame(() => mapSearchInput.value?.focus())
+}
+
+function askAgentAboutQuery() {
+  const placeName = query.value.trim()
+  if (!placeName) return
+  nkZhixingPanel.value?.setQuestion(`我想找${placeName}，请帮我确认它在${currentCampus.value.name}的位置。`)
+  scrollToAgent()
 }
 
 function scrollToTours() {
@@ -712,7 +735,7 @@ onBeforeUnmount(() => {
         <label class="map-search">
           <span class="sr-only">搜索建筑编号或名称</span>
           <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="m16.5 16.5 4 4"></path></svg>
-          <input v-model="query" type="search" placeholder="搜索编号或建筑名称" autocomplete="off" />
+          <input ref="mapSearchInput" v-model="query" type="search" placeholder="搜索编号、名称或简称" autocomplete="off" />
           <small>{{ filteredLocations.length }} 个地点</small>
         </label>
       </div>
@@ -737,7 +760,18 @@ onBeforeUnmount(() => {
           >{{ pendingSearchNavigation?.location.id === location.id ? '正在定位…' : searchRoutePlanning && selectedId === location.id ? '正在规划…' : '从当前位置导航' }}</button>
         </div>
       </div>
-      <p v-else-if="normalizedQuery" class="map-empty-result" role="status">没有找到匹配的建筑，请尝试名称中的其他关键词。</p>
+      <div v-else-if="normalizedQuery" class="map-empty-result" role="status">
+        <p>没有找到匹配的建筑。可尝试简称、楼宇编号或名称中的其他关键词。</p>
+        <button type="button" @click="askAgentAboutQuery">向 NK 智行继续查询</button>
+      </div>
+
+      <section class="map-start-hint" aria-label="地图使用引导">
+        <p><strong>下一步：</strong>先定位，再选目标；不确定名称时可直接问 NK 智行。</p>
+        <div>
+          <button type="button" class="map-start-locate" @click="useCurrentPosition">1. 使用当前位置</button>
+          <button type="button" @click="chooseDestination">2. 搜索或点选目标</button>
+        </div>
+      </section>
 
       <div ref="mapWorkspace" class="campus-map-workspace">
         <CampusInteractiveMap

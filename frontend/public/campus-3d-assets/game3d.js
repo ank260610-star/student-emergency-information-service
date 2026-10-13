@@ -5,7 +5,7 @@ import {GLTFLoader} from './vendor/three/examples/jsm/loaders/GLTFLoader.js';
 import {sculptCar as buildSupercar} from './vehicles.js?v=play-2';
 import {loadCampus,inside} from './campus.js?v=3d-wheel-shops-1';
 import {addCampusLife,poseBicycleRider} from './campus-life.js?v=3d-wheel-shops-1';
-import {addMasterplanDetails} from './masterplan.js?v=3d-wheel-shops-1';
+import {addMasterplanDetails} from './masterplan.js?v=3d-courts-1';
 import {pointToSegmentSq,nearPolygonEdge,sampledPathBlocked,withinCourtyard} from './collision.js';
 let campusReady=false;
 let collisionBuildings=[],libraryDoor=null,waterAreas=[],stairSegments=[],solidColliders=[],waterPaths=[],bridgeZones=[];
@@ -100,13 +100,14 @@ function water(name,lat,lon,w,d){const p=world(lat,lon);const m=new THREE.Mesh(n
 water('马蹄湖',38.9867751,117.3335141,95,50);water('南开湖',38.9870964,117.3453830,145,82);
 
 function field(name,lat,lon,w,d,color=0x477f54){const p=world(lat,lon),m=new THREE.Mesh(new THREE.PlaneGeometry(w,d),new THREE.MeshStandardMaterial({color,roughness:1}));m.rotation.x=-Math.PI/2;m.position.set(p.x,.8,p.z);campus.add(m);label(name,new THREE.Vector3(p.x,12,p.z));}
-field('西区足球场',38.9847346,117.3322347,135,82);field('文科足球场',38.9911081,117.3435917,150,90);field('体育场群',38.99165,117.33945,130,110,0x567a66);
+field('西区足球场',38.9847346,117.3322347,135,82);field('文科足球场',38.9911081,117.3435917,150,90);
 
 // 城市天际线与校园绿化，补足完整空间感。
-for(let i=0;i<260;i++){const r=seeded('tree'+i),x=(r()-.5)*2500,z=(r()-.5)*1700;if(Math.abs(x)<65||Math.abs(z)<55||[[38.9847346,117.3322347,90,52],[38.9911081,117.3435917,90,52],[38.99335,117.33725,30,25]].some(([lat,lon,w,d])=>{const p=world(lat,lon);return Math.abs(x-p.x)<w&&Math.abs(z-p.z)<d}))continue;const trunk=new THREE.Mesh(new THREE.CylinderGeometry(1.2,1.6,8,6),boxMat(0x6d4d32));trunk.position.set(x,4,z);const crown=new THREE.Mesh(new THREE.ConeGeometry(7+r()*5,18+r()*8,7),boxMat(0x397b4c));crown.position.set(x,16,z);trunk.castShadow=crown.castShadow=true;campus.add(trunk,crown)}
+for(let i=0;i<260;i++){const r=seeded('tree'+i),x=(r()-.5)*2500,z=(r()-.5)*1700;if(Math.abs(x)<65||Math.abs(z)<55||[[38.9847346,117.3322347,90,52],[38.9911081,117.3435917,90,52],[38.99335,117.33725,30,25],[38.99115,117.33930,78,98]].some(([lat,lon,w,d])=>{const p=world(lat,lon);return Math.abs(x-p.x)<w&&Math.abs(z-p.z)<d}))continue;const trunk=new THREE.Mesh(new THREE.CylinderGeometry(1.2,1.6,8,6),boxMat(0x6d4d32));trunk.position.set(x,4,z);const crown=new THREE.Mesh(new THREE.ConeGeometry(7+r()*5,18+r()*8,7),boxMat(0x397b4c));crown.position.set(x,16,z);trunk.castShadow=crown.castShadow=true;campus.add(trunk,crown)}
 const campusLife=addCampusLife(scene,world);
 const masterplan=addMasterplanDetails(scene,world);
-solidColliders=campusLife.solidColliders;waterPaths=masterplan.waterPaths;bridgeZones=masterplan.bridgeZones;scene.add(collisionDebug);
+label('文科篮球场 / 网球场',world(38.99115,117.33930).add(new THREE.Vector3(0,12,0)));
+solidColliders=[...campusLife.solidColliders,...masterplan.solidColliders];waterPaths=masterplan.waterPaths;bridgeZones=masterplan.bridgeZones;scene.add(collisionDebug);
 campusLife.player.visible=false;
 
 const carSpecs=[

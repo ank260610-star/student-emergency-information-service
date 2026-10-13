@@ -187,6 +187,10 @@ const balitaiDescriptions = {
   '89': '八里台校区白堤路方向出入口。',
 }
 
+const balitaiAdditionalAliases = {
+  '87': ['商学院', '南开大学商学院'],
+}
+
 const balitaiPriorityOne = new Set(['01', '17', '19', '41', '42'])
 const balitaiPriorityTwo = new Set(['03', '09', '13', '18', '28', '32', '33', '35', '54', '61', '65', '73', '89'])
 
@@ -329,7 +333,7 @@ const balitaiLocations = [
       geoPoint: verified ? gcj02ToWgs84(verified.point) : null,
       navigationPoint: verified?.point || null,
       geoSource: verified ? '现场采集 GCJ-02 入口坐标' : null,
-      aliases: verified?.aliases || [],
+      aliases: [...new Set([...(verified?.aliases || []), ...(balitaiAdditionalAliases[number] || [])])],
       priority: balitaiPriorityOne.has(number) ? 1 : balitaiPriorityTwo.has(number) ? 2 : 3,
       emergency: number === '42',
       description: verified

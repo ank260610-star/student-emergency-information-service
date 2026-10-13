@@ -1,5 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
+import { campusConfigs, getCampusLocations } from '../data/campusLocations.js'
 import {
   buildAgentInstructions,
   findRequestedTravelMode,
@@ -113,6 +114,63 @@ test('candidate selection uses the destination, preserves ambiguity, and prefers
   assert.deepEqual(findDestinationCandidates('去公教', campus).map((item) => item.id), ['jinnan-public-teaching'])
   assert.deepEqual(findDestinationCandidates('从西南门去实验新楼', campus), [])
   assert.deepEqual(findDestinationCandidates('我在西南门，中心图书馆咋走', campus).map((item) => item.id), ['lib'])
+})
+
+test('short campus navigation commands resolve reviewed POI aliases', () => {
+  const campusWithReviewedAliases = {
+    id: 'jinnan', name: '津南校区',
+    locations: [
+      { id: 'finance', name: '金融学院', aliases: ['南开大学金融学院', '金院'] },
+      { id: 'teaching-a', name: '公共教学楼', aliases: ['公教', '公教A', '教学楼A', '公共教学楼A'] },
+    ],
+  }
+  assert.deepEqual(findDestinationCandidates('去金融学院', campusWithReviewedAliases).map(({ id }) => id), ['finance'])
+  assert.deepEqual(findDestinationCandidates('去公教A', campusWithReviewedAliases).map(({ id }) => id), ['teaching-a'])
+})
+
+test('representative campus navigation phrases resolve within the active campus', () => {
+  const cases = {
+    jinnan: [
+      ['去中心图书馆', 'jinnan-library'],
+      ['带我去文科食堂', 'jinnan-location-j10'],
+      ['去体育馆', 'jinnan-gymnasium'],
+      ['去金融学院', 'jinnan-location-j37'],
+      ['去公教A', 'jinnan-public-teaching'],
+      ['去公共教学楼B', 'jinnan-field-p01'],
+      ['去学5-A', 'jinnan-location-j58'],
+      ['去西南门', 'jinnan-southwest-gate'],
+      ['去大通学活', 'jinnan-student-center'],
+      ['去宁一书斋', 'jinnan-tour-t03'],
+      ['去人工智能学院', 'jinnan-location-j51'],
+      ['去前沿交叉楼', 'jinnan-location-j72'],
+      ['去马蹄湖文科小花园', 'jinnan-location-j74'],
+    ],
+    balitai: [
+      ['去东门', 'balitai-east-gate'],
+      ['去西门', 'balitai-location-89'],
+      ['去主楼', 'balitai-main-building'],
+      ['去思源堂', 'balitai-location-05'],
+      ['去马蹄湖', 'balitai-mati-lake'],
+      ['去商学院', 'balitai-location-87'],
+      ['去校医院', 'balitai-hospital'],
+      ['去周恩来总理像', 'balitai-zhou-enlai-statue'],
+      ['去西南联大纪念碑', 'balitai-memorial'],
+      ['去陈省身故居', 'balitai-chen-shengshen-residence'],
+      ['去爱国三问碑', 'balitai-patriotic-three-questions'],
+      ['去校钟', 'balitai-location-11'],
+    ],
+  }
+
+  for (const [campusId, prompts] of Object.entries(cases)) {
+    const activeCampus = { ...campusConfigs[campusId], locations: getCampusLocations(campusId) }
+    for (const [prompt, expectedId] of prompts) {
+      assert.deepEqual(
+        findDestinationCandidates(prompt, activeCampus).map(({ id }) => id),
+        [expectedId],
+        `${campusId}: ${prompt}`,
+      )
+    }
+  }
 })
 
 test('request instructions include the confirmed destination and selected mode', () => {

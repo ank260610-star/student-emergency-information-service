@@ -8,12 +8,27 @@ import { useVisitCount } from './composables/useVisitCount'
 
 const { menuOpen, menuButton, sidebar, mainContent, closeMenu, onNavigationClick } = useMobileMenu()
 const { formattedVisitCount, visitCountStatus } = useVisitCount()
-const showIntro = ref(true)
+function hasSeenIntro() {
+  try {
+    return window.sessionStorage.getItem('nku-campus-intro-seen') === '1'
+  } catch {
+    return false
+  }
+}
+
+const showIntro = ref(!hasSeenIntro())
 let introTimer
 
 onMounted(() => {
+  if (!showIntro.value) return
+  try {
+    window.sessionStorage.setItem('nku-campus-intro-seen', '1')
+  } catch {
+    // Some embedded browsers disable storage; the intro still works without it.
+  }
   const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
-  introTimer = window.setTimeout(() => { showIntro.value = false }, reducedMotion ? 250 : 3000)
+  const compactScreen = window.matchMedia('(max-width: 820px), (max-height: 600px)').matches
+  introTimer = window.setTimeout(() => { showIntro.value = false }, reducedMotion ? 250 : compactScreen ? 1600 : 2500)
 })
 
 onBeforeUnmount(() => window.clearTimeout(introTimer))
@@ -58,6 +73,10 @@ onBeforeUnmount(() => window.clearTimeout(introTimer))
           </span>
         </section>
         <div class="sidebar-notice"><span aria-hidden="true">!</span><p>紧急情况请优先联系专业救援力量，并以学校官方通知为准。</p></div>
+        <div class="sidebar-project-meta" aria-label="项目维护信息">
+          <span>小组 · <strong>eMm</strong></span>
+          <span>更新 · <time datetime="2026-10">2026年10月</time></span>
+        </div>
       </div>
     </aside>
     <main ref="mainContent" class="main-content" tabindex="-1" :inert="menuOpen || undefined" :aria-hidden="menuOpen ? true : undefined">

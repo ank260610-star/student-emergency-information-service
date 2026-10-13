@@ -1,3 +1,4 @@
+import {createOutdoorCourts} from './outdoor-courts.js?v=3d-courts-1';
 import {createAthleticsTrack} from './restored-landmarks.js?v=3d-wheel-shops-1';
 import * as THREE from './vendor/three/build/three.module.js';
 
@@ -49,5 +50,5 @@ export function addMasterplanDetails(scene,world){
   const westGate=world(38.98215,117.3282);g.add(vehicleGate(westGate,'西门 · 车辆主入口'));
   // Separate north-west service entrance: lower brick guardhouse, road markings and closed barrier.
   const northWestGate=world(38.9940386,117.3348347);g.add(vehicleGate(northWestGate,'西北门 · 校园车辆入口',{closed:true}));
-  scene.add(g);return {group:g,waterPaths:[{points:south,width:24},{points:east,width:12}],bridgeZones};
+  const courts=createOutdoorCourts(world);g.add(courts.group);scene.add(g);return {solidColliders:courts.solidColliders,group:g,waterPaths:[{points:south,width:24},{points:east,width:12}],bridgeZones};
 }

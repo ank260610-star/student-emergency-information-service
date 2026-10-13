@@ -363,6 +363,12 @@ function illustrationMap(version) {
     })
     .addTo(map)
 
+  loadingTimer = window.setTimeout(() => {
+    if (version !== buildVersion || !loading.value) return
+    loading.value = false
+    mapError.value = '校园导览图加载超时。请检查网络后重试。'
+  }, 8000)
+
   correctionLayer = L.layerGroup().addTo(map)
   for (const correction of props.campus.illustrationCorrections || []) {
     correctionOverlay(correction)?.addTo(correctionLayer)
@@ -477,6 +483,10 @@ async function buildMap() {
 function rebuildMap() {
   mapReady = buildMap()
   return mapReady
+}
+
+function retryMapLoad() {
+  rebuildMap()
 }
 
 function scheduleResize() {
@@ -851,7 +861,10 @@ defineExpose({
     <div v-if="baseMode === 'illustration'" class="campus-map-finish" aria-hidden="true"></div>
 
     <CampusMapLoader v-if="loading" :mode="baseMode" />
-    <div v-else-if="mapError" class="map-state-overlay is-error" role="alert">{{ mapError }}</div>
+    <div v-else-if="mapError" class="map-state-overlay is-error" role="alert">
+      <p>{{ mapError }}</p>
+      <button type="button" @click="retryMapLoad">重新加载地图</button>
+    </div>
 
     <div v-if="tileError" class="map-tile-warning" role="alert">
       在线底图部分加载失败。你可以继续使用标记，或切回“校园导览图”。

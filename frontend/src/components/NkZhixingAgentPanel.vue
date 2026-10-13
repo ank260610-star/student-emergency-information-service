@@ -2,7 +2,7 @@
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { findLandmarkNarrative } from '../data/landmarkNarratives'
 import { findPlaceProfile } from '../data/placeProfiles'
-import { askNkZhixingAgent, getRoute, NK_ZHIXING_MESSAGE_LIMIT, resolveCampusPlace } from '../services/nkZhixingAgent'
+import { askNkZhixingAgentWithNavigationFallback, getRoute, NK_ZHIXING_MESSAGE_LIMIT, resolveCampusPlace } from '../services/nkZhixingAgent'
 import {
   buildAgentInstructions,
   extractNavigationDestination,
@@ -188,6 +188,12 @@ function useSuggestion(value) {
   message.value = value
 }
 
+function setQuestion(value) {
+  if (loading.value) return
+  resetQuestion()
+  message.value = String(value || '').trim().slice(0, NK_ZHIXING_MESSAGE_LIMIT)
+}
+
 function chooseCandidate(locationId) {
   if (loading.value || composing.value || !pendingCandidates
     || pendingCandidates.campusId !== props.campus.id
@@ -276,11 +282,17 @@ async function submit() {
   result.value = null
 
   try {
-    const answer = await askNkZhixingAgent({
+    const navigationFallbackDestination = navigationIntent
+      ? (selectedDestination || destinationCandidates[0]) : null
+    const answer = await askNkZhixingAgentWithNavigationFallback({
       message: `${prompt}\n${instructions}`,
       campus: campus.id,
       selectedLocation: selectedDestination || selectedLocation,
-    }, { signal })
+    }, {
+      signal,
+      destinationName: navigationFallbackDestination?.name,
+      modeLabel: travelModeLabels[mode],
+    })
     if (!isCurrent()) return
     result.value = answer
     if (narrative) {
@@ -377,7 +389,7 @@ onMounted(() => {
   if (props.autoSubmit) submit()
 })
 
-defineExpose({ chooseCandidate })
+defineExpose({ chooseCandidate, setQuestion })
 </script>
 
 <template>

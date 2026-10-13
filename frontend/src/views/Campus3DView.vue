@@ -2,10 +2,19 @@
 import { ref, onMounted, onBeforeUnmount } from 'vue'
 
 const frameLoaded = ref(false)
+const frameLoadTimedOut = ref(false)
 const scene = ref(null)
 const fullscreen = ref(false)
 const pageFullscreen = ref(false)
 let previousOverflow = ''
+let frameLoadTimer = 0
+
+function handleSceneLoaded() {
+  frameLoaded.value = true
+  frameLoadTimedOut.value = false
+  if (frameLoadTimer) window.clearTimeout(frameLoadTimer)
+  frameLoadTimer = 0
+}
 function syncFullscreen() {
   fullscreen.value = document.fullscreenElement === scene.value || pageFullscreen.value
 }
@@ -38,14 +47,18 @@ function onEscape(event) {
 onMounted(() => {
   document.addEventListener('fullscreenchange', syncFullscreen)
   window.addEventListener('keydown', onEscape)
+  frameLoadTimer = window.setTimeout(() => {
+    if (!frameLoaded.value) frameLoadTimedOut.value = true
+  }, 10000)
 })
 onBeforeUnmount(() => {
   document.removeEventListener('fullscreenchange', syncFullscreen)
   window.removeEventListener('keydown', onEscape)
+  if (frameLoadTimer) window.clearTimeout(frameLoadTimer)
   if (pageFullscreen.value) setPageFullscreen(false)
 })
 // The scene selects its touch controls and rendering quality for the device.
-const sceneAssetVersion = '3d-wheel-shops-1'
+const sceneAssetVersion = '3d-courts-1'
 const sceneUrl = `/campus-3d-assets/index.html?v=${sceneAssetVersion}`
 </script>
 
@@ -62,13 +75,16 @@ const sceneUrl = `/campus-3d-assets/index.html?v=${sceneAssetVersion}`
 
     <section ref="scene" class="campus-3d-scene" :class="{ 'is-page-fullscreen': pageFullscreen }" aria-label="津南校区 3D 地图">
       <button class="campus-3d-fullscreen" :aria-pressed="fullscreen" @click="toggleFullscreen">{{ fullscreen ? '退出全屏 ⤡' : '全屏 ⤢' }}</button>
-      <p v-if="!frameLoaded" class="campus-3d-loading" role="status">正在打开 3D 地图…</p>
+      <div v-if="!frameLoaded" class="campus-3d-loading" role="status">
+        <p>{{ frameLoadTimedOut ? '3D 地图加载时间较长。你可以继续等待，或切换到可用于找路的 2D 地图。' : '正在打开 3D 地图…' }}</p>
+        <RouterLink v-if="frameLoadTimedOut" :to="{ name: 'campus-map', query: { campus: 'jinnan' } }">切换到 2D 导航</RouterLink>
+      </div>
       <iframe
         :src="sceneUrl"
         title="南开大学津南校区 3D 互动地图"
         allow="autoplay; fullscreen"
         allowfullscreen
-        @load="frameLoaded = true"
+        @load="handleSceneLoaded"
       ></iframe>
     </section>
 
@@ -91,7 +107,9 @@ const sceneUrl = `/campus-3d-assets/index.html?v=${sceneAssetVersion}`
 .campus-3d-fullscreen:focus-visible { outline: 3px solid white; outline-offset: 2px; }
 .campus-3d-scene:fullscreen, .campus-3d-scene.is-page-fullscreen { width: 100%; height: 100dvh; min-height: 0; border: 0; }
 .campus-3d-scene.is-page-fullscreen { position: fixed; inset: 0; z-index: 10000; }
-.campus-3d-loading { position: absolute; inset: 0; display: grid; place-items: center; margin: 0; color: white; pointer-events: none; }
+.campus-3d-loading { position: absolute; inset: 0; z-index: 1; display: grid; place-content: center; justify-items: center; gap: .8rem; margin: 0; padding: 1.5rem; color: white; background: rgba(16,25,35,.78); text-align: center; }
+.campus-3d-loading p { max-width: 28rem; margin: 0; line-height: 1.6; }
+.campus-3d-loading a { display: inline-flex; min-height: 44px; align-items: center; padding: .65rem .9rem; color: #fff; border: 1px solid #ffffffa8; border-radius: 6px; background: #400839; font-weight: 700; text-decoration: none; }
 .campus-3d-help { padding: 1rem 1.25rem; background: #f7eff6; border-left: 3px solid #7e0c6e; }
 .campus-3d-help p { margin: .4rem 0; line-height: 1.65; }
 @media (max-width: 700px) {
