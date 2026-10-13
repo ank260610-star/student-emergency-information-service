@@ -1,11 +1,11 @@
-import {rollingAngle, aircraftYaw, orientedBoxHit} from './scene-rules.js?v=3d-motion-fix-1';
+import {rollingAngle, aircraftYaw, orientedBoxHit} from './scene-rules.js?v=3d-wheel-shops-1';
 import {createTouchControls} from './mobile-controls.js';
 import * as THREE from './vendor/three/build/three.module.js';
 import {GLTFLoader} from './vendor/three/examples/jsm/loaders/GLTFLoader.js';
 import {sculptCar as buildSupercar} from './vehicles.js?v=play-2';
-import {loadCampus,inside} from './campus.js?v=3d-motion-fix-1';
-import {addCampusLife,poseBicycleRider} from './campus-life.js?v=3d-motion-fix-1';
-import {addMasterplanDetails} from './masterplan.js?v=3d-motion-fix-1';
+import {loadCampus,inside} from './campus.js?v=3d-wheel-shops-1';
+import {addCampusLife,poseBicycleRider} from './campus-life.js?v=3d-wheel-shops-1';
+import {addMasterplanDetails} from './masterplan.js?v=3d-wheel-shops-1';
 import {pointToSegmentSq,nearPolygonEdge,sampledPathBlocked,withinCourtyard} from './collision.js';
 let campusReady=false;
 let collisionBuildings=[],libraryDoor=null,waterAreas=[],stairSegments=[],solidColliders=[],waterPaths=[],bridgeZones=[];

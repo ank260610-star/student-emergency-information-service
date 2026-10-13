@@ -1,6 +1,7 @@
+import {alignWheelMetal} from './wheel-geometry.js';
 import * as THREE from './vendor/three/build/three.module.js';
 import {GLTFLoader} from './vendor/three/examples/jsm/loaders/GLTFLoader.js';
-import {createZhouStatue} from './zhou-statue.js?v=3d-motion-fix-1';
+import {createZhouStatue} from './zhou-statue.js?v=3d-wheel-shops-1';
 
 const standard = (color, extra={}) => new THREE.MeshStandardMaterial({color, roughness:.7, metalness:.08, ...extra});
 
@@ -50,7 +51,7 @@ function publicBike(color=0xf1b92b,kind='meituan'){
 function mountSharedBikeModel(bike, template){
   const original=template.clone(true);
   original.name='授权共享单车原始GLB';
-  original.scale.setScalar(1.05);
+  original.scale.setScalar(1.05);original.traverse(node=>{if(node.isMesh&&/^wheel-bike-(front|rear)iron$/.test(node.name))node.geometry=alignWheelMetal(node.geometry)});
   // Authored bicycle faces +Z; the fleet holder is rotated +90° by gameplay.
   original.rotation.y=-Math.PI/2;
   const originalChildren=[...bike.children];
