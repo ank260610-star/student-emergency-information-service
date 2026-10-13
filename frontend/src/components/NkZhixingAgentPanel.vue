@@ -188,6 +188,12 @@ function useSuggestion(value) {
   message.value = value
 }
 
+function setQuestion(value) {
+  if (loading.value) return
+  resetQuestion()
+  message.value = String(value || '').trim().slice(0, NK_ZHIXING_MESSAGE_LIMIT)
+}
+
 function chooseCandidate(locationId) {
   if (loading.value || composing.value || !pendingCandidates
     || pendingCandidates.campusId !== props.campus.id
@@ -383,7 +389,7 @@ onMounted(() => {
   if (props.autoSubmit) submit()
 })
 
-defineExpose({ chooseCandidate })
+defineExpose({ chooseCandidate, setQuestion })
 </script>
 
 <template>

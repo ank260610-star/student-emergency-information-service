@@ -1,5 +1,5 @@
 <script setup>
-import { ref } from 'vue'
+import { onMounted, ref } from 'vue'
 import { categoryMeta } from '../data/campusLocations'
 
 defineProps({
@@ -19,6 +19,10 @@ const emit = defineEmits([
 ])
 
 const collapsed = ref(false)
+
+onMounted(() => {
+  if (window.matchMedia('(max-width: 720px)').matches) collapsed.value = true
+})
 </script>
 
 <template>

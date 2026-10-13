@@ -73,6 +73,10 @@ onBeforeUnmount(() => window.clearTimeout(introTimer))
           </span>
         </section>
         <div class="sidebar-notice"><span aria-hidden="true">!</span><p>紧急情况请优先联系专业救援力量，并以学校官方通知为准。</p></div>
+        <div class="sidebar-project-meta" aria-label="项目维护信息">
+          <span>小组 · <strong>eMm</strong></span>
+          <span>更新 · <time datetime="2026-10">2026年10月</time></span>
+        </div>
       </div>
     </aside>
     <main ref="mainContent" class="main-content" tabindex="-1" :inert="menuOpen || undefined" :aria-hidden="menuOpen ? true : undefined">
