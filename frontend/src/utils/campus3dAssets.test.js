@@ -6,7 +6,7 @@ import { dirname, join, resolve } from 'node:path'
 
 const publicRoot = fileURLToPath(new URL('../../public/', import.meta.url))
 const sceneRoot = join(publicRoot, 'campus-3d-assets')
-const sceneAssetVersion = '3d-restored-16-1'
+const sceneAssetVersion = '3d-motion-fix-1'
 
 test('3D scene resources do not shadow the Vue page route', () => {
   assert.equal(existsSync(join(publicRoot, 'campus-3d/index.html')), false)

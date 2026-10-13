@@ -4,10 +4,13 @@ export function isWorldVisible(object){
  return true;
 }
 
-// Forward rolling means the top of the wheel moves forward, the contact patch backward.
-export function wheelRollDirection(axle,forward){
- return axle.x*forward.z-axle.z*forward.x>=0?1:-1;
+// Ground contact must move opposite the wheel's actual translation.
+export function rollingAngle(travel,axle,radius){
+ return (-axle.z*travel.x+axle.x*travel.z)/radius;
 }
+
+// The widebody's nose is authored toward -Z; gameplay forward is +Z.
+export function aircraftYaw(heading){return heading+Math.PI;}
 
 export function orientedBoxHit(x,z,collider,radius){
  const dx=x-collider.x,dz=z-collider.z,yaw=collider.box.yaw||0,c=Math.cos(yaw),s=Math.sin(yaw),localX=c*dx-s*dz,localZ=s*dx+c*dz;

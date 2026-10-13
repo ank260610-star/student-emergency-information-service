@@ -1,7 +1,6 @@
-import {wheelRollDirection} from './scene-rules.js';
 import * as THREE from './vendor/three/build/three.module.js';
 import {GLTFLoader} from './vendor/three/examples/jsm/loaders/GLTFLoader.js';
-import {createZhouStatue} from './zhou-statue.js?v=3d-restored-16-1';
+import {createZhouStatue} from './zhou-statue.js?v=3d-motion-fix-1';
 
 const standard = (color, extra={}) => new THREE.MeshStandardMaterial({color, roughness:.7, metalness:.08, ...extra});
 
@@ -38,12 +37,12 @@ function flowerBed(x,z,w,d){
 
 function publicBike(color=0xf1b92b,kind='meituan'){
   const g=new THREE.Group(),paint=standard(color,{metalness:.25,roughness:.45}),black=standard(0x15191a,{roughness:.9});
-  const wheels=[];for(const x of [-1.4,1.4]){const wheel=new THREE.Mesh(new THREE.TorusGeometry(1.0,.12,7,18),black);wheel.rotation.y=Math.PI/2;wheel.position.set(x,1.05,0);g.add(wheel);wheels.push(wheel)}
+  const wheels=[];for(const x of [-1.4,1.4]){const wheel=new THREE.Mesh(new THREE.TorusGeometry(1.0,.12,7,18),black);wheel.name='后备单车轮毂';wheel.userData.spinAxis=new THREE.Vector3(0,0,1);wheel.userData.baseQuaternion=wheel.quaternion.clone();wheel.userData.wheelSpin=0;wheel.userData.rollingRadius=1.12;wheel.position.set(x,1.05,0);g.add(wheel);wheels.push(wheel)}
   const tube=(a,b,r=.11)=>{const len=a.distanceTo(b),m=new THREE.Mesh(new THREE.CylinderGeometry(r,r,len,6),paint);m.position.copy(a).add(b).multiplyScalar(.5);m.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),b.clone().sub(a).normalize());g.add(m)};
   const seat=new THREE.Vector3(-.2,2.3,0), crank=new THREE.Vector3(0,1.25,0), front=new THREE.Vector3(1.4,2.55,0),rear=new THREE.Vector3(-1.4,1.05,0),fw=new THREE.Vector3(1.4,1.05,0);tube(rear,seat);tube(seat,crank);tube(crank,rear);tube(crank,front);tube(seat,front);tube(front,fw);const saddle=new THREE.Mesh(new THREE.BoxGeometry(.8,.18,.34),black);saddle.position.copy(seat).add(new THREE.Vector3(-.18,.18,0));g.add(saddle);
   const basket=new THREE.Mesh(new THREE.BoxGeometry(.55,.45,.55),standard(0xced7d5,{metalness:.45,roughness:.5}));basket.position.set(1.45,2.15,.05);g.add(basket);
   if(kind==='byte'){const battery=new THREE.Mesh(new THREE.BoxGeometry(1.05,.52,.58),standard(0x15191a,{metalness:.42,roughness:.32}));battery.position.set(-.1,1.6,.08);g.add(battery)}
-  const brand=campusLabel(kind==='meituan'?'黄色共享单车':kind==='red-bike'?'红色共享单车':'蓝色共享 E-BIKE',new THREE.Vector3(0,2.7,.18),color);brand.scale.set(3.1,.55,1);g.add(brand);g.userData={wheels,type:kind==='meituan'?'meituan-bike':kind==='red-bike'?'red-bike':'byte-ebike'};g.traverse(o=>{if(o.isMesh){o.castShadow=true;o.receiveShadow=true}});return g;
+  const brand=campusLabel(kind==='meituan'?'黄色共享单车':kind==='red-bike'?'红色共享单车':'蓝色共享 E-BIKE',new THREE.Vector3(0,2.7,.18),color);brand.scale.set(3.1,.55,1);g.add(brand);const fallback=new THREE.Group();fallback.rotation.y=Math.PI;for(const child of [...g.children])fallback.add(child);g.add(fallback);g.userData={wheels,type:kind==='meituan'?'meituan-bike':kind==='red-bike'?'red-bike':'byte-ebike'};g.traverse(o=>{if(o.isMesh){o.castShadow=true;o.receiveShadow=true}});return g;
 }
 
 // This CC0 bicycle is an authored GLB, not a procedural wheel replacement.
@@ -52,7 +51,7 @@ function mountSharedBikeModel(bike, template){
   const original=template.clone(true);
   original.name='授权共享单车原始GLB';
   original.scale.setScalar(1.05);
-  // Authored bicycle faces +Z; the legacy fleet holder faces +X.
+  // Authored bicycle faces +Z; the fleet holder is rotated +90° by gameplay.
   original.rotation.y=-Math.PI/2;
   const originalChildren=[...bike.children];
   originalChildren.forEach(child=>child.visible=false);
@@ -62,7 +61,11 @@ function mountSharedBikeModel(bike, template){
     if(node.name==='wheel-bike-front'||node.name==='wheel-bike-rear'){
       node.userData.baseQuaternion=node.quaternion.clone();
       node.userData.wheelSpin=0;
-      original.updateWorldMatrix(true,true);const axle=new THREE.Vector3(1,0,0).applyQuaternion(node.getWorldQuaternion(new THREE.Quaternion())),forward=new THREE.Vector3(0,0,1).applyQuaternion(original.getWorldQuaternion(new THREE.Quaternion()));node.userData.rollDirection=wheelRollDirection(axle,forward);
+      original.updateWorldMatrix(true,true);const bounds=new THREE.Box3().setFromObject(node);node.userData.spinAxis=new THREE.Vector3(1,0,0);node.userData.rollingRadius=bounds.getSize(new THREE.Vector3()).y/2;
+      // One asymmetric spoke reflector makes forward rolling readable instead of
+      // letting repeated spokes appear to reverse at low frame rates.
+      const localBounds=bounds.clone().applyMatrix4(node.matrixWorld.clone().invert()),radius=localBounds.getSize(new THREE.Vector3()).y/2;
+      for(const side of [-1,1]){const reflector=new THREE.Mesh(new THREE.BoxGeometry(.015,radius*.25,.025),standard(0xffbd40,{emissive:0x442a00,roughness:.4}));reflector.name='轮毂方向反光标';reflector.position.set(side*(localBounds.max.x+.008),radius*.65,0);node.add(reflector);}
       wheels.push(node);
       if(node.name==='wheel-bike-front')frontWheels.push(node);
     }

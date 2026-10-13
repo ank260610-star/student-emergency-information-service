@@ -1,4 +1,4 @@
-import {createAthleticsTrack} from './restored-landmarks.js';
+import {createAthleticsTrack} from './restored-landmarks.js?v=3d-motion-fix-1';
 import * as THREE from './vendor/three/build/three.module.js';
 
 const mat=(color,extra={})=>new THREE.MeshStandardMaterial({color,roughness:.78,metalness:.04,...extra});
@@ -39,13 +39,13 @@ export function addMasterplanDetails(scene,world){
   const south=[world(38.98165,117.3278),world(38.98148,117.332),world(38.98158,117.336),world(38.98138,117.340),world(38.98154,117.344),world(38.98142,117.348),world(38.98155,117.3514)];
   const east=[world(38.98145,117.3472),world(38.9834,117.3471),world(38.9851,117.3467),world(38.987,117.3462)];
   g.add(waterRibbon(south,24),waterRibbon(east,12));
-  const bridgeZones=[];for(const i of [1,3,5]){const p=south[i].clone();g.add(bridge(p,Math.PI/2));bridgeZones.push({x:p.x,z:p.z,r:11})}
+  const bridgeZones=[];for(const i of [1,3,5]){const p=south[i].clone();if(i!==3)g.add(bridge(p,Math.PI/2));bridgeZones.push({x:p.x,z:p.z,r:11})}
   for(let i=0;i<south.length-1;i++){const a=south[i],b=south[i+1],len=a.distanceTo(b),count=Math.max(3,Math.floor(len/12));for(let n=0;n<=count;n++){const t=n/count,x=THREE.MathUtils.lerp(a.x,b.x,t),z=THREE.MathUtils.lerp(a.z,b.z,t);g.add(tree(x,z-16,.85),tree(x,z+16,.78))}}
   // Ecological wetland: islands, curved paths and dense layered planting, drawn from the physical campus model.
   const wetland=world(38.98305,117.3448),grass=mat(0x4e8444,{roughness:1});for(const [dx,dz,rx,rz] of [[0,0,15,9],[-17,7,10,6],[18,-8,12,7]]){const island=new THREE.Mesh(new THREE.CircleGeometry(1,28),grass);island.scale.set(rx,rz,1);island.rotation.x=-Math.PI/2;island.position.set(wetland.x+dx,.35,wetland.z+dz);g.add(island);for(let k=0;k<10;k++){const a=k*2.4+dx,d=3+(k%4)*1.5;g.add(tree(wetland.x+dx+Math.cos(a)*d,wetland.z+dz+Math.sin(a)*d,.46+(k%3)*.08))}}
   g.add(campusSign('生态湿地与水系',wetland.clone().add(new THREE.Vector3(0,9,0))));
   // Track and courts replicate the clear athletic cluster visible beside student living areas.
-  for(const [lat,lon,name] of [[38.9847346,117.3322347,'西区田径场'],[38.9911081,117.3435917,'文科田径场']]){const sport=world(lat,lon),track=createAthleticsTrack(name);track.position.copy(sport);g.add(track,campusSign(name,sport.clone().add(new THREE.Vector3(0,12,0))));}
+  for(const [lat,lon,name] of [[38.9847346,117.3322347,'西区田径场'],[38.9911081,117.3435917,'文科田径场']]){const sport=world(lat,lon),track=createAthleticsTrack(name,{detailed:name==='文科田径场'});track.position.copy(sport);g.add(track,campusSign(name,sport.clone().add(new THREE.Vector3(0,12,0))));}
   const westGate=world(38.98215,117.3282);g.add(vehicleGate(westGate,'西门 · 车辆主入口'));
   // Separate north-west service entrance: lower brick guardhouse, road markings and closed barrier.
   const northWestGate=world(38.9940386,117.3348347);g.add(vehicleGate(northWestGate,'西北门 · 校园车辆入口',{closed:true}));
