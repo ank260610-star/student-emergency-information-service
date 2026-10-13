@@ -1,3 +1,4 @@
+import {renderQuality,simplifyMaterials,staticDrawDistance} from './render-quality.js?v=3d-mobile-1';
 import {aircraftPathBlocked} from './aircraft-collision.js?v=3d-flight-1';
 import {rollingAngle, aircraftYaw, orientedBoxHit} from './scene-rules.js?v=3d-wheel-shops-1';
 import {createTouchControls} from './mobile-controls.js?v=3d-flight-1';
@@ -15,19 +16,20 @@ const collisionDebug=new THREE.Group();collisionDebug.name='碰撞调试边界';
 const canvas = document.querySelector('#game');
 const $ = s => document.querySelector(s);
 const touchDevice=matchMedia('(any-pointer: coarse)').matches;
-const quality=new URLSearchParams(location.search).get('quality')||(touchDevice?'low':'ultra'),ultra=quality==='ultra',low=quality==='low';
+const renderProfile=renderQuality({requested:new URLSearchParams(location.search).get('quality'),coarse:touchDevice,width:innerWidth,pixelRatio:devicePixelRatio}),{quality,ultra,low}=renderProfile;
+let refreshDrawDistance=null,lastDrawDistanceUpdate=0;
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x8bc4da);
-scene.fog = new THREE.FogExp2(0x9bc9d2, 0.00042);
+scene.fog = new THREE.FogExp2(0x9bc9d2, low?.0013:.00042);
 
 const renderer = new THREE.WebGLRenderer({canvas, antialias:!low, powerPreference:'high-performance'});
-renderer.setPixelRatio(ultra?Math.min(devicePixelRatio*1.35,3):Math.min(devicePixelRatio, low?1:2));
+renderer.setPixelRatio(renderProfile.pixelRatio);
 renderer.shadowMap.enabled = !low;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=ultra?1.16:1.03;
 
-const camera = new THREE.PerspectiveCamera(58, 1, 0.5, 7000);
+const camera = new THREE.PerspectiveCamera(58, 1, 0.5, low?1200:7000);
 const hemi = new THREE.HemisphereLight(0xd8f2ff, 0x63704e, 2.4);
 scene.add(hemi);
 const sun = new THREE.DirectionalLight(0xfff3cf, 3.1);
@@ -395,7 +397,7 @@ function update(dt){if(!state.started)return;
   state.x=THREE.MathUtils.clamp(state.x,-1250,1250);state.z=THREE.MathUtils.clamp(state.z,-900,900);gameMinutes=(gameMinutes+dt*2.4)%1440;const h=String(Math.floor(gameMinutes/60)).padStart(2,'0'),m=String(Math.floor(gameMinutes%60)).padStart(2,'0');$('#clock').textContent=`${h}:${m}`;$('#speed').textContent=`${Math.min(SUPERCAR_TOP_SPEED_KMH,Math.round(Math.abs(state.speed)*SPEED_DISPLAY_SCALE))} km/h`;
  const daylight=Math.max(0,Math.sin((gameMinutes/1440)*Math.PI*2-Math.PI/2));sun.intensity=.26+daylight*3.1;hemi.intensity=.52+daylight*2.2;scene.background.setHSL(.57,.42,.13+daylight*.45);scene.fog.color.setHSL(.57,.28,.16+daylight*.47);for(const lamp of campusLife.nightLights)lamp.intensity=(1-daylight)*ultra*8.5;
 }
-function animate(now){requestAnimationFrame(animate);const dt=Math.min(.05,(now-prev)/1000);prev=now;update(dt);const active=state.mode==='car'?car:state.mode==='plane'?plane:state.mode==='bike'?activeBike:campusLife.player;if(active){active.position.set(state.x,state.y+(state.mode==='person'?(state.avatarBob||0):0),state.z);active.rotation.y=state.mode==='bike'?state.heading+Math.PI/2:state.mode==='plane'?aircraftYaw(state.heading):state.heading}if(state.mode==='car'){car.rotation.z=THREE.MathUtils.lerp(car.rotation.z,-((keys.has('a')?1:0)-(keys.has('d')?1:0))*.035*Math.min(1,Math.abs(state.speed)/20),dt*8);car.rotation.x=THREE.MathUtils.lerp(car.rotation.x,(keys.has('s')?-.035:keys.has('w')?.018:0),dt*7)}if(state.mode==='bike'){const lean=THREE.MathUtils.clamp((state.bikeSteer||0)*state.speed*.08,-.19,.19);activeBike.rotation.x=lean;campusLife.player.position.set(state.x,state.y+.5,state.z);campusLife.player.rotation.set(0,state.heading,lean);campusLife.player.userData.tag.visible=false}else {campusLife.player.rotation.x=0;campusLife.player.rotation.z=0;}plane.rotation.z=THREE.MathUtils.lerp(plane.rotation.z,(keys.has('a')?-.18:keys.has('d')?.18:0),.08);
+function animate(now){requestAnimationFrame(animate);if(now-prev<renderProfile.frameInterval)return;const dt=Math.min(.05,(now-prev)/1000);prev=now;update(dt);const active=state.mode==='car'?car:state.mode==='plane'?plane:state.mode==='bike'?activeBike:campusLife.player;if(active){active.position.set(state.x,state.y+(state.mode==='person'?(state.avatarBob||0):0),state.z);active.rotation.y=state.mode==='bike'?state.heading+Math.PI/2:state.mode==='plane'?aircraftYaw(state.heading):state.heading}if(state.mode==='car'){car.rotation.z=THREE.MathUtils.lerp(car.rotation.z,-((keys.has('a')?1:0)-(keys.has('d')?1:0))*.035*Math.min(1,Math.abs(state.speed)/20),dt*8);car.rotation.x=THREE.MathUtils.lerp(car.rotation.x,(keys.has('s')?-.035:keys.has('w')?.018:0),dt*7)}if(state.mode==='bike'){const lean=THREE.MathUtils.clamp((state.bikeSteer||0)*state.speed*.08,-.19,.19);activeBike.rotation.x=lean;campusLife.player.position.set(state.x,state.y+.5,state.z);campusLife.player.rotation.set(0,state.heading,lean);campusLife.player.userData.tag.visible=false}else {campusLife.player.rotation.x=0;campusLife.player.rotation.z=0;}plane.rotation.z=THREE.MathUtils.lerp(plane.rotation.z,(keys.has('a')?-.18:keys.has('d')?.18:0),.08);
   // Keep feet above the actual road surface after returning from the riding pose.
   if(state.mode==='person'){
     const avatar=campusLife.player,feet=new THREE.Box3();
@@ -417,13 +419,16 @@ function animate(now){requestAnimationFrame(animate);const dt=Math.min(.05,(now-
   }
   const personView=state.mode==='person',viewing=state.heading+cameraYaw+(orbit?now*.00035:0),forward=new THREE.Vector3(Math.sin(viewing),0,Math.cos(viewing)),carSpeed=Math.min(1,Math.abs(state.speed)/80),distance=personView?cameraDistance:state.mode==='bike'?cameraDistance+3:state.mode==='car'?cameraDistance+11+carSpeed*8:150,camOffset=forward.clone().multiplyScalar(-distance);camOffset.y=personView?2.25+Math.sin(cameraPitch)*distance*.32:state.mode==='bike'?4+Math.sin(cameraPitch)*distance*.32:state.mode==='car'?6.4+carSpeed*1.8+Math.sin(cameraPitch)*distance*.32:80;const desired=new THREE.Vector3(state.x,state.y,state.z).add(camOffset);camera.position.lerp(desired,1-Math.exp(-dt*(personView?7:state.mode==='car'?5.5:4.5)));camera.lookAt(state.x,state.y+(personView?1.25:state.mode==='bike'?1.6:state.mode==='car'?1.35:10),state.z);
   const target=currentTarget();beacon.visible=!!target;if(target){beacon.position.set(target.pos.x,0,target.pos.z);ring.rotation.z+=dt;beam.material.opacity=.2+Math.sin(now*.004)*.08}
+  if(refreshDrawDistance&&now-lastDrawDistanceUpdate>250){refreshDrawDistance(state.x,state.z);lastDrawDistanceUpdate=now;}
   renderer.render(scene,camera);
 }
 loadCampus(scene,world).then(result=>{
  collisionBuildings=result.obstacles;result.group.traverse(o=>{if(o.userData.photoColliders)solidColliders.push(...o.userData.photoColliders);});solidColliders.push(...result.photoDetails.userData.photoColliders);campusDriveLanes=result.driveLanes;libraryDoor=result.libraryDoor;waterAreas=result.waterAreas;stairSegments=result.stairSegments;
  for(const o of campus.children.filter(o=>o.userData.locationLabel))o.removeFromParent();
  for(const b of result.namedBuildings)label(b.name,b.position);
- buildCollisionDebug();campus.children.filter(o=>o.userData.schematic).forEach(o=>o.visible=false);
+ campus.children.filter(o=>o.userData.schematic).forEach(o=>o.visible=false);
+ if(low){simplifyMaterials(scene);const refreshers=[result.group,result.photoDetails,masterplan.group,campus].map(root=>staticDrawDistance(root,650));refreshDrawDistance=(x,z)=>refreshers.forEach(refresh=>refresh(x,z));refreshDrawDistance(state.x,state.z);}
+ buildCollisionDebug();
  if(new URLSearchParams(location.search).get('qa')==='1')window.__campusQA={scene,state,camera,renderer,photoIds:result.photoDetails.userData.usedPhotoIds,collisionAt,vehicleBlocked,aircraftBlocked,reset,interact,togglePerson,update,getCar:()=>car,getPlane:()=>plane,getBike:()=>activeBike,solidColliders,buildings:collisionBuildings};
  campusReady=true;
  $('#runtime-status').textContent=`校园地图已就绪：${result.buildings} 栋建筑 / ${result.roads} 段道路`;
