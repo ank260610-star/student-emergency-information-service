@@ -1,4 +1,4 @@
-import { requestJson } from '../utils/request.js'
+import { isAbortError, requestJson } from '../utils/request.js'
 import { isNavigationPoint } from './nkZhixingNavigation.js'
 
 export { extractNavigationDestination, isNavigationRequest } from './nkZhixingNavigation.js'
@@ -83,6 +83,27 @@ export async function askNkZhixingAgent({ message, campus, selectedLocation }, {
     mapUrl: safeMapUrl(payload.mapUrl),
     locationId: typeof payload.locationId === 'string' ? payload.locationId : '',
     warning: typeof payload.warning === 'string' ? payload.warning : '',
+  }
+}
+
+export async function askNkZhixingAgentWithNavigationFallback(request, {
+  signal,
+  destinationName = '',
+  modeLabel = '步行',
+} = {}) {
+  try {
+    return await askNkZhixingAgent(request, { signal })
+  } catch (error) {
+    const destination = String(destinationName || '').trim().slice(0, 80)
+    if (isAbortError(error) || !destination) throw error
+    return {
+      answer: `已识别目的地为“${destination}”，正在使用校园路线服务继续生成${modeLabel}路线。`,
+      steps: [],
+      mapUrl: '',
+      locationId: '',
+      warning: 'NK 智行讲解暂时不可用，已自动继续规划路线。',
+      fallback: true,
+    }
   }
 }
 

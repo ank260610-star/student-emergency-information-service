@@ -115,6 +115,18 @@ test('candidate selection uses the destination, preserves ambiguity, and prefers
   assert.deepEqual(findDestinationCandidates('我在西南门，中心图书馆咋走', campus).map((item) => item.id), ['lib'])
 })
 
+test('short campus navigation commands resolve reviewed POI aliases', () => {
+  const campusWithReviewedAliases = {
+    id: 'jinnan', name: '津南校区',
+    locations: [
+      { id: 'finance', name: '金融学院', aliases: ['南开大学金融学院', '金院'] },
+      { id: 'teaching-a', name: '公共教学楼', aliases: ['公教', '公教A', '教学楼A', '公共教学楼A'] },
+    ],
+  }
+  assert.deepEqual(findDestinationCandidates('去金融学院', campusWithReviewedAliases).map(({ id }) => id), ['finance'])
+  assert.deepEqual(findDestinationCandidates('去公教A', campusWithReviewedAliases).map(({ id }) => id), ['teaching-a'])
+})
+
 test('request instructions include the confirmed destination and selected mode', () => {
   const instructions = buildAgentInstructions({ campus, mode: 'bicycling', navigationIntent: true, destination: campus.locations[2], liveOrigin: [39, 117], prompt: '从西南门去中心图书馆' })
   assert.match(instructions, /用户已确认目的地：中心图书馆/)
