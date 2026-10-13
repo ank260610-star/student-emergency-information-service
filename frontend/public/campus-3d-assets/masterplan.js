@@ -1,3 +1,4 @@
+import {createAthleticsTrack} from './restored-landmarks.js';
 import * as THREE from './vendor/three/build/three.module.js';
 
 const mat=(color,extra={})=>new THREE.MeshStandardMaterial({color,roughness:.78,metalness:.04,...extra});
@@ -44,9 +45,9 @@ export function addMasterplanDetails(scene,world){
   const wetland=world(38.98305,117.3448),grass=mat(0x4e8444,{roughness:1});for(const [dx,dz,rx,rz] of [[0,0,15,9],[-17,7,10,6],[18,-8,12,7]]){const island=new THREE.Mesh(new THREE.CircleGeometry(1,28),grass);island.scale.set(rx,rz,1);island.rotation.x=-Math.PI/2;island.position.set(wetland.x+dx,.35,wetland.z+dz);g.add(island);for(let k=0;k<10;k++){const a=k*2.4+dx,d=3+(k%4)*1.5;g.add(tree(wetland.x+dx+Math.cos(a)*d,wetland.z+dz+Math.sin(a)*d,.46+(k%3)*.08))}}
   g.add(campusSign('生态湿地与水系',wetland.clone().add(new THREE.Vector3(0,9,0))));
   // Track and courts replicate the clear athletic cluster visible beside student living areas.
-  for(const [lat,lon,name,rx,rz] of [[38.98465,117.3323,'西区田径场',22,14],[38.99165,117.33945,'北区田径场',30,18]]){const sport=world(lat,lon),track=new THREE.Mesh(new THREE.RingGeometry(22,29,64),mat(0xb8745a,{roughness:.87}));track.rotation.x=-Math.PI/2;track.scale.set(rx/25,rz/16,1);track.position.set(sport.x,.24,sport.z);g.add(track);const field=new THREE.Mesh(new THREE.CircleGeometry(1,64),mat(0x427d48));field.scale.set(rx*.84,rz*.78,1);field.rotation.x=-Math.PI/2;field.position.set(sport.x,.27,sport.z);g.add(field);for(const side of [-1,1]){const goal=new THREE.Mesh(new THREE.BoxGeometry(5,.08,2.2),mat(0xe7e1cf,{metalness:.25}));goal.position.set(sport.x+side*rx*.62,.9,sport.z);g.add(goal);}g.add(campusSign(name,sport.clone().add(new THREE.Vector3(0,9,0))));}
+  for(const [lat,lon,name] of [[38.9847346,117.3322347,'西区田径场'],[38.9911081,117.3435917,'文科田径场']]){const sport=world(lat,lon),track=createAthleticsTrack(name);track.position.copy(sport);g.add(track,campusSign(name,sport.clone().add(new THREE.Vector3(0,12,0))));}
   const westGate=world(38.98215,117.3282);g.add(vehicleGate(westGate,'西门 · 车辆主入口'));
   // Separate north-west service entrance: lower brick guardhouse, road markings and closed barrier.
-  const northWestGate=world(38.98805,117.32855);g.add(vehicleGate(northWestGate,'西北门 · 校园车辆入口',{closed:true}));
+  const northWestGate=world(38.9940386,117.3348347);g.add(vehicleGate(northWestGate,'西北门 · 校园车辆入口',{closed:true}));
   scene.add(g);return {group:g,waterPaths:[{points:south,width:24},{points:east,width:12}],bridgeZones};
 }

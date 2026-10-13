@@ -1,10 +1,11 @@
+import {orientedBoxHit} from './scene-rules.js';
 import {createTouchControls} from './mobile-controls.js';
 import * as THREE from './vendor/three/build/three.module.js';
 import {GLTFLoader} from './vendor/three/examples/jsm/loaders/GLTFLoader.js';
 import {sculptCar as buildSupercar} from './vehicles.js?v=play-2';
-import {loadCampus,inside} from './campus.js?v=photos-1';
-import {addCampusLife,poseBicycleRider} from './campus-life.js?v=visual-fix-2';
-import {addMasterplanDetails} from './masterplan.js?v=plan-2';
+import {loadCampus,inside} from './campus.js?v=3d-restored-16-1';
+import {addCampusLife,poseBicycleRider} from './campus-life.js?v=3d-restored-16-1';
+import {addMasterplanDetails} from './masterplan.js?v=3d-restored-16-1';
 import {pointToSegmentSq,nearPolygonEdge,sampledPathBlocked,withinCourtyard} from './collision.js';
 let campusReady=false;
 let collisionBuildings=[],libraryDoor=null,waterAreas=[],stairSegments=[],solidColliders=[],waterPaths=[],bridgeZones=[];
@@ -71,7 +72,7 @@ const roads = [
 function seeded(s){let h=2166136261;for(const c of s)h=Math.imul(h^c.charCodeAt(0),16777619);return ()=>((h=Math.imul(h^h>>>15,2246822519))>>>0)/4294967295}
 function label(text,pos,color='#fff'){
   const c=document.createElement('canvas'),x=c.getContext('2d');c.width=512;c.height=96;x.fillStyle='rgba(13,31,34,.78)';x.roundRect(4,4,504,86,14);x.fill();x.strokeStyle='#f3d84f';x.lineWidth=4;x.stroke();x.fillStyle=color;x.font='700 31px Noto Sans SC, sans-serif';x.textAlign='center';x.textBaseline='middle';x.fillText(text,256,48);
-  const tex=new THREE.CanvasTexture(c),spr=new THREE.Sprite(new THREE.SpriteMaterial({map:tex,depthTest:true}));spr.position.copy(pos);spr.scale.set(48,9,1);spr.renderOrder=20;spr.userData.schematic=true;campus.add(spr);return spr;
+  const tex=new THREE.CanvasTexture(c),spr=new THREE.Sprite(new THREE.SpriteMaterial({map:tex,depthTest:true,transparent:true,sizeAttenuation:true}));spr.position.copy(pos);spr.scale.set(48,9,1);spr.renderOrder=20;spr.userData.locationLabel=true;spr.userData.labelText=text;campus.add(spr);return spr;
 }
 const buildings = [
  ['南开大学津南校区中心图书馆',38.9852884,117.3405293,150,95,45,'landmark'],['综合业务东楼',38.9844730,117.3417163,115,65,34],['综合业务西楼',38.9846374,117.3392039,115,65,34],
@@ -102,7 +103,7 @@ function field(name,lat,lon,w,d,color=0x477f54){const p=world(lat,lon),m=new THR
 field('西区足球场',38.9847346,117.3322347,135,82);field('文科足球场',38.9911081,117.3435917,150,90);field('体育场群',38.99165,117.33945,130,110,0x567a66);
 
 // 城市天际线与校园绿化，补足完整空间感。
-for(let i=0;i<260;i++){const r=seeded('tree'+i),x=(r()-.5)*2500,z=(r()-.5)*1700;if(Math.abs(x)<65||Math.abs(z)<55)continue;const trunk=new THREE.Mesh(new THREE.CylinderGeometry(1.2,1.6,8,6),boxMat(0x6d4d32));trunk.position.set(x,4,z);const crown=new THREE.Mesh(new THREE.ConeGeometry(7+r()*5,18+r()*8,7),boxMat(0x397b4c));crown.position.set(x,16,z);trunk.castShadow=crown.castShadow=true;campus.add(trunk,crown)}
+for(let i=0;i<260;i++){const r=seeded('tree'+i),x=(r()-.5)*2500,z=(r()-.5)*1700;if(Math.abs(x)<65||Math.abs(z)<55||[[38.9847346,117.3322347,90,52],[38.9911081,117.3435917,90,52],[38.99335,117.33725,30,25]].some(([lat,lon,w,d])=>{const p=world(lat,lon);return Math.abs(x-p.x)<w&&Math.abs(z-p.z)<d}))continue;const trunk=new THREE.Mesh(new THREE.CylinderGeometry(1.2,1.6,8,6),boxMat(0x6d4d32));trunk.position.set(x,4,z);const crown=new THREE.Mesh(new THREE.ConeGeometry(7+r()*5,18+r()*8,7),boxMat(0x397b4c));crown.position.set(x,16,z);trunk.castShadow=crown.castShadow=true;campus.add(trunk,crown)}
 const campusLife=addCampusLife(scene,world);
 const masterplan=addMasterplanDetails(scene,world);
 solidColliders=campusLife.solidColliders;waterPaths=masterplan.waterPaths;bridgeZones=masterplan.bridgeZones;scene.add(collisionDebug);
@@ -180,13 +181,15 @@ function importedAventador(){
   brakes:[nodes.BrakeFrLeft_7,nodes.BrakeFrRight_8,nodes.BrakeRearLeft_10].filter(Boolean),
   rearAxleCombined:!!rearAxle
  };
- const scratches=new THREE.Group();scratches.name='车损剐蹭痕迹';
- for(const side of [-1,1])for(const y of [1.5,2.2]){const mark=new THREE.Mesh(new THREE.PlaneGeometry(2.8,.07),new THREE.MeshBasicMaterial({color:0x8c1616,transparent:true,opacity:0,depthWrite:false}));mark.position.set(side*4.8,y,0);mark.rotation.y=side<0?Math.PI/2:-Math.PI/2;mark.rotation.z=side*.18;scratches.add(mark)}
- holder.add(scratches);holder.userData.damageMarks=scratches;
  return holder;
 }
 function makeCar(spec,index){
  const next=index===0&&aventadorTemplate?importedAventador():buildSupercar(spec,index);
+ next.updateMatrixWorld(true);
+ const worldBounds=new THREE.Box3().setFromObject(next);next.userData.collisionSize=worldBounds.getSize(new THREE.Vector3());
+ const bounds=worldBounds.clone().applyMatrix4(next.matrixWorld.clone().invert()),size=bounds.getSize(new THREE.Vector3()),center=bounds.getCenter(new THREE.Vector3()),scratches=new THREE.Group();scratches.name='车损剐蹭痕迹';
+ for(const side of [-1,1])for(let i=0;i<3;i++){const mark=new THREE.Mesh(new THREE.PlaneGeometry(size.z*.22,size.y*.018),new THREE.MeshBasicMaterial({color:0x9ca3a5,transparent:true,opacity:0,depthWrite:false,side:THREE.DoubleSide}));mark.position.set(center.x+side*(size.x*.5+.015),bounds.min.y+size.y*(.28+i*.1),center.z+(i-1)*size.z*.18);const origin=next.localToWorld(mark.position.clone()),ray=new THREE.Raycaster(origin,new THREE.Vector3(-side,0,0));const contact=ray.intersectObject(next,true)[0];if(contact){mark.position.copy(next.worldToLocal(contact.point.clone()));mark.position.x+=side*.008;}mark.rotation.y=Math.PI/2;mark.rotation.z=side*.12;scratches.add(mark)}
+ next.add(scratches);next.userData.damageMarks=scratches;
  // The procedural cars expose wheel groups too. Give them a stable rest pose
  // so switching cars cannot make the tyre rotation accumulate twice.
  for(const wheel of next.userData.wheels||[]){
@@ -220,13 +223,13 @@ const state={mode:'car',carIndex:0,x:world(38.9812,117.3397).x,z:world(38.9812,1
 let cameraPointer=null;
 let activeBike=null,cameraYaw=0,cameraPitch=.2,cameraDistance=5.8,draggingCamera=false,lastPointer={x:0,y:0},walkCycle=0;
 const wheelSpinAxis=new THREE.Vector3(1,0,0),wheelSteerAxis=new THREE.Vector3(0,1,0);
-canvas.addEventListener('pointerdown',e=>{if(!state.started||state.mode!=='person'||cameraPointer!==null)return;cameraPointer=e.pointerId;draggingCamera=true;lastPointer={x:e.clientX,y:e.clientY};canvas.setPointerCapture?.(e.pointerId)});
+canvas.addEventListener('pointerdown',e=>{if(!state.started||state.mode==='plane'||cameraPointer!==null)return;cameraPointer=e.pointerId;draggingCamera=true;lastPointer={x:e.clientX,y:e.clientY};canvas.setPointerCapture?.(e.pointerId)});
 canvas.addEventListener('pointermove',e=>{if(!draggingCamera||e.pointerId!==cameraPointer)return;cameraYaw-=((e.clientX-lastPointer.x)/innerWidth)*Math.PI*2;cameraPitch=THREE.MathUtils.clamp(cameraPitch+((e.clientY-lastPointer.y)/innerHeight)*Math.PI*1.1,-.18,.65);lastPointer={x:e.clientX,y:e.clientY}});
 function endCameraDrag(e){if(e.pointerId!==cameraPointer)return;draggingCamera=false;cameraPointer=null;if(canvas.hasPointerCapture(e.pointerId))canvas.releasePointerCapture(e.pointerId)}
 canvas.addEventListener('pointerup',endCameraDrag);canvas.addEventListener('pointercancel',endCameraDrag);canvas.addEventListener('lostpointercapture',endCameraDrag);
 addEventListener('blur',()=>{draggingCamera=false;cameraPointer=null});
 document.addEventListener('visibilitychange',()=>{if(document.hidden){keys.clear();draggingCamera=false;cameraPointer=null;}});
-canvas.addEventListener('wheel',e=>{if(state.mode==='person'){e.preventDefault();cameraDistance=THREE.MathUtils.clamp(cameraDistance+e.deltaY*.01,3.2,10)}},{passive:false});
+canvas.addEventListener('wheel',e=>{if(state.mode!=='plane'){e.preventDefault();cameraDistance=THREE.MathUtils.clamp(cameraDistance+e.deltaY*.01,state.mode==='person'?3.2:5,state.mode==='person'?10:28)}},{passive:false});
 const missions=['学一食堂','中心图书馆','人工智能学院','体育馆'];
 if(new URLSearchParams(location.search).get('landmark')==='library'){const p=world(38.9836,117.3405293);state.x=p.x;state.z=p.z;state.heading=Math.PI;}
 const buildingViews={east:[38.9834,117.34172],west:[38.9836,117.33920],activity:[38.9859,117.34401],statue:[38.98412,117.34054]};
@@ -288,7 +291,7 @@ function reset(){
  activeBike=null;
  const p=world(38.9812,117.3397);
  Object.assign(state,{x:p.x,z:p.z,y:0,heading:Math.PI});
- applyMode('car');damage=0;car.scale.copy(car.userData.restScale);
+ applyMode('car');damage=0;car.scale.copy(car.userData.restScale);for(const mark of car.userData.damageMarks?.children||[])mark.material.opacity=0;
  // Return the starter bicycle too, so it remains available after a riding reset.
  campusLife.bikes.filter(b=>b.userData.starter).forEach((bike,i)=>{
   bike.position.set(p.x+(i? -3.2:3.2),0,p.z+1);bike.rotation.set(0,Math.PI/2,0);
@@ -299,6 +302,7 @@ function reset(){
  camera.position.set(state.x,6.4,state.z+17);
  toast('已回到南门');
 }
+$('#desktop-reset').addEventListener('click',()=>{if(state.started)reset()});
 function enterCampus(){
  if(state.started||!campusReady)return;
  $('#start').style.display='none';
@@ -324,10 +328,14 @@ function pathDistanceSq(x,z,points){let best=Infinity;for(let i=1;i<points.lengt
 function onBridge(x,z){return bridgeZones.some(b=>Math.hypot(x-b.x,z-b.z)<b.r)}
 function inWater(x,z){if(onBridge(x,z))return false;if(waterAreas.some(w=>inside(x,z,w.points)))return true;return waterPaths.some(w=>pathDistanceSq(x,z,w.points)<(w.width*.5)**2)}
 function onStairs(x,z){for(const s of stairSegments){const dx=s.b.x-s.a.x,dz=s.b.z-s.a.z,l2=dx*dx+dz*dz||1,t=THREE.MathUtils.clamp(((x-s.a.x)*dx+(z-s.a.z)*dz)/l2,0,1),px=s.a.x+dx*t,pz=s.a.z+dz*t;if(Math.hypot(x-px,z-pz)<s.width*.5+.45)return {height:s.height*t}}return null}
-function solidHit(x,z,r){return solidColliders.some(s=>s.box?Math.abs(x-s.x)<s.box.halfX+r&&Math.abs(z-s.z)<s.box.halfZ+r:Math.hypot(x-s.x,z-s.z)<s.r+r)}
+function solidHit(x,z,r){return solidColliders.some(s=>s.box?orientedBoxHit(x,z,s,r):Math.hypot(x-s.x,z-s.z)<s.r+r)}
 function collisionAt(x,z,r,mode){if(inWater(x,z)||solidHit(x,z,r))return true;const stairs=onStairs(x,z);if(stairs&&mode!=='person')return true;for(const b of collisionBuildings){if(inCourtyard(b,x,z,r))continue;const isIn=inside(x,z,b.points);if(b.interior&&mode==='person'){if(isIn&&b.interiorBoxes?.some(q=>x>q.min.x-r&&x<q.max.x+r&&z>q.min.z-r&&z<q.max.z+r))return true;continue}if(isIn)return true;if(nearPolygonEdge(x,z,b.points,r))return true}return false}
 function libraryCrossingBlocked(from,to,r){const lib=collisionBuildings.find(b=>b.interior);if(!lib)return false;const was=inside(from.x,from.z,lib.points),now=inside(to.x,to.z,lib.points);if(was===now)return false;return !lib.door||Math.hypot(to.x-lib.door.x,to.z-lib.door.z)>8.5+r}
 function vehicleBlocked(from,to,radius){
+ if(state.mode==='car'){
+  const size=car.userData.collisionSize,halfWidth=size.x*.46,halfLength=Math.max(.2,size.z*.48-halfWidth),forward={x:Math.sin(state.heading),z:Math.cos(state.heading)};
+  return sampledPathBlocked(from,to,.3,(x,z)=>{for(let at=-halfLength;at<=halfLength+.01;at+=Math.max(.25,halfLength/4))if(collisionAt(x+forward.x*at,z+forward.z*at,halfWidth,'car'))return true;return false;},(a,b)=>libraryCrossingBlocked(a,b,halfWidth));
+ }
  return sampledPathBlocked(from,to,radius,(x,z,r)=>collisionAt(x,z,r,state.mode),libraryCrossingBlocked);
 }
 function stairHeight(x,z){if(state.mode!=='person')return 0;const s=onStairs(x,z);if(s)return s.height;if(!libraryDoor)return 0;const d=Math.hypot(x-libraryDoor.x,z-libraryDoor.z);return d<13?Math.max(0,(13-d)*.16):0}
@@ -348,7 +356,7 @@ function update(dt){if(!state.started)return;
  state.motionHeading??=state.heading;state.motionHeading+=Math.atan2(Math.sin(state.heading-state.motionHeading),Math.cos(state.heading-state.motionHeading))*Math.min(1,dt*(drift?1.8:12));
  state.x+=Math.sin(state.motionHeading)*state.speed*dt;state.z+=Math.cos(state.motionHeading)*state.speed*dt;
  if(state.mode==='plane'){if(keys.has('shift'))state.y+=25*dt;if(keys.has(' '))state.y-=25*dt;if(state.speed>14&&!keys.has(' '))state.y+=4*dt;state.y=THREE.MathUtils.clamp(state.y,4,120)}
- if(state.mode==='plane'?aircraftBlocked(previous,state,state.y):vehicleBlocked(previous,state,isCar?7:isBike?.75:.42)){if(isCar){damage=Math.min(100,damage+Math.abs(state.speed)*.35);toast('碰撞 · 车损 '+Math.round(damage)+'%')}else toast(state.mode==='plane'?'低空障碍，已中止起降':isBike?'前方有障碍，已刹车':'前方有建筑，无法穿墙');state.x=previous.x;state.z=previous.z;state.speed=0;state.y=previous.y;if(isCar){car.scale.z=car.userData.restScale.z*(1-damage*.0015);for(const mark of car.userData.damageMarks?.children||[])mark.material.opacity=Math.min(.78,damage*.012);}}
+ if(state.mode==='plane'?aircraftBlocked(previous,state,state.y):vehicleBlocked(previous,state,isCar?7:isBike?.75:.42)){if(isCar){damage=Math.min(100,damage+Math.abs(state.speed)*.35);toast('碰撞 · 车损 '+Math.round(damage)+'%')}else toast(state.mode==='plane'?'低空障碍，已中止起降':isBike?'前方有障碍，已刹车':'前方有建筑，无法穿墙');state.x=previous.x;state.z=previous.z;state.speed=0;state.y=previous.y;if(isCar){car.scale.z=car.userData.restScale.z*(1-damage*.0015);for(const mark of car.userData.damageMarks?.children||[])mark.material.opacity=damage>0?Math.min(.85,.28+damage*.009):0;}}
  for(const m of car.userData.brakes||[]){m.traverse?.(part=>{if(part.isMesh&&part.material?.emissive){part.material.emissive.setHex(0xff180d);part.material.emissiveIntensity=brake||drift?2.4:.16}});if(m.emissiveIntensity!==undefined)m.emissiveIntensity=brake||drift?5:.7}
  // GLB wheels use the local X axle. Compose steering and rolling from the
  // original pose, rather than writing two Euler angles to the same wheel.
@@ -364,7 +372,7 @@ function update(dt){if(!state.started)return;
  // generated tyres are drawn over it: both original wheel groups roll, and
  // the front assembly is the only one that steers.
  for(const wheel of (isBike?activeBike?.userData.wheels:[])||[]){
-  wheel.userData.wheelSpin=(wheel.userData.wheelSpin||0)+state.speed*dt/.34;
+  wheel.userData.wheelSpin=(wheel.userData.wheelSpin||0)+(wheel.userData.rollDirection||1)*state.speed*dt/.34;
   const spin=new THREE.Quaternion().setFromAxisAngle(wheelSpinAxis,wheel.userData.wheelSpin);
   const steer=activeBike.userData.frontWheels?.includes(wheel)?new THREE.Quaternion().setFromAxisAngle(wheelSteerAxis,state.bikeSteer||0):null;
   wheel.quaternion.copy(wheel.userData.baseQuaternion||wheel.quaternion);
@@ -401,14 +409,16 @@ function animate(now){requestAnimationFrame(animate);const dt=Math.min(.05,(now-
       activeBike.updateMatrixWorld(true);
     }
   }
-  const personView=state.mode==='person',viewing=personView?state.heading+cameraYaw:state.heading+(orbit?now*.00035:0),forward=new THREE.Vector3(Math.sin(viewing),0,Math.cos(viewing)),carSpeed=Math.min(1,Math.abs(state.speed)/80),distance=personView?cameraDistance:state.mode==='bike'?8:state.mode==='car'?17+carSpeed*8:150,camOffset=forward.clone().multiplyScalar(-distance);camOffset.y=personView?2.25+Math.sin(cameraPitch)*distance*.32:state.mode==='bike'?4:state.mode==='car'?6.4+carSpeed*1.8:80;const desired=new THREE.Vector3(state.x,state.y,state.z).add(camOffset);camera.position.lerp(desired,1-Math.pow(personView ? .00003 : state.mode==='car'?.0012:.0003,dt));camera.lookAt(state.x,state.y+(personView?1.25:state.mode==='bike'?1.6:state.mode==='car'?1.35:10),state.z);
+  const personView=state.mode==='person',viewing=state.heading+cameraYaw+(orbit?now*.00035:0),forward=new THREE.Vector3(Math.sin(viewing),0,Math.cos(viewing)),carSpeed=Math.min(1,Math.abs(state.speed)/80),distance=personView?cameraDistance:state.mode==='bike'?cameraDistance+3:state.mode==='car'?cameraDistance+11+carSpeed*8:150,camOffset=forward.clone().multiplyScalar(-distance);camOffset.y=personView?2.25+Math.sin(cameraPitch)*distance*.32:state.mode==='bike'?4+Math.sin(cameraPitch)*distance*.32:state.mode==='car'?6.4+carSpeed*1.8+Math.sin(cameraPitch)*distance*.32:80;const desired=new THREE.Vector3(state.x,state.y,state.z).add(camOffset);camera.position.lerp(desired,1-Math.exp(-dt*(personView?7:state.mode==='car'?5.5:4.5)));camera.lookAt(state.x,state.y+(personView?1.25:state.mode==='bike'?1.6:state.mode==='car'?1.35:10),state.z);
   const target=currentTarget();beacon.visible=!!target;if(target){beacon.position.set(target.pos.x,0,target.pos.z);ring.rotation.z+=dt;beam.material.opacity=.2+Math.sin(now*.004)*.08}
   renderer.render(scene,camera);
 }
 loadCampus(scene,world).then(result=>{
  collisionBuildings=result.obstacles;result.group.traverse(o=>{if(o.userData.photoColliders)solidColliders.push(...o.userData.photoColliders);});solidColliders.push(...result.photoDetails.userData.photoColliders);campusDriveLanes=result.driveLanes;libraryDoor=result.libraryDoor;waterAreas=result.waterAreas;stairSegments=result.stairSegments;
+ for(const o of campus.children.filter(o=>o.userData.locationLabel))o.removeFromParent();
+ for(const b of result.namedBuildings)label(b.name,b.position);
  buildCollisionDebug();campus.children.filter(o=>o.userData.schematic).forEach(o=>o.visible=false);
- if(new URLSearchParams(location.search).get('qa')==='1')window.__campusQA={scene,state,camera,renderer,photoIds:result.photoDetails.userData.usedPhotoIds,collisionAt,solidColliders,buildings:collisionBuildings};
+ if(new URLSearchParams(location.search).get('qa')==='1')window.__campusQA={scene,state,camera,renderer,photoIds:result.photoDetails.userData.usedPhotoIds,collisionAt,vehicleBlocked,reset,interact,togglePerson,update,getCar:()=>car,getBike:()=>activeBike,solidColliders,buildings:collisionBuildings};
  campusReady=true;
  $('#runtime-status').textContent=`校园地图已就绪：${result.buildings} 栋建筑 / ${result.roads} 段道路`;
  $('#runtime-status').dataset.state='ready';

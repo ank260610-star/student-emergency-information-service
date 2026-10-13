@@ -1,6 +1,7 @@
+import {wheelRollDirection} from './scene-rules.js';
 import * as THREE from './vendor/three/build/three.module.js';
 import {GLTFLoader} from './vendor/three/examples/jsm/loaders/GLTFLoader.js';
-import {createZhouStatue} from './zhou-statue.js';
+import {createZhouStatue} from './zhou-statue.js?v=3d-restored-16-1';
 
 const standard = (color, extra={}) => new THREE.MeshStandardMaterial({color, roughness:.7, metalness:.08, ...extra});
 
@@ -61,6 +62,7 @@ function mountSharedBikeModel(bike, template){
     if(node.name==='wheel-bike-front'||node.name==='wheel-bike-rear'){
       node.userData.baseQuaternion=node.quaternion.clone();
       node.userData.wheelSpin=0;
+      original.updateWorldMatrix(true,true);const axle=new THREE.Vector3(1,0,0).applyQuaternion(node.getWorldQuaternion(new THREE.Quaternion())),forward=new THREE.Vector3(0,0,1).applyQuaternion(original.getWorldQuaternion(new THREE.Quaternion()));node.userData.rollDirection=wheelRollDirection(axle,forward);
       wheels.push(node);
       if(node.name==='wheel-bike-front')frontWheels.push(node);
     }
@@ -172,7 +174,7 @@ export function addCampusLife(scene, world){
   const bikes=[];for(let i=0;i<11;i++){const kind=i%3===0?'byte':i%5===0?'red-bike':'meituan',color=kind==='byte'?0x49b9f1:kind==='red-bike'?0xde4343:0xf1b92b;const bike=publicBike(color,kind);bike.position.set(commerce.x-36+i*6,0,commerce.z+12);bike.rotation.y=Math.PI/2;all.add(bike);bikes.push(bike)}
   const parking=world(38.98372,117.3426);all.add(parkingEntrance(parking.x,parking.z));
   // Parcel pickup belongs beside the north gate service road, not the commerce street.
-  const north=world(38.98805,117.32855),parcel=new THREE.Group();parcel.position.copy(north);const parcelWall=new THREE.Mesh(new THREE.BoxGeometry(18,4.6,7),standard(0xb24a55,{roughness:.82}));parcelWall.position.y=2.3;parcel.add(parcelWall);const parcelGlass=new THREE.Mesh(new THREE.BoxGeometry(14,3.1,.18),standard(0x6e9aa3,{metalness:.28,roughness:.18,transparent:true,opacity:.82}));parcelGlass.position.set(0,1.9,3.55);parcel.add(parcelGlass);parcel.add(campusLabel('北门 · 校园快递服务站',new THREE.Vector3(0,5.5,0),0xffe9b4));parcel.userData.collisionBox={halfX:9,halfZ:3.5};all.add(parcel);
+  const north=world(38.99335,117.33725),parcel=new THREE.Group();parcel.position.copy(north);parcel.name='北门与西北门之间 · 快递服务站';const parcelWall=new THREE.Mesh(new THREE.BoxGeometry(18,4.6,7),standard(0xb24a55,{roughness:.82}));parcelWall.position.y=2.3;parcel.add(parcelWall);const parcelGlass=new THREE.Mesh(new THREE.BoxGeometry(14,3.1,.18),standard(0x6e9aa3,{metalness:.28,roughness:.18,transparent:true,opacity:.82}));parcelGlass.position.set(0,1.9,3.55);parcel.add(parcelGlass);parcel.add(campusLabel('北门 · 校园快递服务站',new THREE.Vector3(0,5.5,0),0xffe9b4));parcel.userData.collisionBox={halfX:9,halfZ:3.5};all.add(parcel);
   // Two rideable starter bikes cover both the initial and reset south-gate positions, so E works immediately.
   const spawn=world(38.9812,117.3397),resetSpawn=world(38.9812,117.3397);
   [[spawn,0xf1b92b,'meituan'],[resetSpawn,0x49b9f1,'byte']].forEach(([p,color,kind],i)=>{const bike=publicBike(color,kind);bike.position.set(p.x+(i? -3.2:3.2),0,p.z+1);bike.rotation.y=Math.PI/2;bike.userData.starter=true;all.add(bike);bikes.push(bike)});
