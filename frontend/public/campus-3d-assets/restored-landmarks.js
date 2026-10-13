@@ -24,8 +24,8 @@ function texturedAthleticsMaterials(){
  const turf=new T.MeshStandardMaterial({map:texture(grass,1,1,true),bumpMap:texture(grain,20,12),bumpScale:.018,roughness:1});turf.name='分区修剪草坪';
  return athleticsMaterials={track,turf};
 }
-export function createAthleticsTrack(name,{detailed=false}={}){
- const group=new T.Group();group.name=name;group.userData.athleticsTrack=true;
+export function createAthleticsTrack(name,{detailed=false,northSouth=false}={}){
+ const group=new T.Group();group.name=name;group.userData.athleticsTrack=true;if(northSouth)group.rotation.y=Math.PI/2;
  const materials=detailed?texturedAthleticsMaterials():{track:material(0xad624e),turf:material(0x4a8050)};
  const surface=new T.Mesh(new T.ShapeGeometry(stadiumPath(39,42),48),materials.track);surface.name='塑胶跑道表面';surface.rotation.x=-Math.PI/2;surface.position.y=.95;group.add(surface);
  for(let lane=0;lane<=8;lane++){const path=stadiumPath(39,32+lane*1.15),points=path.getPoints(128).map(p=>new T.Vector3(p.x,.98,p.y));const line=new T.LineLoop(new T.BufferGeometry().setFromPoints(points),new T.LineBasicMaterial({color:0xf0e6d2}));line.name=`跑道线 ${lane}`;group.add(line)}

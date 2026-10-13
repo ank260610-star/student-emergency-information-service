@@ -1,5 +1,5 @@
 import * as T from './vendor/three/build/three.module.js';
-import {optimizePhotoDetails} from './campus-photo-details.js?v=3d-courts-1';
+import {optimizePhotoDetails} from './campus-photo-details.js?v=3d-flight-1';
 
 // Counts: NKU Sports Department. North/south zoning: NKU Archives 2020
 // satellite image and the bundled 2023 campus guide. Individual spacing is
@@ -54,7 +54,7 @@ function enclosure(g,w,d,height){
   for(const y of [.12,height])box(fence,.08,.08,span,0,y,0,steel);
   const wire=meshNet(fence,span,height,0,0,0);wire.rotation.y=Math.PI/2;
   // Thin oriented barriers leave the central southern entrance open.
-  const barrier=box(fence,.12,.2,span,0,.1,0,steel,true);barrier.visible=true;
+  const barrier=box(fence,.12,.2,span,0,.1,0,steel,true);barrier.visible=true;barrier.userData.photoCollisionHeight=height;
  };
  const v=(x,z)=>new T.Vector3(x,0,z);
  add(v(-w/2,-d/2),v(w/2,-d/2));add(v(-w/2,-d/2),v(-w/2,d/2));add(v(w/2,-d/2),v(w/2,d/2));
