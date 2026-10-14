@@ -103,6 +103,12 @@ const forcedMarkerIds = computed(() => (
 ))
 const selectedLocation = computed(() => campusLocations.value.find((location) => location.id === selectedId.value))
 const mapGuideMessage = computed(() => {
+  if (liveNavigation.value) {
+    return activeNavigation.value
+      ? '实时导航已开启，请按地图路线和转向提示行走。'
+      : '实时导航已开启，请搜索或在地图上点选目标并规划路线。'
+  }
+  if (activeNavigation.value) return '路线已准备好，请开启实时导航。'
   if (selectedLocation.value) return `已选择“${selectedLocation.value.name}”，可以开始导航。`
   if (livePosition.value) return '当前位置已就绪，请搜索或在地图上点选目标。'
   return '请先使用当前位置，再搜索或在地图上点选目标。'
@@ -789,6 +795,13 @@ onBeforeUnmount(() => {
             :disabled="searchRoutePlanning || Boolean(pendingSearchNavigation)"
             @click="navigateToSearchedLocation(selectedLocation)"
           >{{ searchRoutePlanning || pendingSearchNavigation ? '正在准备路线…' : `3. 导航到${selectedLocation.name}` }}</button>
+          <button
+            type="button"
+            class="map-start-live-navigation"
+            :class="{ 'is-current': activeNavigation && !liveNavigation, 'is-done': liveNavigation }"
+            :aria-pressed="liveNavigation"
+            @click="liveNavigation ? stopLiveNavigation() : startLiveNavigation()"
+          >{{ liveNavigation ? '✓ 实时导航中 · 点击结束' : '4. 开启实时导航' }}</button>
         </div>
       </section>
 
