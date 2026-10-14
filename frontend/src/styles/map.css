@@ -223,6 +223,24 @@
   background: #17634f;
 }
 
+.map-start-hint .map-start-live-navigation {
+  border-color: #5cb7a3;
+  color: #075e4d;
+  background: #e4f7f1;
+}
+
+.map-start-hint .map-start-live-navigation.is-current {
+  border-color: var(--purple);
+  color: #fff;
+  background: var(--purple);
+}
+
+.map-start-hint .map-start-live-navigation[aria-pressed="true"] {
+  border-color: #17634f;
+  color: #fff;
+  background: #17634f;
+}
+
 .selected-location-quick {
   display: none;
 }
@@ -1944,7 +1962,8 @@
     padding: 9px 8px;
   }
 
-  .map-start-hint .map-start-navigation {
+  .map-start-hint .map-start-navigation,
+  .map-start-hint .map-start-live-navigation {
     grid-column: 1 / -1;
     min-height: 56px;
     font-size: 14px;
