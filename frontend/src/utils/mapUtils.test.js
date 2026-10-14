@@ -263,10 +263,21 @@ test('connects the submitted Jinnan place photos to searchable campus locations'
   const photos = locations.flatMap((location) => location.photos || [])
   const searchableNames = new Set(locations.flatMap((location) => [location.name, ...(location.aliases || [])]))
 
-  assert.equal(locations.filter((location) => location.photos?.length).length, 35)
+  assert.equal(locations.filter((location) => location.photos?.length).length, 37)
   assert.equal(photos.length, 69)
   assert.equal(new Set(photos.map((photo) => photo.src)).size, photos.length)
   assert.ok(['国际教育学院', '社会学院', '人工智能学院', '西楼报告厅'].every((name) => searchableNames.has(name)))
+
+  const photoCaptions = Object.fromEntries(locations.map((location) => [
+    location.name,
+    (location.photos || []).map((photo) => photo.caption),
+  ]))
+  assert.ok(photoCaptions['公共教学楼C'].includes('公共教学楼C区入口'))
+  assert.ok(photoCaptions['公共教学楼D'].includes('公共教学楼D区入口'))
+  assert.ok(photoCaptions['综合实验楼B'].includes('综合实验楼B区入口'))
+  assert.ok(photoCaptions['综合实验楼D'].includes('综合实验楼D区入口'))
+  assert.ok(photoCaptions['快递站'].includes('文科生活组团快递站'))
+  assert.ok(photoCaptions['理科快递站'].includes('理科生活组团快递站'))
 
   for (const photo of photos) {
     assert.ok(photo.src.startsWith('/images/jinnan-places/'))
