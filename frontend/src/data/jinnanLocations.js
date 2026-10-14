@@ -281,7 +281,6 @@ const locationPhotos = {
   ],
   J02: [
     ['northwest-gate.jpg', '南开大学津南校区西北门实景', '西北门（北1门）'],
-    ['northwest-gate-parcel-station.jpg', '南开大学津南校区西北门快递站实景', '文科生活组团快递站'],
     ['northwest-gate-new.jpg', '南开大学津南校区西北门现场照片', '西北门（北1门）现场视角'],
   ],
   J03: [
@@ -292,7 +291,6 @@ const locationPhotos = {
     ['southwest-gate.jpg', '南开大学津南校区西南门实景', '西南门（南1门）'],
     ['southwest-gate-entrance.jpg', '南开大学津南校区西南门入口实景', '西南门入口'],
     ['southwest-gate-outside.jpg', '从校外看到的南开大学津南校区西南门', '西南门校外视角'],
-    ['southwest-gate-parcel-station.jpg', '南开大学津南校区西南门快递站实景', '理科生活组团快递站'],
     ['southwest-gate-new.jpg', '南开大学津南校区西南门现场照片', '西南门现场视角'],
   ],
   J09: [
@@ -356,17 +354,12 @@ const locationPhotos = {
   J66: [
     ['public-teaching-a-exterior.jpg', '南开大学津南校区公共教学楼A区外观', '公共教学楼A区外观'],
     ['public-teaching-a-entrance.jpg', '南开大学津南校区公共教学楼A区入口', '公共教学楼A区入口'],
-    ['public-teaching-c-entrance.jpg', '南开大学津南校区公共教学楼C区入口', '公共教学楼C区入口'],
-    ['public-teaching-d-entrance.jpg', '南开大学津南校区公共教学楼D区入口', '公共教学楼D区入口'],
     ['public-teaching-overview-new.jpg', '南开大学津南校区公共教学楼实景', '公共教学楼实景'],
     ['public-teaching-a-new.jpg', '南开大学津南校区公共教学楼A区实景', '公共教学楼A区'],
   ],
   J67: [
     ['integrated-lab-overview.jpg', '南开大学津南校区综合实验楼全貌', '综合实验楼全貌'],
     ['integrated-lab-a-entrance.jpg', '南开大学津南校区综合实验楼A区入口', '综合实验楼A区入口'],
-    ['integrated-lab-b-entrance.jpg', '南开大学津南校区综合实验楼B区入口', '综合实验楼B区入口'],
-    ['integrated-lab-d-exterior.jpg', '南开大学津南校区综合实验楼D区外观', '综合实验楼D区外观'],
-    ['integrated-lab-d-entrance.jpg', '南开大学津南校区综合实验楼D区入口', '综合实验楼D区入口'],
     ['integrated-lab-a-new.jpg', '南开大学津南校区综合实验楼A区实景', '综合实验楼A区'],
   ],
   J68: [
@@ -395,16 +388,23 @@ const locationPhotos = {
     ['e-bike-charging-area.jpg', '南开大学津南校区电动车充电处实景', '电动车充电处'],
     ['humanities-charging-station.jpg', '南开大学津南校区文科充电站实景', '文科充电站'],
   ],
+  P02: [
+    ['public-teaching-c-entrance.jpg', '南开大学津南校区公共教学楼C区入口', '公共教学楼C区入口'],
+  ],
   P03: [
+    ['public-teaching-d-entrance.jpg', '南开大学津南校区公共教学楼D区入口', '公共教学楼D区入口'],
     ['public-teaching-d-new.jpg', '南开大学津南校区公共教学楼D区实景', '公共教学楼D区'],
   ],
   P04: [
+    ['integrated-lab-b-entrance.jpg', '南开大学津南校区综合实验楼B区入口', '综合实验楼B区入口'],
     ['integrated-lab-b-new.jpg', '南开大学津南校区综合实验楼B区实景', '综合实验楼B区'],
   ],
   P05: [
     ['integrated-lab-c-new.jpg', '南开大学津南校区综合实验楼C区实景', '综合实验楼C区'],
   ],
   P06: [
+    ['integrated-lab-d-exterior.jpg', '南开大学津南校区综合实验楼D区外观', '综合实验楼D区外观'],
+    ['integrated-lab-d-entrance.jpg', '南开大学津南校区综合实验楼D区入口', '综合实验楼D区入口'],
     ['integrated-lab-d-new.jpg', '南开大学津南校区综合实验楼D区实景', '综合实验楼D区'],
   ],
   P08: [
@@ -412,7 +412,11 @@ const locationPhotos = {
     ['mcdonalds-2.jpg', '南开大学津南校区麦当劳实景二', '麦当劳实景 2'],
   ],
   P09: [
+    ['northwest-gate-parcel-station.jpg', '南开大学津南校区西北门快递站实景', '文科生活组团快递站'],
     ['humanities-parcel-locker.jpg', '南开大学津南校区文科快递柜实景', '文科快递柜'],
+  ],
+  P13: [
+    ['southwest-gate-parcel-station.jpg', '南开大学津南校区西南门快递站实景', '理科生活组团快递站'],
   ],
 }
 
