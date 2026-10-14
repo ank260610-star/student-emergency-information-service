@@ -91,6 +91,31 @@ test('route-triggered positioning requests a fresh high-accuracy fix and reports
   assert.deepEqual(errors, [denied])
 })
 
+test('Android-compatible positioning retries after a high-accuracy timeout', () => {
+  const state = setup()
+  const results = []
+  const errors = []
+  state.session.locate((position) => results.push(position), { onError: (error) => errors.push(error) })
+  state.locations[0].error({ code: 3 })
+  assert.deepEqual(state.locations[1].requestOptions, {
+    enableHighAccuracy: false,
+    timeout: 12000,
+    maximumAge: 120000,
+  })
+  state.locations[1].success({ coords: { latitude: 39, longitude: 117 } })
+  assert.equal(state.statuses.at(-1), '高精度定位未响应，正在使用安卓兼容模式重试…')
+  assert.equal(results.length, 1)
+  assert.deepEqual(errors, [])
+})
+
+test('live navigation uses a balanced first fix without overriding a newer watch position', () => {
+  const state = setup()
+  state.session.start()
+  state.watches[0].success({ source: 'watch' })
+  state.locations[0].success({ source: 'compatibility' })
+  assert.deepEqual(state.positions, [{ source: 'watch' }])
+})
+
 test('map changes and disposal invalidate pending one-time positioning', () => {
   const state = setup()
   const results = []

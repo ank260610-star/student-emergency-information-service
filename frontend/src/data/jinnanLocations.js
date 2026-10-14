@@ -120,12 +120,12 @@ const verifiedGeo = {
   J71: [[38.9872244, 117.3440134], 'https://www.openstreetmap.org/way/616829080'],
 }
 
-// GCJ-02 coordinates used only for AMap walking-route requests. Online-map
-// markers retain their independently verified WGS-84 coordinates above.
+// GCJ-02 coordinates used for AMap route requests. When a field-collected
+// entrance exists it is also the source of truth for the online-map marker.
 const navigationPoints = {
   J06: [38.9910781, 117.3346015],
   J39: [38.991919, 117.347626],
-  J66: [38.987655, 117.345517],
+  J66: [38.987653, 117.345338],
   J67: [38.987489, 117.348741],
   J68: [38.9865, 117.347034],
   J71: [38.987807, 117.349894],
@@ -134,6 +134,7 @@ const navigationPoints = {
 // Field-collected coordinates match the existing AMap route coordinates, so
 // they are retained as GCJ-02 and converted only for OSM marker rendering.
 const mvpNavigationPoints = {
+  J01: { point: [38.994007, 117.341366], aliases: ['校医院', '津南校医院'], note: '入口。' },
   J10: {
     point: [38.992251, 117.3425],
     entryPoints: [[38.992251, 117.3425], [38.992484, 117.342792], [38.992701, 117.342226]],
@@ -157,8 +158,8 @@ const mvpNavigationPoints = {
   J40: { point: [38.991416, 117.349817], aliases: ['南开大学主体育场', '文科操场', '文科田径场', '主田径场', '主操场'], note: '入口需刷脸，使用前请按场馆要求完成注册。' },
   J53: { point: [38.985796, 117.340036], aliases: ['南开大学理科体育场', '理科操场', '理科田径场'], note: '入口需刷脸，使用前请按场馆要求完成注册。' },
   J66: {
-    point: [38.987655, 117.345517],
-    entryPoints: [[38.987655, 117.345517], [38.987881, 117.346143], [38.988917, 117.346291], [38.989263, 117.345689]],
+    point: [38.987653, 117.345338],
+    entryPoints: [[38.987653, 117.345338], [38.987881, 117.346143], [38.988917, 117.346291], [38.989263, 117.345689]],
     aliases: ['公共教学楼', '公教', '公教楼', '公教A', '教学楼A', '公共教学楼A'],
     note: '默认导航至 A 区入口；已保留 A–D 区入口坐标。',
   },
@@ -182,6 +183,28 @@ const mvpNavigationPoints = {
     note: '按校园导览图湖区与附近已核对楼宇校准，休憩入口待实地复核。',
     source: '校园导览图校准坐标（待实地复核）',
   },
+  J30: { point: [38.990926, 117.338445], aliases: ['南开大学旅游与服务学院', '旅院'], note: '入口。' },
+  J31: { point: [38.991419, 117.342142], aliases: ['南开大学社会学院', '周恩来政府管理学院', '周政'], note: '入口。' },
+  J32: { point: [38.991136, 117.343245], aliases: ['南开大学历史学院'], note: '入口。' },
+  J33: { point: [38.991149, 117.344595], aliases: ['南开大学马克思主义学院', '马院'], note: '入口。' },
+  J34: { point: [38.990647, 117.341497], aliases: ['南开大学汉语言文化学院', '国际教育学院'], note: '入口。' },
+  J35: { point: [38.990232, 117.342523], aliases: ['南开大学法学院', '法学学院'], note: '入口。' },
+  J36: { point: [38.990613, 117.344394], aliases: ['南开大学哲学学院', '哲学学院'], note: '入口。' },
+  J39: { point: [38.991301, 117.347472], aliases: ['南开大学体育馆'], note: '入口。' },
+  J46: { point: [38.987798, 117.342094], aliases: ['南开大学人工智能学院', '人工智能学院', '软件学院', '计算机学院'], note: '入口。' },
+  J47: { point: [38.987652, 117.338109], aliases: ['南开大学药学院'], note: '入口。' },
+  J48: { point: [38.98751, 117.336874], aliases: ['南开大学医学院'], note: '入口。' },
+  J49: { point: [38.986805, 117.341811], aliases: ['南开大学电子信息与光电工程学院', '光电学院'], note: '两个门口；当前使用首个采集入口。' },
+  J50: { point: [38.987722, 117.342475], aliases: ['南开大学材料学院'], note: '入口。' },
+  J51: { point: [38.986718, 117.342172], aliases: ['南开大学密码与网络空间安全学院', '密码学院', '密网学院'], note: '入口。' },
+  J52: { point: [38.985749, 117.33762], aliases: [], note: '入口。' },
+  J54: {
+    point: [38.985955, 117.341581],
+    entryPoints: [[38.985955, 117.341581], [38.986334, 117.340958]],
+    aliases: ['第二食堂', '学二食堂', '二食堂'],
+    note: '已保留两个入口坐标。',
+  },
+  J69: { point: [38.985894, 117.345504], aliases: ['业务西楼报告厅'], note: '入口。' },
 }
 
 const additionalAliases = {
@@ -190,7 +213,7 @@ const additionalAliases = {
   J38: ['文科篮球场'],
   J49: ['电光学院'],
   J50: ['材料学院'],
-  J51: ['计算机学院', '密码与网络安全学院', '网安学院', '人工智能学院'],
+  J51: ['计算机学院', '密码与网络安全学院', '网安学院'],
   J69: ['西楼报告厅', '综合业务西楼报告厅'],
   J72: ['前沿交叉学院', '前沿交叉楼', '前沿交叉中心'],
   J76: ['文科充电站'],
@@ -208,6 +231,11 @@ const jinnanOnlineOnlyLocations = [
   ['P07', '清真餐厅', 'service', [38.993018, 117.342183], ['清真食堂'], '清真餐厅门口；现场采集坐标。'],
   ['P08', '麦当劳', 'service', [38.993281, 117.341802], [], '麦当劳门口；现场采集坐标。'],
   ['P09', '快递站', 'service', [38.99442, 117.342483], ['快递柜', '文科快递柜'], '快递站门口；现场采集坐标。'],
+  ['P10', '南开大学品牌文化店', 'service', [38.985556, 117.34126], ['文创店', '校园文化店'], '门口；现场采集坐标。'],
+  ['P11', '肯德基', 'service', [38.985646, 117.340965], ['KFC'], '门口；现场采集坐标。'],
+  ['P12', '理科打印店', 'service', [38.985524, 117.341601], [], '入口楼梯；现场采集坐标。'],
+  ['P13', '理科快递站', 'service', [38.984454, 117.33868], [], '入口；现场采集坐标。'],
+  ['P14', '物美品超市', 'service', [38.99369, 117.342201], ['超市'], '入口；现场采集坐标。'],
 ]
 
 // These route landmarks are absent from the J01–J76 guide index. Their
@@ -407,8 +435,8 @@ export const jinnanLocations = jinnanRows.map(([number, name, category, x, y]) =
     name,
     category,
     imagePoint: { x, y },
-    geoPoint: geo?.[0] || (mvp?.point ? gcj02ToWgs84(mvp.point) : null),
-    geoSource: geo?.[1] || mvp?.source || (mvp ? '现场采集 GCJ-02 入口坐标' : null),
+    geoPoint: mvp?.point ? gcj02ToWgs84(mvp.point) : (geo?.[0] || null),
+    geoSource: mvp?.source || (mvp ? '现场采集 GCJ-02 入口坐标' : geo?.[1] || null),
     navigationPoint: mvp?.point || navigationPoints[number] || null,
     entryPoints: mvp?.entryPoints || (mvp?.point ? [mvp.point] : []),
     aliases: [...new Set([...(mvp?.aliases || []), ...(additionalAliases[number] || [])])],

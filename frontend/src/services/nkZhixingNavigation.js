@@ -122,15 +122,28 @@ export function findDestinationCandidates(text, campus) {
   const locations = latestMatches.filter((match) => match.aliasLength === longest).map((match) => match.location)
   if (locations.length) return [...new Map(locations.map((location) => [location.id, location])).values()]
 
-  const normalizedDestination = normalize(destinationText)
-  const typoTolerantMatches = (campus.locations || []).filter((location) => [location.name, ...(location.aliases || [])]
-    .map(normalize)
-    .some((alias) => alias.length >= 2 && isSingleCharacterTypo(normalizedDestination, alias)))
-  if (typoTolerantMatches.length) return typoTolerantMatches
+  if (!isNamedFacilityGate(destinationText)) {
+    const normalizedDestination = normalize(destinationText)
+    const typoTolerantMatches = (campus.locations || []).filter((location) => [location.name, ...(location.aliases || [])]
+      .map(normalize)
+      .some((alias) => normalizedDestination.length >= 3 && alias.length >= 3
+        && hasSingleCharacterTypoMatch(normalizedDestination, alias)))
+    if (typoTolerantMatches.length) return typoTolerantMatches
+  }
 
   const term = ['图书馆', '食堂', '宿舍', '体育馆', '教学楼', '校门', '大门', '医院', '广场']
     .find((item) => destinationText.includes(item))
   return term ? (campus.locations || []).filter((location) => location.name.includes(term)) : []
+}
+
+function hasSingleCharacterTypoMatch(left, right) {
+  if (isSingleCharacterTypo(left, right)) return true
+  const [shorter, longer] = left.length <= right.length ? [left, right] : [right, left]
+  if (longer.length <= shorter.length) return false
+  for (let start = 0; start <= longer.length - shorter.length; start += 1) {
+    if (isSingleCharacterTypo(shorter, longer.slice(start, start + shorter.length))) return true
+  }
+  return false
 }
 
 function isSingleCharacterTypo(left, right) {

@@ -220,7 +220,7 @@ test('retrieves reviewed college and building profiles for campus introductions'
   assert.ok(financeCollege?.placeProfile?.sources.some((source) => source.type === '公众号'))
 })
 
-test('keeps the complete Jinnan J01–J76 internal index searchable without inventing online coordinates', () => {
+test('keeps the complete Jinnan index searchable and exposes every collected POI online', () => {
   const locations = getCampusLocations('jinnan')
   const internalLocations = locations.filter((location) => location.numberKind === 'internal')
   const numbers = new Set(internalLocations.map((location) => location.number))
@@ -228,16 +228,23 @@ test('keeps the complete Jinnan J01–J76 internal index searchable without inve
   const geocoded = locations.filter((location) => location.geoPoint)
   const fieldLocations = locations.filter((location) => location.numberKind === 'field')
 
-  assert.equal(locations.length, 88)
+  assert.equal(locations.length, 93)
   assert.equal(internalLocations.length, 76)
   assert.equal(numbers.size, 76)
   assert.ok(expected.every((number) => numbers.has(number)))
   assert.ok(internalLocations.every((location) => location.imagePoint && location.name && location.category))
-  assert.equal(fieldLocations.length, 9)
+  assert.equal(fieldLocations.length, 14)
   assert.ok(fieldLocations.every((location) => location.geoPoint && location.navigationPoint))
-  assert.equal(geocoded.length, 34)
-  assert.equal(locations.filter((location) => location.geoSource?.includes('openstreetmap.org')).length, 15)
+  assert.equal(geocoded.length, 55)
+  assert.equal(locations.filter((location) => location.geoSource === '现场采集 GCJ-02 入口坐标').length, 41)
+  assert.equal(locations.filter((location) => location.geoSource?.includes('openstreetmap.org')).length, 7)
   assert.equal(locations.filter((location) => location.emergency).length, 1)
+
+  const publicTeachingA = locations.find((location) => location.number === 'J66')
+  assert.deepEqual(publicTeachingA.navigationPoint, [38.987653, 117.345338])
+  assert.deepEqual(publicTeachingA.entryPoints[0], [38.987653, 117.345338])
+  assert.ok(['南开大学品牌文化店', '肯德基', '理科打印店', '理科快递站', '物美品超市']
+    .every((name) => locations.some((location) => location.name === name && location.geoPoint)))
 })
 
 test('connects the submitted Jinnan place photos to searchable campus locations', () => {
