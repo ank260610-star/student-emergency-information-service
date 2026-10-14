@@ -56,6 +56,7 @@ const campus = {
     { id: 'lib', name: '中心图书馆', aliases: ['图书馆'] },
     { id: 'lib2', name: '科学图书馆', aliases: ['图书馆'] },
     { id: 'jinnan-public-teaching', name: '公共教学楼', aliases: ['公教楼'] },
+    { id: 'dorm-1a', name: '学1-A', aliases: ['学生宿舍学1-A'] },
   ],
 }
 
@@ -114,6 +115,8 @@ test('candidate selection uses the destination, preserves ambiguity, and prefers
   assert.deepEqual(findDestinationCandidates('去公教', campus).map((item) => item.id), ['jinnan-public-teaching'])
   assert.deepEqual(findDestinationCandidates('从西南门去实验新楼', campus), [])
   assert.deepEqual(findDestinationCandidates('我在西南门，中心图书馆咋走', campus).map((item) => item.id), ['lib'])
+  assert.deepEqual(findDestinationCandidates('去图书倌', campus).map((item) => item.id), ['lib', 'lib2'])
+  assert.deepEqual(findDestinationCandidates('去学一A', campus).map((item) => item.id), ['dorm-1a'])
 })
 
 test('short campus navigation commands resolve reviewed POI aliases', () => {
@@ -141,7 +144,7 @@ test('representative campus navigation phrases resolve within the active campus'
       ['去西南门', 'jinnan-southwest-gate'],
       ['去大通学活', 'jinnan-student-center'],
       ['去宁一书斋', 'jinnan-tour-t03'],
-      ['去人工智能学院', 'jinnan-location-j51'],
+      ['去人工智能学院', 'jinnan-location-j46'],
       ['去前沿交叉楼', 'jinnan-location-j72'],
       ['去马蹄湖文科小花园', 'jinnan-location-j74'],
     ],

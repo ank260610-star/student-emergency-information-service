@@ -102,6 +102,11 @@ const forcedMarkerIds = computed(() => (
   ])]
 ))
 const selectedLocation = computed(() => campusLocations.value.find((location) => location.id === selectedId.value))
+const mapGuideMessage = computed(() => {
+  if (selectedLocation.value) return `已选择“${selectedLocation.value.name}”，可以开始导航。`
+  if (livePosition.value) return '当前位置已就绪，请搜索或在地图上点选目标。'
+  return '请先使用当前位置，再搜索或在地图上点选目标。'
+})
 const searchResults = computed(() => normalizedQuery.value ? filteredLocations.value.slice(0, 8) : [])
 const geocodedCount = computed(() => campusLocations.value.filter((location) => location.geoPoint).length)
 const nearbyProfileLocation = computed(() => {
@@ -765,11 +770,22 @@ onBeforeUnmount(() => {
         <button type="button" @click="askAgentAboutQuery">向 NK 智行继续查询</button>
       </div>
 
-      <section class="map-start-hint" aria-label="地图使用引导">
-        <p><strong>下一步：</strong>先定位，再选目标；不确定名称时可直接问 NK 智行。</p>
+      <section class="map-start-hint" aria-label="地图使用引导" aria-live="polite">
+        <p><strong>下一步：</strong>{{ mapGuideMessage }}</p>
         <div>
-          <button type="button" class="map-start-locate" @click="useCurrentPosition">1. 使用当前位置</button>
-          <button type="button" @click="chooseDestination">2. 搜索或点选目标</button>
+          <button type="button" class="map-start-locate" :class="{ 'is-done': livePosition }" @click="useCurrentPosition">
+            {{ livePosition ? '✓ 已获取当前位置' : '1. 使用当前位置' }}
+          </button>
+          <button type="button" :class="{ 'is-current': livePosition && !selectedLocation }" @click="chooseDestination">
+            {{ selectedLocation ? '✓ 已选目标' : '2. 搜索或点选目标' }}
+          </button>
+          <button
+            v-if="selectedLocation"
+            type="button"
+            class="map-start-navigation"
+            :disabled="searchRoutePlanning || Boolean(pendingSearchNavigation)"
+            @click="navigateToSearchedLocation(selectedLocation)"
+          >{{ searchRoutePlanning || pendingSearchNavigation ? '正在准备路线…' : `3. 导航到${selectedLocation.name}` }}</button>
         </div>
       </section>
 
@@ -819,6 +835,18 @@ onBeforeUnmount(() => {
           紧急情况以学校官方通知和现场人员指引为准。
         </p>
       </div>
+
+      <aside v-if="selectedLocation" class="selected-location-quick" aria-live="polite">
+        <div>
+          <small>已选目标</small>
+          <strong>{{ selectedLocation.name }}</strong>
+        </div>
+        <button
+          type="button"
+          :disabled="searchRoutePlanning || Boolean(pendingSearchNavigation)"
+          @click="navigateToSearchedLocation(selectedLocation)"
+        >{{ pendingSearchNavigation ? '正在定位…' : searchRoutePlanning ? '正在规划…' : '从当前位置导航' }}</button>
+      </aside>
 
       <aside v-if="visibleNearbyProfile" class="nearby-place-notice" aria-live="polite">
         <span class="nearby-place-distance">附近 · 约 {{ Math.max(1, Math.round(visibleNearbyProfile.distance)) }} 米</span>

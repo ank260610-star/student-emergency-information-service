@@ -786,9 +786,25 @@ function locateUser({ initial = false, onError } = {}) {
   )
 }
 
-function requestInitialPosition() {
+async function requestInitialPosition() {
   if (disposed || !map || document.hidden || !props.requestInitialLocation || initialLocationRequested) return
   initialLocationRequested = true
+  const touchDevice = window.matchMedia('(any-pointer: coarse)').matches
+  if (touchDevice) {
+    try {
+      const permission = await navigator.permissions?.query?.({ name: 'geolocation' })
+      if (permission?.state !== 'granted') {
+        emit('status', '点击“使用当前位置”后再授权定位，安卓或微信内打开时请同时允许系统定位权限。')
+        return
+      }
+    } catch {
+      // Android WebViews often omit the Permissions API. In that case wait for
+      // the explicit user gesture instead of triggering a blocked prompt.
+      emit('status', '点击“使用当前位置”后再授权定位。')
+      return
+    }
+  }
+  if (disposed || document.hidden) return
   locateUser({ initial: true })
 }
 
