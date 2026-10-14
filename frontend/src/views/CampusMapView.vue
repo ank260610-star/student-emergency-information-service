@@ -574,8 +574,8 @@ async function rerouteFromCurrentPosition({ latitude, longitude, deviationMeters
   const requestId = ++rerouteRequestId
   const controller = new AbortController()
   rerouteController = controller
-  mapStatus.value = `检测到偏离路线约 ${deviationMeters} 米，正在重新规划…`
-  announceNavigation(`检测到已偏离原路线约 ${deviationMeters} 米，正在重新规划，请注意周边环境。`)
+  mapStatus.value = `已偏航约 ${deviationMeters} 米，正在重新规划路线…`
+  announceNavigation(`已偏航约 ${deviationMeters} 米，正在重新规划路线，请注意周边环境。`)
   try {
     const routeResult = await getRoute({
       origin: `${origin[1]},${origin[0]}`,
@@ -629,7 +629,10 @@ function handleOnlineMapUnavailable() {
 
 async function startLiveNavigation() {
   const requestCampus = campus.value
-  if (await ensureOnlineMap() && campus.value === requestCampus) interactiveMap.value?.startLiveNavigation()
+  const headingPermission = interactiveMap.value?.requestHeadingPermission()
+  if (await ensureOnlineMap() && campus.value === requestCampus) {
+    interactiveMap.value?.startLiveNavigation(headingPermission)
+  }
 }
 
 function stopLiveNavigation() {

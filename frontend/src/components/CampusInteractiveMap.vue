@@ -5,6 +5,7 @@ import CampusMapLoader from './CampusMapLoader.vue'
 import { categoryMeta, onlineMapProvider } from '../data/campusLocations'
 import { createGeolocationSession } from '../utils/geolocationSession'
 import {
+  bearingBetweenPoints,
   clampPointToViewportEdge,
   gcj02ToWgs84,
   distanceToPolylineMeters,
@@ -51,6 +52,12 @@ let resizeObserver = null
 let initialZoom = 0
 let loadingTimer = 0
 let trackedPoints = []
+let lastGeoPoint = null
+let currentHeading = null
+let lastMovementHeadingAt = 0
+let userLayerShowsHeading = false
+let orientationEventName = ''
+let headingPermissionPromise = null
 let plannedRoutePoints = []
 let consecutiveDeviationSamples = 0
 let lastDeviationNoticeAt = 0
@@ -500,9 +507,15 @@ function scheduleResize() {
 }
 
 function handleVisibilityChange() {
-  if (document.hidden) geolocationSession.suspend()
+  if (document.hidden) {
+    geolocationSession.suspend()
+    stopHeadingTracking()
+  }
   else {
     geolocationSession.resume()
+    if (liveNavigationActive.value && headingPermissionPromise) {
+      void startHeadingTracking(headingPermissionPromise)
+    }
     scheduleResize()
     requestInitialPosition()
   }
@@ -635,6 +648,96 @@ function removeLiveNavigationLayers() {
   accuracyLayer = null
   trackLayer = null
   trackedPoints = []
+  lastGeoPoint = null
+  currentHeading = null
+  lastMovementHeadingAt = 0
+  userLayerShowsHeading = false
+}
+
+function liveUserIcon() {
+  const knownClass = Number.isFinite(currentHeading) ? ' is-known' : ''
+  const heading = Number.isFinite(currentHeading) ? currentHeading : 0
+  return L.divIcon({
+    className: 'campus-user-heading-icon',
+    html: `<span class="campus-user-heading-marker${knownClass}" style="--user-heading:${heading}deg" aria-hidden="true"></span>`,
+    iconSize: [42, 42],
+    iconAnchor: [21, 21],
+    tooltipAnchor: [0, -23],
+  })
+}
+
+function updateHeadingMarker(heading, source = 'sensor') {
+  const rawHeading = Number(heading)
+  if (!Number.isFinite(rawHeading)) return
+  if (source === 'sensor' && Date.now() - lastMovementHeadingAt < 5000) return
+  const normalizedHeading = (rawHeading % 360 + 360) % 360
+  if (Number.isFinite(currentHeading)) {
+    const currentNormalized = (currentHeading % 360 + 360) % 360
+    const shortestTurn = (normalizedHeading - currentNormalized + 540) % 360 - 180
+    currentHeading += shortestTurn
+  } else {
+    currentHeading = normalizedHeading
+  }
+  const headingElement = userLayer?.getElement?.()?.querySelector('.campus-user-heading-marker')
+  if (!headingElement) return
+  headingElement.classList.add('is-known')
+  headingElement.style.setProperty('--user-heading', `${currentHeading}deg`)
+}
+
+function ensureLiveUserLayer(point) {
+  if (!userLayerShowsHeading) {
+    if (userLayer && map) map.removeLayer(userLayer)
+    userLayer = L.marker(point, {
+      icon: liveUserIcon(),
+      keyboard: false,
+      interactive: true,
+      zIndexOffset: 2200,
+    }).bindTooltip('你的位置与行进方向', { permanent: false, direction: 'top' }).addTo(map)
+    userLayerShowsHeading = true
+  } else {
+    userLayer.setLatLng(point)
+  }
+}
+
+function handleDeviceOrientation(event) {
+  let heading = event.webkitCompassHeading === null || event.webkitCompassHeading === undefined
+    ? Number.NaN
+    : Number(event.webkitCompassHeading)
+  if (!Number.isFinite(heading)) {
+    const alpha = event.alpha === null || event.alpha === undefined ? Number.NaN : Number(event.alpha)
+    if (!Number.isFinite(alpha) || (!event.absolute && orientationEventName !== 'deviceorientationabsolute')) return
+    const screenAngle = Number(window.screen?.orientation?.angle ?? window.orientation ?? 0)
+    heading = 360 - alpha + (Number.isFinite(screenAngle) ? screenAngle : 0)
+  }
+  updateHeadingMarker(heading)
+}
+
+function requestHeadingPermission() {
+  const orientation = window.DeviceOrientationEvent
+  if (typeof orientation?.requestPermission !== 'function') {
+    if (!headingPermissionPromise) headingPermissionPromise = Promise.resolve(true)
+    return headingPermissionPromise
+  }
+  if (!headingPermissionPromise) {
+    headingPermissionPromise = orientation.requestPermission()
+      .then((state) => state === 'granted')
+      .catch(() => false)
+  }
+  return headingPermissionPromise
+}
+
+async function startHeadingTracking(permissionPromise = requestHeadingPermission()) {
+  if (!await permissionPromise || disposed || !liveNavigationActive.value || orientationEventName) return
+  orientationEventName = 'ondeviceorientationabsolute' in window
+    ? 'deviceorientationabsolute'
+    : 'deviceorientation'
+  window.addEventListener(orientationEventName, handleDeviceOrientation, { passive: true })
+}
+
+function stopHeadingTracking() {
+  if (!orientationEventName) return
+  window.removeEventListener(orientationEventName, handleDeviceOrientation)
+  orientationEventName = ''
 }
 
 function updateLivePosition({ coords }) {
@@ -653,19 +756,27 @@ function updateLivePosition({ coords }) {
   }
 
   const point = L.latLng(mapPoint[0], mapPoint[1])
-  if (!userLayer) {
-    userLayer = L.circleMarker(point, {
-      radius: 8,
-      weight: 3,
-      color: '#fff',
-      fillColor: '#7e0c6e',
-      fillOpacity: 1,
-      className: 'campus-user-location',
-      zIndexOffset: 2200,
-    }).bindTooltip('你的位置', { permanent: false, direction: 'top' }).addTo(map)
+  const geoPoint = [latitude, longitude]
+  const reportedHeading = coords.heading === null || coords.heading === undefined
+    ? null
+    : Number(coords.heading)
+  if (Number.isFinite(reportedHeading)) {
+    lastMovementHeadingAt = Date.now()
+    updateHeadingMarker(reportedHeading, 'movement')
+  } else if (lastGeoPoint && L.latLng(lastGeoPoint).distanceTo(L.latLng(geoPoint)) >= 5) {
+    const walkingHeading = bearingBetweenPoints(lastGeoPoint, geoPoint)
+    if (Number.isFinite(walkingHeading)) {
+      lastMovementHeadingAt = Date.now()
+      updateHeadingMarker(walkingHeading, 'movement')
+    }
+  }
+  if (!lastGeoPoint || L.latLng(lastGeoPoint).distanceTo(L.latLng(geoPoint)) >= 5) lastGeoPoint = geoPoint
+
+  const firstLivePosition = !userLayerShowsHeading
+  ensureLiveUserLayer(point)
+  if (Number.isFinite(currentHeading)) updateHeadingMarker(currentHeading, 'movement')
+  if (firstLivePosition) {
     map.setView(point, Math.max(map.getZoom(), 17), { animate: false })
-  } else {
-    userLayer.setLatLng(point)
   }
 
   // Meter-based accuracy circles only make sense on geographic online maps.
@@ -735,7 +846,8 @@ function showCurrentPosition(position, { focus = false } = {}) {
   if (!mapPoint) return false
 
   const point = L.latLng(mapPoint[0], mapPoint[1])
-  if (userLayer) userLayer.setLatLng(point)
+  if (liveNavigationActive.value) ensureLiveUserLayer(point)
+  else if (userLayer) userLayer.setLatLng(point)
   else {
     userLayer = L.circleMarker(point, {
       radius: 8,
@@ -745,6 +857,7 @@ function showCurrentPosition(position, { focus = false } = {}) {
       fillOpacity: 1,
       className: 'campus-user-location',
     }).bindTooltip('你的位置', { permanent: false, direction: 'top' }).addTo(map)
+    userLayerShowsHeading = false
   }
 
   if (focus) {
@@ -757,11 +870,14 @@ function showCurrentPosition(position, { focus = false } = {}) {
   return true
 }
 
-function startLiveNavigation() {
-  return geolocationSession.start()
+function startLiveNavigation(permissionPromise = requestHeadingPermission()) {
+  const started = geolocationSession.start()
+  if (started) void startHeadingTracking(permissionPromise)
+  return started
 }
 
 function stopLiveNavigation(announce = true) {
+  stopHeadingTracking()
   geolocationSession.stop()
   removeLiveNavigationLayers()
   if (announce) emit('status', '实时导航已结束，当前位置与本次轨迹已从浏览器内存清除。')
@@ -861,6 +977,7 @@ defineExpose({
   resetView,
   showRoute,
   clearRoute,
+  requestHeadingPermission,
   startLiveNavigation,
   stopLiveNavigation,
   whenReady: () => mapReady,

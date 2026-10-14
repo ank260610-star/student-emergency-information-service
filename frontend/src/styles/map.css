@@ -893,6 +893,53 @@
   filter: drop-shadow(0 2px 3px rgba(10,55,95,.45));
 }
 
+.campus-user-heading-icon {
+  background: transparent;
+  border: 0;
+  filter: drop-shadow(0 2px 4px rgba(10,55,95,.42));
+}
+
+.campus-user-heading-marker {
+  position: relative;
+  display: block;
+  width: 42px;
+  height: 42px;
+  transform: rotate(var(--user-heading));
+  transition: transform .28s ease-out;
+}
+
+.campus-user-heading-marker::before {
+  position: absolute;
+  top: 1px;
+  left: 12px;
+  width: 0;
+  height: 0;
+  border-right: 9px solid transparent;
+  border-bottom: 24px solid #7e0c6e;
+  border-left: 9px solid transparent;
+  content: '';
+  opacity: 0;
+  transform-origin: 50% 20px;
+  transition: opacity .18s ease;
+}
+
+.campus-user-heading-marker.is-known::before {
+  opacity: 1;
+}
+
+.campus-user-heading-marker::after {
+  position: absolute;
+  top: 13px;
+  left: 13px;
+  width: 12px;
+  height: 12px;
+  border: 3px solid #fff;
+  border-radius: 50%;
+  background: #7e0c6e;
+  box-shadow: 0 0 0 2px rgba(126,12,110,.22);
+  content: '';
+}
+
 .campus-live-track {
   filter: drop-shadow(0 1px 2px rgba(10,55,95,.24));
 }

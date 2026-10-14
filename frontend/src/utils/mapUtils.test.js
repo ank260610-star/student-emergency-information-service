@@ -2,6 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { existsSync } from 'node:fs'
 import {
+  bearingBetweenPoints,
   clampPointToViewportEdge,
   distanceToPolylineMeters,
   gcj02ToWgs84,
@@ -15,6 +16,14 @@ import {
   shouldShowPriority,
   wgs84ToGcj02,
 } from './mapUtils.js'
+
+test('calculates walking bearings clockwise from north', () => {
+  assert.ok(Math.abs(bearingBetweenPoints([39, 117], [39.001, 117]) - 0) < 0.1)
+  assert.ok(Math.abs(bearingBetweenPoints([39, 117], [39, 117.001]) - 90) < 0.1)
+  assert.ok(Math.abs(bearingBetweenPoints([39, 117], [38.999, 117]) - 180) < 0.1)
+  assert.equal(bearingBetweenPoints([39, 117], [39, 117]), null)
+  assert.equal(bearingBetweenPoints(null, [39, 117]), null)
+})
 
 test('derives conservative text directions from route geometry', () => {
   const route = [
