@@ -172,6 +172,7 @@ test('keeps the Balitai history tour ordered from east gate to west gate', () =>
   assert.equal(tour.stopIds.at(0), 'balitai-east-gate')
   assert.equal(tour.stopIds.at(-1), 'balitai-location-89')
   assert.equal(tour.stopIds.length, 18)
+  assert.ok(campusTours.balitai.every((item) => item.introduction.length > 80))
   assert.ok(tour.stopIds.every((id) => locations.get(id)?.geoPoint))
   assert.ok([patriotic, publicAbility, striving].every((item) => (
     item.stopIds.at(0) === 'balitai-east-gate'
@@ -195,6 +196,7 @@ test('keeps the three Jinnan exploration routes ordered and routable', () => {
   ])
   assert.deepEqual(relax.stopIds, ['jinnan-location-j74', 'jinnan-gymnasium', 'jinnan-student-center'])
   assert.deepEqual(study.stopIds, ['jinnan-library', 'jinnan-tour-t03', 'jinnan-location-j72'])
+  assert.ok(campusTours.jinnan.every((tour) => tour.introduction.length > 80))
   assert.ok(campusTours.jinnan.every((tour) => (
     tour.stopIds.length >= 2
       && tour.stopIds.every((id) => locations.get(id)?.geoPoint && locations.get(id)?.navigationPoint)

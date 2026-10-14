@@ -1023,6 +1023,24 @@
   font-size: 9px;
 }
 
+.campus-tour-grid article .campus-tour-introduction {
+  min-height: 0;
+  padding: 10px;
+  border-left: 3px solid var(--purple);
+  color: #4f3c4b;
+  background: rgba(255,255,255,.78);
+  font-size: 10px;
+  line-height: 1.8;
+}
+
+.campus-tour-introduction strong {
+  display: block;
+  margin-bottom: 4px;
+  color: var(--purple-dark);
+  font-size: 9px;
+  letter-spacing: .08em;
+}
+
 .campus-tour-grid button, .campus-tour-actions button {
   padding: 7px 10px;
   border: 1px solid var(--purple);
