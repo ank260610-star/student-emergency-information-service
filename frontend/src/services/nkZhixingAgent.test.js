@@ -3,6 +3,7 @@ import assert from 'node:assert/strict'
 import {
   askNkZhixingAgent,
   askNkZhixingAgentWithNavigationFallback,
+  buildCuratedNarrativeFallback,
   consumeNkZhixingHandoff,
   extractNavigationDestination,
   getRoute,
@@ -118,6 +119,21 @@ test('known campus destinations keep routing when the agent returns an invalid a
     askNkZhixingAgentWithNavigationFallback(request),
     /有效回答/,
   )
+})
+
+test('builds a verified local place introduction when the agent is unavailable', () => {
+  assert.deepEqual(buildCuratedNarrativeFallback({
+    brief: '这里是南开大学金融学院在津南校区的教学、科研与学生事务场所。',
+    facts: '具体开放安排以学院官网和现场标识为准。',
+  }), {
+    answer: '这里是南开大学金融学院在津南校区的教学、科研与学生事务场所。 具体开放安排以学院官网和现场标识为准。',
+    steps: [],
+    mapUrl: '',
+    locationId: '',
+    warning: 'NK-GeniOS 讲解服务暂时繁忙，以上内容来自本站已审核的地点资料。',
+    fallback: true,
+  })
+  assert.equal(buildCuratedNarrativeFallback({}), null)
 })
 
 test('place lookup rejects empty, malformed, and out-of-range coordinates', async (t) => {

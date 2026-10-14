@@ -2,7 +2,13 @@
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { findLandmarkNarrative } from '../data/landmarkNarratives'
 import { findPlaceProfile } from '../data/placeProfiles'
-import { askNkZhixingAgentWithNavigationFallback, getRoute, NK_ZHIXING_MESSAGE_LIMIT, resolveCampusPlace } from '../services/nkZhixingAgent'
+import {
+  askNkZhixingAgentWithNavigationFallback,
+  buildCuratedNarrativeFallback,
+  getRoute,
+  NK_ZHIXING_MESSAGE_LIMIT,
+  resolveCampusPlace,
+} from '../services/nkZhixingAgent'
 import {
   buildAgentInstructions,
   extractNavigationDestination,
@@ -370,7 +376,15 @@ async function submit() {
     emit('route-status', `已显示：${originName} → ${destination.name} 的${travelModeLabels[mode]}路线（高德地图路线；目的地：${routeSource}）。`)
     speakResult(result.value)
   } catch (requestError) {
-    if (isCurrent() && !isAbortError(requestError)) error.value = requestError.message || '请求失败，请稍后再试。'
+    if (isCurrent() && !isAbortError(requestError)) {
+      const fallback = narrative ? buildCuratedNarrativeFallback(narrative) : null
+      if (fallback) {
+        result.value = fallback
+        speakResult(fallback)
+      } else {
+        error.value = requestError.message || '请求失败，请稍后再试。'
+      }
+    }
   } finally {
     if (isCurrent()) {
       landmarkNarrationMode.value = false

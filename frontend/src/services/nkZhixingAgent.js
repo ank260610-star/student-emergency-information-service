@@ -107,6 +107,21 @@ export async function askNkZhixingAgentWithNavigationFallback(request, {
   }
 }
 
+export function buildCuratedNarrativeFallback(narrative) {
+  const brief = typeof narrative?.brief === 'string' ? narrative.brief.trim() : ''
+  const facts = typeof narrative?.facts === 'string' ? narrative.facts.trim() : ''
+  const answer = [brief, facts].filter(Boolean).join(' ')
+  if (!answer) return null
+  return {
+    answer,
+    steps: [],
+    mapUrl: '',
+    locationId: '',
+    warning: 'NK-GeniOS 讲解服务暂时繁忙，以上内容来自本站已审核的地点资料。',
+    fallback: true,
+  }
+}
+
 export async function getRoute({ origin, destination, campus, mode = 'walking' }, { signal } = {}) {
   const payload = await postJson(ROUTE_API_PATH, { origin, destination, campus, mode }, {
     signal, timeoutMs: 20000, errorMessage: '路线轨迹暂时无法加载。',
