@@ -133,6 +133,22 @@ export function routePointDistance(start, end) {
   return Math.hypot(endX - startX, endY - startY)
 }
 
+// Clockwise bearing from geographic north. Used as a fallback on devices that
+// do not expose GeolocationCoordinates.heading while the user is walking.
+export function bearingBetweenPoints(start, end) {
+  if (!Array.isArray(start) || !Array.isArray(end)) return null
+  if (![...start, ...end].every(Number.isFinite)) return null
+  if (routePointDistance(start, end) < 1) return null
+
+  const startLatitude = start[0] * Math.PI / 180
+  const endLatitude = end[0] * Math.PI / 180
+  const longitudeDelta = (end[1] - start[1]) * Math.PI / 180
+  const y = Math.sin(longitudeDelta) * Math.cos(endLatitude)
+  const x = Math.cos(startLatitude) * Math.sin(endLatitude)
+    - Math.sin(startLatitude) * Math.cos(endLatitude) * Math.cos(longitudeDelta)
+  return (Math.atan2(y, x) * 180 / Math.PI + 360) % 360
+}
+
 export function orderStopsFromNearestEndpoint(stops, currentPoint) {
   const orderedStops = Array.isArray(stops) ? [...stops] : []
   if (orderedStops.length < 2) return { stops: orderedStops, reversed: false }
