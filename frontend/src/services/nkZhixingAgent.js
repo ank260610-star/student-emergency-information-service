@@ -151,6 +151,26 @@ export async function resolveCampusPlace({ campus, name, locationId = '' }, { si
   return [latitude, longitude]
 }
 
+export async function resolveNavigationDestination(location, campus, { signal } = {}) {
+  if (isNavigationPoint(location?.navigationPoint)) {
+    return {
+      point: [...location.navigationPoint],
+      source: location.geoSource || '本站自建 POI 入口坐标',
+      selfHosted: true,
+    }
+  }
+  const point = await resolveCampusPlace({
+    campus,
+    name: location?.name,
+    locationId: location?.id,
+  }, { signal })
+  return {
+    point,
+    source: '高德地图地点兜底',
+    selfHosted: false,
+  }
+}
+
 // Retained for existing callers while routes migrate to selectable mobility modes.
 export function getWalkingRoute(route, options) {
   return getRoute({ ...route, mode: 'walking' }, options)

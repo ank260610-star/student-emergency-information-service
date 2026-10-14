@@ -4,7 +4,7 @@ import { useRoute } from 'vue-router'
 import CampusInteractiveMap from '../components/CampusInteractiveMap.vue'
 import CampusMapControls from '../components/CampusMapControls.vue'
 import NkZhixingAgentPanel from '../components/NkZhixingAgentPanel.vue'
-import { consumeNkZhixingHandoff, getRoute, resolveCampusPlace } from '../services/nkZhixingAgent'
+import { consumeNkZhixingHandoff, getRoute, resolveNavigationDestination } from '../services/nkZhixingAgent'
 import { createNavigationSpeechTracker, speakNkZhixingResult } from '../services/nkZhixingSpeech'
 import {
   orderStopsFromNearestEndpoint,
@@ -364,17 +364,15 @@ async function navigateToSearchedLocation(location, { positionConfirmed = false 
   candidateLocationIds.value = []
   activeNavigation.value = null
   try {
-    mapStatus.value = `正在高德地图中确认“${location.name}”…`
-    const destinationPoint = await resolveCampusPlace({
-      campus: requestCampus,
-      name: location.name,
-      locationId: location.id,
-    }, { signal: controller.signal })
+    const destination = await resolveNavigationDestination(location, requestCampus, { signal: controller.signal })
+    const destinationPoint = destination.point
     if (disposed || requestId !== searchRouteRequestId || campus.value !== requestCampus) return
 
     const originPoint = wgs84ToGcj02(currentPoint)
     if (!originPoint) throw new Error('当前位置坐标格式无效，无法规划路线。')
-    mapStatus.value = `已在高德地图中确认“${location.name}”，正在规划步行路线…`
+    mapStatus.value = destination.selfHosted
+      ? `正在使用本站收录的“${location.name}”入口坐标规划步行路线…`
+      : `已通过高德地图兜底确认“${location.name}”，正在规划步行路线…`
     const routeResult = await getRoute({
       origin: `${originPoint[1]},${originPoint[0]}`,
       destination: `${destinationPoint[1]},${destinationPoint[0]}`,
@@ -392,18 +390,18 @@ async function navigateToSearchedLocation(location, { positionConfirmed = false 
       destination: {
         ...location,
         navigationPoint: destinationPoint,
-        routeSource: `高德地图地点检索：${location.name}`,
+        routeSource: destination.source,
       },
       mode: 'walking',
     }
     navigationSpeech.reset()
     const distance = formatRouteDistance(Number(routeResult.distanceMeters) || 0)
     const duration = Math.max(1, Math.round((Number(routeResult.durationSeconds) || 0) / 60))
-    mapStatus.value = `已按高德地图中的“${location.name}”生成从当前位置出发的步行路线：约 ${distance}，约 ${duration} 分钟。`
+    mapStatus.value = `已生成从当前位置到“${location.name}”的步行路线：约 ${distance}，约 ${duration} 分钟；目的地坐标来源：${destination.source}。`
     requestAnimationFrame(scrollToMap)
   } catch (error) {
     if (disposed || requestId !== searchRouteRequestId || controller.signal.aborted) return
-    mapStatus.value = error.message || `未能在高德地图中确认“${location.name}”，请换用更完整的地点名称。`
+    mapStatus.value = error.message || `未能规划前往“${location.name}”的路线，请稍后重试。`
   } finally {
     if (requestId === searchRouteRequestId) {
       searchRoutePlanning.value = false
