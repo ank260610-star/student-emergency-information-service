@@ -367,6 +367,7 @@ export const campusTours = {
       id: 'balitai-history-tour',
       name: '南开校史探索路线',
       summary: '东门出发，串联已采集校史地标，西门结束。地图紫线表示建议游览顺序，不替代步行道路导航。',
+      introduction: '百年南开，薪火相传。南开大学从风雨飘摇的近代中国走来，始终秉持“知中国，服务中国”的初心，谱写壮丽的教育救国史诗。我们凭吊严修、张伯苓两位先贤，寻访饱经烽火的思源堂与校钟，瞻仰忧国为民的周总理塑像，品读镌刻刚毅坚卓风骨的西南联大纪念碑。百年沧桑画卷，将伴足下步履缓缓铺展。',
       stopIds: [
         'balitai-east-gate',
         'balitai-haibing-building',
@@ -392,6 +393,7 @@ export const campusTours = {
       id: 'balitai-patriotic-tour',
       name: '爱国主题路线',
       summary: '从东门出发，串联周恩来纪念碑、于方舟烈士像、西南联大纪念碑与爱国三问碑。',
+      introduction: '2019 年 1 月 17 日，在南开大学百年华诞之际，习近平总书记亲临视察并嘱托：“南开大学具有光荣的爱国主义传统，这是南开的魂。”代代南开人将一腔赤忱化为报国之行，让青春弦歌响彻山河。本路线循迹校园，寻访志士遗踪，于一砖一瓦间体悟绵延不息的爱国精魂。',
       stopIds: [
         'balitai-east-gate',
         'balitai-zhou-enlai-monument',
@@ -407,6 +409,7 @@ export const campusTours = {
       id: 'balitai-public-ability-tour',
       name: '公能主题路线',
       summary: '围绕南开精神与治学传承，连接张伯苓塑像、海冰楼校史展览馆、主楼、校钟与新图书馆。',
+      introduction: '允公允能，日新月异。漫步八里台校园，踏访承载公能精神的各处地标，体悟“为公”之襟怀、“能为”之担当。回溯先贤立身治学之风，观照今人笃行实践，深悟校训要义，感受南开学子以学识立身、以仁心济世，凭才学回馈家国的高远情怀。',
       stopIds: [
         'balitai-east-gate',
         'balitai-haibing-building',
@@ -421,6 +424,7 @@ export const campusTours = {
       id: 'balitai-striving-tour',
       name: '奋斗主题路线',
       summary: '从东门步入学习与生活空间，串联综合实验楼、二主楼、化学楼、新图书馆、体育场和学生活动中心。',
+      introduction: '汲汲骎骎，月异日新，拼搏奋斗是每一位南开人之精神底色。这条路线穿行八里台校区，寻访先辈苦读旧地、后生勤学之所。回望先贤筚路蓝缕、克难兴学的岁月，体悟代代南开人求索求真、勇毅开拓的韧劲。缓步其间，汲取奋进力量，恪守允公允能之誓，将奋斗之志熔铸青春长路。',
       stopIds: [
         'balitai-east-gate',
         'balitai-laboratory',
@@ -438,6 +442,7 @@ export const campusTours = {
       id: 'jinnan-history-tour',
       name: '校史考察路线',
       summary: '从西门进入，经思源堂、木斋图书馆、西南联大纪念园和周总理雕像，最后到达大通学生活动中心。',
+      introduction: '老园历经的风雨传奇，于津南新址赓续绵延。依原貌复建的思源堂、木斋图书馆与秀山堂，凝存先辈筚路蓝缕的办学初心；大通学活内的校史展陈，娓娓叙说南开百载风华。一梁一瓦皆为箴言，时时警醒我辈，铭记来路，继往而开来。',
       stopIds: [
         'jinnan-west-gate',
         'jinnan-location-j42',
@@ -451,6 +456,7 @@ export const campusTours = {
       id: 'jinnan-relax-tour',
       name: '放松小憩路线',
       summary: '从马蹄湖文科小花园出发，经体育馆到大通学生活动中心，适合课间散步与短途休憩。',
+      introduction: '清风伴湖色，闲步赏清韶。本线串联马蹄湖、津南大草原、体育场与大通学生活动中心。沿湖徐行，静观涟漪漾漾；卧坐茵茵碧野，沐暖阳清光；体育场感受少年蓬勃意气，终至海棠形制的大通学活，聆琴音雅韵。于风物人文之间松弛心神，邂逅津南校园悠然诗意。',
       stopIds: [
         'jinnan-location-j74',
         'jinnan-gymnasium',
@@ -461,6 +467,7 @@ export const campusTours = {
       id: 'jinnan-study-tour',
       name: '学习科研路线',
       summary: '从中心图书馆出发，前往金融学院二层宁一弘道书斋，最后到达前沿交叉学科中心。',
+      introduction: '自中心图书馆的宏阔沉穆，至宁一弘道书斋的雅静古朴；从综合实验楼完备的科研设施，到前沿交叉研究院的尖端平台。津南校园处处皆是静思向学之所，可供沉心潜研、探求真知，在书香与仪器间奔赴学术山海。',
       stopIds: [
         'jinnan-library',
         'jinnan-tour-t03',

@@ -889,6 +889,9 @@ onBeforeUnmount(() => {
           <article v-for="tour in campusToursForCurrentCampus" :key="tour.id" :class="{ active: activeTourId === tour.id }">
             <h4>{{ tour.name }}</h4>
             <p>{{ tour.summary }}</p>
+            <p v-if="activeTourId === tour.id" class="campus-tour-introduction" aria-live="polite">
+              <strong>路线导语</strong>{{ tour.introduction }}
+            </p>
             <button type="button" :disabled="tourPlanning || Boolean(pendingTour)" @click="showCampusTour(tour)">
               {{ pendingTour?.tour.id === tour.id ? '正在获取位置…' : tourPlanning && activeTourId === tour.id ? '正在按道路规划…' : activeTourId === tour.id ? '已在地图显示' : '从当前位置规划' }}
             </button>
