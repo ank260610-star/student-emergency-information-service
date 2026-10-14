@@ -11,6 +11,7 @@ import {
   isNavigationRequest,
   NK_ZHIXING_MESSAGE_LIMIT,
   resolveCampusPlace,
+  resolveNavigationDestination,
   saveNkZhixingHandoff,
 } from './nkZhixingAgent.js'
 
@@ -156,6 +157,42 @@ test('place lookup rejects empty, malformed, and out-of-range coordinates', asyn
     globalThis.fetch = async () => ({ ok: true, json: async () => ({ coordinate }) })
     await assert.rejects(resolveCampusPlace(request), /坐标格式无效/)
   }
+})
+
+test('known POIs use their reviewed entrance coordinate without an AMap place lookup', async (t) => {
+  const fetch = t.mock.method(globalThis, 'fetch')
+  const location = {
+    id: 'jinnan-public-teaching',
+    name: '公共教学楼A',
+    navigationPoint: [38.987653, 117.345338],
+    geoSource: '现场采集 GCJ-02 入口坐标',
+  }
+  assert.deepEqual(await resolveNavigationDestination(location, 'jinnan'), {
+    point: [38.987653, 117.345338],
+    source: '现场采集 GCJ-02 入口坐标',
+    selfHosted: true,
+  })
+  assert.equal(fetch.mock.callCount(), 0)
+})
+
+test('unknown POIs retain the AMap place lookup as a fallback', async (t) => {
+  t.mock.method(globalThis, 'fetch', async (url, { body }) => {
+    assert.equal(url, '/api/nk-zhixing/place')
+    assert.deepEqual(JSON.parse(body), {
+      campus: 'jinnan',
+      name: '临时地点',
+      locationId: 'external-place',
+    })
+    return { ok: true, json: async () => ({ coordinate: '117.34,38.99' }) }
+  })
+  assert.deepEqual(await resolveNavigationDestination({
+    id: 'external-place',
+    name: '临时地点',
+  }, 'jinnan'), {
+    point: [38.99, 117.34],
+    source: '高德地图地点兜底',
+    selfHosted: false,
+  })
 })
 
 test('route lookup rejects unusable polylines and keeps walking compatibility', async (t) => {
