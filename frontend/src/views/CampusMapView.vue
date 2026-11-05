@@ -1,6 +1,7 @@
 <script setup>
 import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
+import VisitorExperience from '../components/VisitorExperience.vue'
 import CampusInteractiveMap from '../components/CampusInteractiveMap.vue'
 import CampusMapControls from '../components/CampusMapControls.vue'
 import NkZhixingAgentPanel from '../components/NkZhixingAgentPanel.vue'
@@ -21,6 +22,16 @@ import {
 } from '../data/campusLocations'
 
 const route = useRoute()
+const router = useRouter()
+const visitorMode = computed(() => route.query.experience === 'visitor')
+async function useVisitorQuestion(question) {
+  await nextTick()
+  nkZhixingPanel.value?.setQuestion(question)
+  scrollToAgent()
+}
+function exitVisitorMode() {
+  router.replace({ query: { ...route.query, experience: undefined } })
+}
 const agentHandoff = consumeNkZhixingHandoff()
 const routeCampus = ['balitai', 'jinnan'].includes(route.query.campus) ? route.query.campus : null
 const campus = ref(agentHandoff?.campus || routeCampus || 'balitai')
@@ -714,10 +725,13 @@ onBeforeUnmount(() => {
       <p>在校园导览图与在线地图之间切换，通过点选标号快速确认常用建筑。</p>
     </header>
 
+    <VisitorExperience v-if="visitorMode" :campus="campus" @question="useVisitorQuestion" @exit="exitVisitorMode" />
+    <RouterLink v-else class="button" to="/campus-map?experience=visitor">在校外？使用预设起点体验 →</RouterLink>
+
     <section class="campus-switcher" aria-labelledby="campus-title">
       <div class="section-heading compact">
         <span class="section-kicker"><i></i> 选择校区</span>
-        <h2 id="campus-title">你现在在哪个校区？</h2>
+        <h2 id="campus-title">{{ visitorMode ? '选择想体验的校区' : '你现在在哪个校区？' }}</h2>
       </div>
       <div class="campus-tabs" role="group" aria-label="校区切换">
         <button
@@ -814,7 +828,7 @@ onBeforeUnmount(() => {
           :candidate-ids="candidateLocationIds"
           :tour-stop-ids="activeTourStopIds"
           :current-position="livePosition"
-          :request-initial-location="true"
+          :request-initial-location="!visitorMode"
           @select="handleMapSelection"
           @clear-selection="clearMapSelection"
           @status="mapStatus = $event"

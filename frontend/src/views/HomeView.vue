@@ -59,6 +59,7 @@ function askNkZhixing() {
         <span class="section-kicker"><i></i> NK-GENIOS CAMPUS GUIDE</span>
         <h1 id="home-title">问路、找地点、办事情，<br /><em>先问 NK 智行。</em></h1>
         <p>选择校区，说出你现在的位置、目的地或遇到的问题，NK 智行会带你进入校园地图继续查找。</p>
+        <RouterLink class="button primary" to="/campus-map?experience=visitor">我在校外 · 体验校园导航 →</RouterLink>
 
         <form class="home-agent-form" @submit.prevent="askNkZhixing">
           <fieldset>

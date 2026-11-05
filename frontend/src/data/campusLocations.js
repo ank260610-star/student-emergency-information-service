@@ -15,7 +15,7 @@ export const categoryMeta = {
 export const onlineMapProvider = {
   // OSM's public tile service rejects or times out for some campus networks.
   // AMap's public base tiles keep the online view reachable in mainland China.
-  url: 'https://webrd01.is.autonavi.com/appmaptile?lang=zh_cn&size=1&scale=1&style=8&x={x}&y={y}&z={z}',
+  url: 'https://webrd02.is.autonavi.com/appmaptile?lang=zh_cn&size=1&scale=1&style=8&x={x}&y={y}&z={z}',
   attribution: '&copy; <a href="https://ditu.amap.com/">高德地图</a>',
   coordinateSystem: 'GCJ-02',
   maxZoom: 19,
